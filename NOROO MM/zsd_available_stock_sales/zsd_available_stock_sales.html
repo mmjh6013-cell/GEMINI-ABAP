@@ -1,0 +1,211 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>ZSD_AVAILABLE_STOCK_SALES</title>
+<style type="text/css">
+.code{ font-family:"Courier New", Courier, monospace; color:#000; font-size:14px; background-color:#F2F4F7 }
+  .codeComment {font-family:"Courier New", Courier, monospace; color:#0000F0; font-size:14px; background-color:#F2F4F7 }
+  .normalBold{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; font-weight:800 }
+  .normalBoldLarge{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+</style>
+<style type="text/css">
+  .normal{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px }
+  .footer{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; text-align: center }
+  h2{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+  h3{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:14px; font-weight:800 }
+  .outerTable{
+   background-color:#E0E7ED;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-right-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+  .innerTable{
+   background-color:#F2F4F7;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-bottom-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function ZSD_AVAILABLE_STOCK_SALES</h2>
+<h3> Description: </h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION zsd_available_stock_sales.<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local Interface:<br />
+*"  IMPORTING<br />
+*"     VALUE(I_PLANT) LIKE  BAPIMATVP-WERKS<br />
+*"     VALUE(I_MATERIAL) TYPE  MATNR18<br />
+*"     VALUE(I_UNIT) LIKE  BAPIADMM-UNIT<br />
+*"     VALUE(I_LGORT) LIKE  BAPICM61V-LGORT OPTIONAL<br />
+*"     VALUE(I_CHECK_RULE) LIKE  BAPIT441V-PRREG DEFAULT 'A'<br />
+*"     VALUE(I_VKORG) TYPE  VKORG DEFAULT '1000'<br />
+*"     VALUE(I_VTWEG) TYPE  VTWEG DEFAULT '10'<br />
+*"     VALUE(I_FLAG) TYPE  CHAR01 OPTIONAL<br />
+*"  EXPORTING<br />
+*"     VALUE(E_RETURN_GB) TYPE  CHAR01<br />
+*"     VALUE(E_ERR_MESSAGE) TYPE  CHAR100<br />
+*"  TABLES<br />
+*"      ET_STOCK_INFO STRUCTURE  ZSDS2030 OPTIONAL<br />
+*"----------------------------------------------------------------------<br />
+************************************************************************<br />
+* Module      : SD<br />
+* Program ID  : ZSD_AVAILABLE_STOCK_SALES<br />
+* Title       : [SD] 노루-판매용 가용재고 수량 (기본 : 내수용 가용 재고)<br />
+* Created By  : DEV_SD1<br />
+* Created On  : 2025.01.07<br />
+* Description : MM에서 호출<br />
+************************************************************************<br />
+*                         Modification History<br />
+*---------------------------------------------------------*<br />
+* No. ChangedBy ChangedOn  Description<br />
+*---------------------------------------------------------*<br />
+*<br />
+************************************************************************<br />
+
+<div class="codeComment">*       <a href ="global-zsd_available_stock_sales.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lv_plant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LIKE&nbsp;bapimatvp-werks,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_matnr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;matnr18,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_unit&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LIKE&nbsp;bapiadmm-unit,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_lgort&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LIKE&nbsp;bapicm61v-lgort,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_check_rule&nbsp;TYPE&nbsp;bapit441v-prreg.<br />
+<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lt_wmdvsx&nbsp;TYPE&nbsp;TABLE&nbsp;OF&nbsp;bapiwmdvs,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_wmdvex&nbsp;TYPE&nbsp;TABLE&nbsp;OF&nbsp;bapiwmdve,<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_return&nbsp;TYPE&nbsp;bapireturn.<br />
+<br />
+&nbsp;&nbsp;lv_plant&nbsp;=&nbsp;i_plant.<br />
+&nbsp;&nbsp;lv_matnr&nbsp;=&nbsp;i_material.<br />
+&nbsp;&nbsp;lv_unit&nbsp;=&nbsp;i_unit.<br />
+&nbsp;&nbsp;lv_check_rule&nbsp;=&nbsp;i_check_rule.<br />
+&nbsp;&nbsp;lv_lgort&nbsp;=&nbsp;i_lgort.<br />
+<br />
+&nbsp;&nbsp;"&nbsp;유효성&nbsp;체크<br />
+&nbsp;&nbsp;"&nbsp;성능&nbsp;개선을&nbsp;위해&nbsp;유효성&nbsp;체크&nbsp;제외<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;i_flag&nbsp;=&nbsp;''.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;플랜트<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;SINGLE&nbsp;mandt&nbsp;FROM&nbsp;t001w&nbsp;WHERE&nbsp;werks&nbsp;=&nbsp;@lv_plant&nbsp;INTO&nbsp;@sy-mandt.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;&lt;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;플랜트가&nbsp;존재하지&nbsp;않습니다<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;e_return_gb&nbsp;=&nbsp;gc_e.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;e_err_message&nbsp;=&nbsp;TEXT-e01.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CHECK&nbsp;e_return_gb&nbsp;&lt;&gt;&nbsp;gc_e.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;제품코드<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;SINGLE&nbsp;mandt&nbsp;FROM&nbsp;mara&nbsp;WHERE&nbsp;matnr&nbsp;=&nbsp;@lv_matnr&nbsp;INTO&nbsp;@sy-mandt.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;&lt;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;제품코드가&nbsp;존재하지&nbsp;않습니다.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;e_return_gb&nbsp;=&nbsp;gc_e.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;e_err_message&nbsp;=&nbsp;TEXT-e02.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CHECK&nbsp;e_return_gb&nbsp;&lt;&gt;&nbsp;gc_e.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;단위<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;SINGLE&nbsp;mandt&nbsp;FROM&nbsp;t006&nbsp;WHERE&nbsp;msehi&nbsp;=&nbsp;@lv_unit&nbsp;INTO&nbsp;@sy-mandt.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;&lt;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"단위가&nbsp;존재하지&nbsp;않습니다.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;e_return_gb&nbsp;=&nbsp;gc_e.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;e_err_message&nbsp;=&nbsp;TEXT-e03.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"저장위치<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_plant&nbsp;IS&nbsp;NOT&nbsp;INITIAL&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_lgort&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;SINGLE&nbsp;mandt&nbsp;FROM&nbsp;t001l&nbsp;WHERE&nbsp;werks&nbsp;=&nbsp;@lv_plant&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lgort&nbsp;=&nbsp;@lv_lgort&nbsp;INTO&nbsp;@sy-mandt.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;&lt;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"저장위치가&nbsp;존재하지&nbsp;않습니다.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;e_return_gb&nbsp;=&nbsp;gc_e.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;e_err_message&nbsp;=&nbsp;TEXT-e06.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;CHECK&nbsp;e_return_gb&nbsp;&lt;&gt;&nbsp;gc_e.<br />
+<br />
+&nbsp;&nbsp;SET&nbsp;PARAMETER&nbsp;ID&nbsp;'ZXATPU02_VKORG'&nbsp;FIELD&nbsp;i_vkorg.<br />
+&nbsp;&nbsp;SET&nbsp;PARAMETER&nbsp;ID&nbsp;'ZXATPU02_VTWEG'&nbsp;FIELD&nbsp;i_vtweg.<br />
+<br />
+&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'BAPI_MATERIAL_AVAILABILITY'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;plant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lv_plant<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;material&nbsp;&nbsp;&nbsp;=&nbsp;lv_matnr<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unit&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lv_unit<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;check_rule&nbsp;=&nbsp;lv_check_rule<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;stge_loc&nbsp;&nbsp;&nbsp;=&nbsp;lv_lgort<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_return<br />
+&nbsp;&nbsp;&nbsp;&nbsp;TABLES<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;wmdvsx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_wmdvsx<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;wmdvex&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_wmdvex.<br />
+<br />
+&nbsp;&nbsp;"&nbsp;memory&nbsp;id&nbsp;clear<br />
+&nbsp;&nbsp;SET&nbsp;PARAMETER&nbsp;ID&nbsp;'ZXATPU02_VKORG'&nbsp;FIELD&nbsp;space.<br />
+&nbsp;&nbsp;SET&nbsp;PARAMETER&nbsp;ID&nbsp;'ZXATPU02_VTWEG'&nbsp;FIELD&nbsp;space.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;lt_wmdvex[]&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;가용성&nbsp;점검&nbsp;오류<br />
+&nbsp;&nbsp;&nbsp;&nbsp;e_return_gb&nbsp;=&nbsp;gc_e.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;ls_return-message&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;e_err_message&nbsp;=&nbsp;ls_return-message.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;e_err_message&nbsp;=&nbsp;TEXT-e04.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;CHECK&nbsp;e_return_gb&nbsp;&lt;&gt;&nbsp;gc_e.<br />
+&nbsp;&nbsp;et_stock_info-plant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lv_plant.<br />
+&nbsp;&nbsp;et_stock_info-material&nbsp;=&nbsp;lv_matnr.<br />
+&nbsp;&nbsp;et_stock_info-com_qty&nbsp;=&nbsp;VALUE&nbsp;#(&nbsp;lt_wmdvex[&nbsp;1&nbsp;]-com_qty&nbsp;OPTIONAL&nbsp;).<br />
+&nbsp;&nbsp;et_stock_info-unit&nbsp;=&nbsp;lv_unit.<br />
+<br />
+&nbsp;&nbsp;APPEND&nbsp;et_stock_info.&nbsp;CLEAR&nbsp;et_stock_info.<br />
+<br />
+&nbsp;&nbsp;e_return_gb&nbsp;=&nbsp;gc_s.<br />
+&nbsp;&nbsp;e_err_message&nbsp;=&nbsp;''.<br />
+<br />
+<br />
+ENDFUNCTION.<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2025. Sap Release 758</td>
+   </tr>
+</table>
+</body>
+</html>

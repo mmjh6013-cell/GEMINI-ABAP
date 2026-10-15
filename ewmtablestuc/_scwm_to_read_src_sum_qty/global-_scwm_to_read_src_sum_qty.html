@@ -1,0 +1,146 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http ://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http ://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>/SCWM/LWT_MANTOP</title>
+<style type="text/css">
+.code{ font-family :"Courier New", Courier, monospace; color :#000; font-size :14px; background-color :#F2F4F7 }
+  .codeComment {font-family :"Courier New", Courier, monospace; color :#0000F0; font-size :14px; background-color :#F2F4F7 }
+  .normalBold{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; font-weight :800 }
+  .normalBoldLarge{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+</style>
+<style type="text/css">
+  .normal{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px }
+  .footer{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; text-align : center }
+  h2{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+  h3{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :14px; font-weight :800 }
+  .outerTable{
+   background-color :#E0E7ED;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-right-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+  .innerTable{
+   background-color :#F2F4F7;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-bottom-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for : /SCWM/LWT_MANTOP</h2>
+<h3> Description : Determine Open Pick Quantity for Storage Bin</h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION-POOL /scwm/wt_man.                 "MESSAGE-ID ..<br />
+<br />
+TYPES: BEGIN OF aisle_wts,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lgnum&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/lgnum,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lgtyp&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/lgtyp,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;queue&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/de_mfs_queue,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;to_no&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/de_pick_itm_aisle,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;END&nbsp;OF&nbsp;aisle_wts.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Global&nbsp;Tables<br />
+   </div>
+   <div class="code">
+DATA: gt_to_lock_o TYPE /scwm/tt_to_lock.<br />
+DATA: gt_to_lock_c TYPE /scwm/tt_to_lock.<br />
+DATA: gt_to_lock_l TYPE /scwm/tt_to_lock.<br />
+DATA: gt_wo_lock   TYPE /scwm/tt_wo_lock.<br />
+<br />
+<br />
+DATA:<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Global&nbsp;buffer&nbsp;tables&nbsp;for&nbsp;WTs<br />
+<br />
+<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;gt_ltap&nbsp;TYPE&nbsp;/scwm/tt_ltap_vb,<br />
+<br />
+&nbsp;&nbsp;gt_to_read_guid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_to_read_guid,<br />
+&nbsp;&nbsp;gt_to_read_hu_mfs&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_to_read_hu_mfs,<br />
+&nbsp;&nbsp;gt_to_read_idplate&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_to_read_idplate,<br />
+&nbsp;&nbsp;gt_to_read_mat&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_to_read_mat,<br />
+&nbsp;&nbsp;gt_to_read_sn&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_to_read_sn,<br />
+&nbsp;&nbsp;gt_to_read_wave&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_to_read_wave,<br />
+&nbsp;&nbsp;gt_to_read_single&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_to_read_single,<br />
+&nbsp;&nbsp;gt_to_read_aisle&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;STANDARD&nbsp;TABLE&nbsp;OF&nbsp;aisle_wts.<br />
+<br />
+<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Buffer&nbsp;for&nbsp;/SCWM/TO_READ_GUID<br />
+   </div>
+   <div class="code">
+DATA: gt_guid_tanum TYPE /scwm/tt_guid_tanum.<br />
+DATA: go_saf_wt_read type ref to /scwm/if_af_wt_read,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;go_buffer_manager&nbsp;type&nbsp;ref&nbsp;to&nbsp;/scwm/cl_wt_read_buffer.<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Global&nbsp;Constants<br />
+   </div>
+   <div class="code">
+TYPE-POOLS: wmegc.<br />
+<br />
+<br />
+LOAD-OF-PROGRAM.<br />
+"to be deleted before release.<br />
+"  get parameter id gc_wop_refactor field gv_wop_refactor.<br />
+try.<br />
+&nbsp;&nbsp;go_buffer_manager&nbsp;=&nbsp;CAST&nbsp;#(&nbsp;/scwm/cl_wt_read_buffer=&gt;get_instance(&nbsp;)&nbsp;).<br />
+&nbsp;&nbsp;catch&nbsp;/scwm/cx_af_wt_read.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ASSERT&nbsp;go_buffer_manager&nbsp;is&nbsp;bound.<br />
+endtry.<br />
+&nbsp;&nbsp;try.<br />
+&nbsp;&nbsp;go_saf_wt_read&nbsp;=&nbsp;CAST&nbsp;#(&nbsp;/scdl/cl_af_management=&gt;get_instance(&nbsp;&nbsp;)-&gt;get_service(&nbsp;iv_service&nbsp;=&nbsp;/scwm/if_af_wt_read=&gt;sc_me_as_service&nbsp;)&nbsp;).<br />
+&nbsp;&nbsp;catch&nbsp;/scwm/cx_af_wt_read.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ASSERT&nbsp;go_saf_wt_read&nbsp;is&nbsp;bound.<br />
+&nbsp;&nbsp;catch&nbsp;/scdl/cx_af_management.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ASSERT&nbsp;go_saf_wt_read&nbsp;is&nbsp;bound.<br />
+&nbsp;&nbsp;endtry.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;register&nbsp;warehouse&nbsp;task&nbsp;functionality&nbsp;for&nbsp;cleanup&nbsp;process<br />
+   </div>
+   <div class="code">
+"We can't be sure whether there has already been an instantiation of go_saf_wt_read before the load of program. So this additional cleanup call is necessary.<br />
+&nbsp;&nbsp;&nbsp;/scwm/cl_tm=&gt;register_cleanup_wt(&nbsp;).<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2026. Sap Release 816</td>
+   </tr>
+</table>
+</body>
+</html>

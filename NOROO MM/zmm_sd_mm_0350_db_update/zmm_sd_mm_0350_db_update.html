@@ -1,0 +1,217 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>ZMM_SD_MM_0350_DB_UPDATE</title>
+<style type="text/css">
+.code{ font-family:"Courier New", Courier, monospace; color:#000; font-size:14px; background-color:#F2F4F7 }
+  .codeComment {font-family:"Courier New", Courier, monospace; color:#0000F0; font-size:14px; background-color:#F2F4F7 }
+  .normalBold{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; font-weight:800 }
+  .normalBoldLarge{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+</style>
+<style type="text/css">
+  .normal{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px }
+  .footer{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; text-align: center }
+  h2{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+  h3{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:14px; font-weight:800 }
+  .outerTable{
+   background-color:#E0E7ED;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-right-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+  .innerTable{
+   background-color:#F2F4F7;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-bottom-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function ZMM_SD_MM_0350_DB_UPDATE</h2>
+<h3> Description: </h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION zmm_sd_mm_0350_db_update.<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local Interface:<br />
+*"  IMPORTING<br />
+*"     VALUE(IS_MKPF) LIKE  MKPF STRUCTURE  MKPF<br />
+*"  TABLES<br />
+*"      T_MSEG STRUCTURE  MSEG<br />
+*"----------------------------------------------------------------------<br />
+<br />
+
+<div class="codeComment">*       <a href ="global-zmm_sd_mm_0350_db_update.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;"&nbsp;입고&nbsp;시&nbsp;SD/MM&nbsp;&nbsp;연계&nbsp;테이블&nbsp;업데이트&nbsp;판매오더에&nbsp;연계된&nbsp;&nbsp;구매오더&nbsp;중<br />
+&nbsp;&nbsp;"&nbsp;입고&nbsp;수량이&nbsp;PO&nbsp;수량을&nbsp;충족할&nbsp;떄&nbsp;STATUS&nbsp;업데이트<br />
+<br />
+&nbsp;&nbsp;"&nbsp;MM/SD&nbsp;연계&nbsp;테이블<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lt_0350_old&nbsp;LIKE&nbsp;TABLE&nbsp;OF&nbsp;zmmt0350&nbsp;WITH&nbsp;HEADER&nbsp;LINE.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lt_log&nbsp;LIKE&nbsp;TABLE&nbsp;OF&nbsp;zmmt0350&nbsp;WITH&nbsp;HEADER&nbsp;LINE.<br />
+&nbsp;&nbsp;TYPES&nbsp;l_ty_t_mseg&nbsp;TYPE&nbsp;ty_t_mseg.<br />
+&nbsp;&nbsp;TYPES&nbsp;l_ts_zmmt0105&nbsp;TYPE&nbsp;&nbsp;mseg.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;ls_kortab&nbsp;TYPE&nbsp;zsds2024.&nbsp;&nbsp;&nbsp;"&nbsp;MM&nbsp;-&gt;SD&nbsp;가용성&nbsp;점검&nbsp;구조<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lt_kortab&nbsp;LIKE&nbsp;TABLE&nbsp;OF&nbsp;ls_kortab.&nbsp;&nbsp;&nbsp;"&nbsp;MM&nbsp;-&gt;SD&nbsp;가용성&nbsp;점검&nbsp;구조<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lv_module&nbsp;TYPE&nbsp;zsde_module.<br />
+<br />
+&nbsp;&nbsp;DATA(ls_mkpf)&nbsp;=&nbsp;is_mkpf.&nbsp;"자재전표&nbsp;헤더<br />
+&nbsp;&nbsp;DATA(lt_mseg)&nbsp;=&nbsp;t_mseg[]."자재전표&nbsp;품목<br />
+&nbsp;&nbsp;DATA(lt_ebeln)&nbsp;=&nbsp;t_mseg[].&nbsp;"&nbsp;PO&nbsp;축약용<br />
+<br />
+&nbsp;&nbsp;CONSTANTS&nbsp;lc_mm(2)&nbsp;TYPE&nbsp;c&nbsp;VALUE&nbsp;'MM'.<br />
+&nbsp;&nbsp;lv_module&nbsp;&nbsp;=&nbsp;lc_mm.<br />
+<br />
+&nbsp;&nbsp;"&nbsp;구매오더&nbsp;중복&nbsp;제거<br />
+&nbsp;&nbsp;SORT&nbsp;lt_ebeln&nbsp;BY&nbsp;ebeln&nbsp;ebelp.<br />
+&nbsp;&nbsp;SORT&nbsp;lt_MSEG&nbsp;BY&nbsp;ebeln&nbsp;ebelp.<br />
+<br />
+&nbsp;&nbsp;DELETE&nbsp;ADJACENT&nbsp;DUPLICATES&nbsp;FROM&nbsp;lt_ebeln&nbsp;COMPARING&nbsp;ebeln&nbsp;ebelp.<br />
+<br />
+&nbsp;&nbsp;"PO&nbsp;-&gt;&nbsp;SO/PO&nbsp;연계&nbsp;추출<br />
+&nbsp;&nbsp;SELECT&nbsp;a~*<br />
+&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;zmmt0350&nbsp;AS&nbsp;a<br />
+&nbsp;&nbsp;&nbsp;&nbsp;INNER&nbsp;JOIN&nbsp;@lt_ebeln&nbsp;AS&nbsp;b<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ON&nbsp;a~ebeln&nbsp;EQ&nbsp;b~ebeln<br />
+&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;a~ebelp&nbsp;EQ&nbsp;b~ebelp<br />
+&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;TABLE&nbsp;@DATA(lt_0350).<br />
+<br />
+&nbsp;&nbsp;CHECK&nbsp;lt_0350&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+<br />
+&nbsp;&nbsp;"&nbsp;구매오더&nbsp;품목&nbsp;별&nbsp;입고&nbsp;수량&nbsp;GET<br />
+&nbsp;&nbsp;SELECT&nbsp;&nbsp;a~ebeln,&nbsp;a~ebelp,&nbsp;SUM(&nbsp;CASE&nbsp;WHEN&nbsp;a~shkzg&nbsp;EQ&nbsp;'S'&nbsp;THEN&nbsp;a~menge<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHEN&nbsp;a~shkzg&nbsp;EQ&nbsp;'H'&nbsp;THEN&nbsp;a~menge&nbsp;*&nbsp;-1&nbsp;END&nbsp;)&nbsp;AS&nbsp;sum_menge<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;c~menge&nbsp;AS&nbsp;po_menge&nbsp;,&nbsp;b~meins<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;ekbe&nbsp;AS&nbsp;a<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INNER&nbsp;JOIN&nbsp;@lt_ebeln&nbsp;AS&nbsp;b<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ON&nbsp;a~ebeln&nbsp;EQ&nbsp;b~ebeln<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;a~ebelp&nbsp;EQ&nbsp;b~ebelp<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INNER&nbsp;JOIN&nbsp;ekpo&nbsp;AS&nbsp;c<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ON&nbsp;a~ebeln&nbsp;EQ&nbsp;c~ebeln<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;a~ebelp&nbsp;EQ&nbsp;c~ebelp<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;a~vgabe&nbsp;EQ&nbsp;1&nbsp;"입고<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GROUP&nbsp;BY&nbsp;a~ebeln,&nbsp;a~ebelp,&nbsp;c~menge,&nbsp;b~meins<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;TABLE&nbsp;@DATA(lt_gr_sum).<br />
+<br />
+&nbsp;&nbsp;SORT&nbsp;lt_gr_sum&nbsp;BY&nbsp;ebeln&nbsp;ebelp.<br />
+<br />
+<br />
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;lt_0350&nbsp;INTO&nbsp;DATA(ls_LOOP).<br />
+<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"신규&nbsp;전기한&nbsp;수량&nbsp;&nbsp;축약&nbsp;DB&nbsp;반영&nbsp;전<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DATA(ls_POST)&nbsp;=&nbsp;REDUCE&nbsp;l_ts_zmmt0105(&nbsp;INIT&nbsp;hs_dt_reduce&nbsp;TYPE&nbsp;l_ts_zmmt0105&nbsp;"<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FOR&nbsp;&lt;hs_dt_reduce&gt;&nbsp;IN&nbsp;lt_mseg&nbsp;WHERE&nbsp;(&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ebeln&nbsp;=&nbsp;ls_loop-ebeln<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;ebelp&nbsp;=&nbsp;ls_loop-ebelp&nbsp;)<br />
+   </div>
+   <div class="codeComment">
+*                                           NEXT  hs_dt_reduce-menge += &lt;hs_dt_reduce&gt;-menge<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NEXT&nbsp;&nbsp;hs_dt_reduce-menge&nbsp;+=&nbsp;COND&nbsp;#(&nbsp;WHEN&nbsp;&lt;hs_dt_reduce&gt;-shkzg&nbsp;EQ&nbsp;'H'&nbsp;THEN&nbsp;&lt;hs_dt_reduce&gt;-menge&nbsp;*&nbsp;-1&nbsp;ELSE&nbsp;&lt;hs_dt_reduce&gt;-menge&nbsp;)<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"전기된&nbsp;수량<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DATA(ls_post_done)&nbsp;=&nbsp;VALUE&nbsp;#(&nbsp;lt_gr_sum[&nbsp;ebeln&nbsp;=&nbsp;ls_loop-ebeln<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ebelp&nbsp;=&nbsp;ls_loop-ebelp&nbsp;]&nbsp;OPTIONAL&nbsp;).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;기전기&nbsp;수량&nbsp;+&nbsp;신규&nbsp;전기&nbsp;수량<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DATA(lv_sum_menge)&nbsp;=&nbsp;ls_post_done-sum_menge&nbsp;+&nbsp;ls_post-menge.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"입력&nbsp;단위는&nbsp;전기&nbsp;단위<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DATA(lv_meins)&nbsp;=&nbsp;VALUE&nbsp;#(&nbsp;lt_mseg[&nbsp;ebeln&nbsp;=&nbsp;ls_loop-ebeln<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ebelp&nbsp;=&nbsp;ls_loop-ebelp&nbsp;]-meins&nbsp;OPTIONAL&nbsp;).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;입고&nbsp;시&nbsp;입력수량&nbsp;및&nbsp;단위는&nbsp;계속&nbsp;업데이트<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_loop-erfmg&nbsp;=&nbsp;lv_sum_menge.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_loop-erfme&nbsp;=&nbsp;lv_meins.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_loop-aedat&nbsp;=&nbsp;sy-datum.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_loop-aezet&nbsp;=&nbsp;sy-timlo.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_loop-aenam&nbsp;=&nbsp;sy-uname.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;""GR&nbsp;상태&nbsp;업데이트<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"최종입고일의&nbsp;경우&nbsp;&nbsp;취소&nbsp;수량을&nbsp;제외하고&nbsp;0이&nbsp;넘어가는&nbsp;경우&nbsp;최종입고일&nbsp;업데이트<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;ls_post-menge&nbsp;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_loop-budat&nbsp;=&nbsp;ls_mkpf-budat.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CASE&nbsp;ls_loop-gr_stat.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHEN&nbsp;'X'.&nbsp;"입고완료된&nbsp;경우<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;ls_loop-zmm_req_qty&nbsp;&gt;&nbsp;lv_sum_menge.&nbsp;"입고&nbsp;완료된&nbsp;경우인데&nbsp;취소와&nbsp;같은&nbsp;이유로&nbsp;PO&nbsp;수량&nbsp;&gt;&nbsp;GR&nbsp;수량이&nbsp;된&nbsp;경우&nbsp;STAT&nbsp;초기화<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;:&nbsp;ls_loop-gr_stat,&nbsp;ls_loop-budat.&nbsp;"&nbsp;GR&nbsp;상태,&nbsp;전기일(최종입고일)&nbsp;클리어<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHEN&nbsp;OTHERS.&nbsp;"입고&nbsp;미완료&nbsp;데이터의&nbsp;경우<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;ls_loop-zmm_req_qty&nbsp;=&lt;&nbsp;lv_sum_menge.&nbsp;&nbsp;"po&nbsp;요청&nbsp;수량&nbsp;&lt;&nbsp;GR&nbsp;수량된&nbsp;경우&nbsp;&nbsp;&lt;&nbsp;GR&nbsp;수량이&nbsp;된&nbsp;경우&nbsp;STAT<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_loop-gr_stat&nbsp;=&nbsp;gc_x.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"입고&nbsp;완료&nbsp;시&nbsp;sd&nbsp;가용성&nbsp;점검&nbsp;펑션&nbsp;스타트<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;SD&nbsp;가용성&nbsp;점검&nbsp;펑션&nbsp;실행&nbsp;START<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_kortab&nbsp;=&nbsp;CORRESPONDING&nbsp;#(&nbsp;ls_loop&nbsp;EXCEPT&nbsp;mbdat&nbsp;vmeng&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_kortab-mbdat&nbsp;=&nbsp;ls_mkpf-budat.&nbsp;"&nbsp;전기일<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_kortab-vmeng&nbsp;=&nbsp;lv_sum_menge.&nbsp;"&nbsp;mm&nbsp;구매입고&nbsp;총&nbsp;수량<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_kortab&nbsp;TO&nbsp;lt_kortab.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDCASE.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;MODIFY&nbsp;&nbsp;lt_0350&nbsp;FROM&nbsp;ls_loop.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;:&nbsp;lv_sum_menge,&nbsp;ls_kortab.<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*" db 업데이트<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;IF&nbsp;lt_0350[]&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;MODIFY&nbsp;zmmt0350&nbsp;FROM&nbsp;TABLE&nbsp;lt_0350[].<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;lt_kortab&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;:&nbsp;gt_kortab.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;gt_kortab&nbsp;=&nbsp;lt_kortab[].<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;sd_atp_check.<br />
+<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+ENDFUNCTION.<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2025. Sap Release 758</td>
+   </tr>
+</table>
+</body>
+</html>

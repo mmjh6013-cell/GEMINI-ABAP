@@ -1,0 +1,421 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http ://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http ://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>/SCWM/STCKDET_GET_SCORE_TAB</title>
+<style type="text/css">
+.code{ font-family :"Courier New", Courier, monospace; color :#000; font-size :14px; background-color :#F2F4F7 }
+  .codeComment {font-family :"Courier New", Courier, monospace; color :#0000F0; font-size :14px; background-color :#F2F4F7 }
+  .normalBold{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; font-weight :800 }
+  .normalBoldLarge{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+</style>
+<style type="text/css">
+  .normal{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px }
+  .footer{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; text-align : center }
+  h2{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+  h3{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :14px; font-weight :800 }
+  .outerTable{
+   background-color :#E0E7ED;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-right-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+  .innerTable{
+   background-color :#F2F4F7;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-bottom-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function /SCWM/STCKDET_GET_SCORE_TAB</h2>
+<h3> Description : Determine Prioritized List of Stocks in Stock Determination</h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION /scwm/stckdet_get_score_tab.<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local Interface:<br />
+*"  IMPORTING<br />
+*"     REFERENCE(IS_LTAP) TYPE  /SCWM/LTAP<br />
+*"     REFERENCE(IT_TSTCKDET) TYPE  /SCWM/TT_TSTCKDET<br />
+*"     REFERENCE(IV_BATCH_REQ) TYPE  /SCMB/DE_BATCH_REQ<br />
+*"  EXPORTING<br />
+*"     REFERENCE(ET_STCKSCORE) TYPE  /SCWM/TT_STCKSCORE<br />
+*"  RAISING<br />
+*"      /SCWM/CX_CORE<br />
+*"----------------------------------------------------------------------<br />
+<br />
+
+<div class="codeComment">*       <a href ="global-_scwm_stckdet_get_score_tab.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;DATA:&nbsp;lt_stock&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/lime/t_query_stock.<br />
+<br />
+&nbsp;&nbsp;DATA:&nbsp;ls_lgnum&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/SCWM/s_lgnum_r,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_stock&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/lime/query_stock_global,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_owner&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/lime/s_owner,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_cat&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/lime/s_cat,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_matid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/s_matid_r,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_batchid&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/s_batchid_r,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_stckscore&nbsp;TYPE&nbsp;/scwm/s_stckscore.<br />
+<br />
+&nbsp;&nbsp;DATA:&nbsp;lv_severity&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;bapi_mtype,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_owner_all&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;xfeld,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_cat_all&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;xfeld,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_owner_value_input&nbsp;TYPE&nbsp;/lime/owner,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_owner_value_allow&nbsp;TYPE&nbsp;/lime/owner.<br />
+<br />
+&nbsp;&nbsp;FIELD-SYMBOLS:&nbsp;&lt;tstckdet&gt;&nbsp;TYPE&nbsp;/scwm/tstckdet,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;stock&gt;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/lime/query_stock.<br />
+<br />
+&nbsp;&nbsp;CLEAR&nbsp;ls_lgnum.<br />
+&nbsp;&nbsp;ls_lgnum-sign&nbsp;&nbsp;&nbsp;=&nbsp;'I'.<br />
+&nbsp;&nbsp;ls_lgnum-option&nbsp;=&nbsp;'EQ'.<br />
+&nbsp;&nbsp;ls_lgnum-low&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_ltap-lgnum.<br />
+&nbsp;&nbsp;APPEND&nbsp;ls_lgnum&nbsp;TO&nbsp;ls_stock-s_range-r_lgnum_stock.<br />
+<br />
+&nbsp;&nbsp;CLEAR&nbsp;ls_matid.<br />
+&nbsp;&nbsp;ls_matid-sign&nbsp;&nbsp;&nbsp;=&nbsp;'I'.<br />
+&nbsp;&nbsp;ls_matid-option&nbsp;=&nbsp;'EQ'.<br />
+&nbsp;&nbsp;ls_matid-low&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_ltap-matid.<br />
+&nbsp;&nbsp;APPEND&nbsp;ls_matid&nbsp;TO&nbsp;ls_stock-s_range-r_matid.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;NOT&nbsp;is_ltap-batchid&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;ls_batchid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_batchid-sign&nbsp;&nbsp;&nbsp;=&nbsp;'I'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_batchid-option&nbsp;=&nbsp;'EQ'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_batchid-low&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_ltap-batchid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_batchid&nbsp;TO&nbsp;ls_stock-s_range-r_batchid.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;it_tstckdet&nbsp;ASSIGNING&nbsp;&lt;tstckdet&gt;.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'CONVERSION_EXIT_ALPHA_INPUT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;input&nbsp;&nbsp;=&nbsp;&lt;tstckdet&gt;-value_input<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;output&nbsp;=&nbsp;lv_owner_value_input.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'CONVERSION_EXIT_ALPHA_INPUT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;input&nbsp;&nbsp;=&nbsp;&lt;tstckdet&gt;-value_allow<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;output&nbsp;=&nbsp;lv_owner_value_allow.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CASE&nbsp;&lt;tstckdet&gt;-st_attr.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHEN&nbsp;wmegc_attr_owner.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHECK&nbsp;is_ltap-stock_usage&nbsp;=&nbsp;wmegc_usage_own&nbsp;OR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_ltap-stock_usage&nbsp;=&nbsp;wmegc_usage_consignment.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHECK&nbsp;lv_owner_value_input&nbsp;=&nbsp;is_ltap-owner.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;&lt;tstckdet&gt;-value_allow&nbsp;=&nbsp;'*'.<br />
+   </div>
+   <div class="codeComment">
+*         All Owners allowed.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;ls_stock-s_range-r_owner.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_owner_all&nbsp;=&nbsp;'X'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_owner_all&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;ls_owner.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_owner-sign&nbsp;=&nbsp;'I'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_owner-option&nbsp;=&nbsp;'EQ'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_owner-low&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lv_owner_value_allow.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_owner&nbsp;TO&nbsp;ls_stock-s_range-r_owner.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHEN&nbsp;wmegc_attr_cat.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHECK&nbsp;&lt;tstckdet&gt;-value_input&nbsp;=&nbsp;is_ltap-cat.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;&lt;tstckdet&gt;-value_allow&nbsp;=&nbsp;'*'.<br />
+   </div>
+   <div class="codeComment">
+*         All Catorgories allowed.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;ls_stock-s_range-r_cat.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_cat_all&nbsp;=&nbsp;'X'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_cat_all&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;ls_cat.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_cat-sign&nbsp;=&nbsp;'I'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_cat-option&nbsp;=&nbsp;'EQ'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_cat-low&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&lt;tstckdet&gt;-value_allow.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_cat&nbsp;TO&nbsp;ls_stock-s_range-r_cat.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHEN&nbsp;OTHERS.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDCASE.<br />
+<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;NOT&nbsp;is_ltap-owner&nbsp;IS&nbsp;INITIAL&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_owner_all&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;ls_stock-s_range-r_owner&nbsp;TRANSPORTING&nbsp;NO&nbsp;FIELDS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WITH&nbsp;KEY&nbsp;low&nbsp;=&nbsp;is_ltap-owner.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;&lt;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;ls_owner.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_owner-sign&nbsp;=&nbsp;'I'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_owner-option&nbsp;=&nbsp;'EQ'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_owner-low&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_ltap-owner.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_owner&nbsp;TO&nbsp;ls_stock-s_range-r_owner.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;NOT&nbsp;is_ltap-cat&nbsp;IS&nbsp;INITIAL&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_cat_all&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;ls_stock-s_range-r_cat&nbsp;TRANSPORTING&nbsp;NO&nbsp;FIELDS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WITH&nbsp;KEY&nbsp;low&nbsp;=&nbsp;is_ltap-cat.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;&lt;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;ls_cat.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_cat-sign&nbsp;=&nbsp;'I'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_cat-option&nbsp;=&nbsp;'EQ'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_cat-low&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_ltap-cat.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_cat&nbsp;TO&nbsp;ls_stock-s_range-r_cat.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;NOT&nbsp;iv_batch_req&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_stock-idx&nbsp;=&nbsp;wmegc_idx_batch.<br />
+&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_stock-idx&nbsp;=&nbsp;wmegc_idx_mat.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;NOT&nbsp;is_ltap-doccat&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_stock-idx&nbsp;=&nbsp;wmegc_idx_refdoc.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;NOT&nbsp;is_ltap-stock_doccat&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_stock-idx&nbsp;=&nbsp;wmegc_idx_specstock.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/LIME/QUERY_GUID'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_stock&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_stock<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i_shadow_flag&nbsp;=&nbsp;'X'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_stock&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_stock<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;e_rc_severity&nbsp;=&nbsp;lv_severity.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;lv_severity&nbsp;CA&nbsp;'AE'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;e100(/scwm/l3)&nbsp;INTO&nbsp;gv_msgtext.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;METHOD&nbsp;go_prot-&gt;add_message(&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RAISE&nbsp;EXCEPTION&nbsp;TYPE&nbsp;/scwm/cx_core.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* fake an entry with necessary data: owner&stock type<br />
+* in case there is no stock for the product in the system<br />
+* otherwise putaway task cannot be created<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;IF&nbsp;lt_stock&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lt_stock&nbsp;=&nbsp;VALUE&nbsp;#(&nbsp;(&nbsp;matid&nbsp;=&nbsp;is_ltap-matid&nbsp;owner&nbsp;=&nbsp;is_ltap-owner&nbsp;cat&nbsp;=&nbsp;is_ltap-cat&nbsp;)&nbsp;).<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;SORT&nbsp;lt_stock&nbsp;BY&nbsp;owner&nbsp;cat.<br />
+&nbsp;&nbsp;DELETE&nbsp;ADJACENT&nbsp;DUPLICATES&nbsp;FROM&nbsp;lt_stock&nbsp;COMPARING&nbsp;owner&nbsp;cat.<br />
+<br />
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;lt_stock&nbsp;ASSIGNING&nbsp;&lt;stock&gt;.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;ls_stckscore.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;MOVE-CORRESPONDING&nbsp;&lt;stock&gt;&nbsp;TO&nbsp;ls_stckscore.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*   Add Score for Owner<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;it_tstckdet&nbsp;ASSIGNING&nbsp;&lt;tstckdet&gt;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WITH&nbsp;KEY&nbsp;st_attr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;wmegc_attr_owner<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value_input&nbsp;=&nbsp;is_ltap-owner<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value_allow&nbsp;=&nbsp;&lt;stock&gt;-owner.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ADD&nbsp;&lt;tstckdet&gt;-score&nbsp;TO&nbsp;ls_stckscore-score.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSEIF&nbsp;&lt;stock&gt;-owner&nbsp;=&nbsp;is_ltap-owner.<br />
+   </div>
+   <div class="codeComment">
+*     Same Owner gets Maximum Score (100) if not in table<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ADD&nbsp;100&nbsp;TO&nbsp;ls_stckscore-score.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;it_tstckdet&nbsp;ASSIGNING&nbsp;&lt;tstckdet&gt;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WITH&nbsp;KEY&nbsp;st_attr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;wmegc_attr_owner<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value_input&nbsp;=&nbsp;is_ltap-owner<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value_allow&nbsp;=&nbsp;'*'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ADD&nbsp;&lt;tstckdet&gt;-score&nbsp;TO&nbsp;ls_stckscore-score.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+   </div>
+   <div class="codeComment">
+*   Add Score for Category<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;it_tstckdet&nbsp;ASSIGNING&nbsp;&lt;tstckdet&gt;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WITH&nbsp;KEY&nbsp;st_attr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;wmegc_attr_cat<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value_input&nbsp;=&nbsp;is_ltap-cat<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value_allow&nbsp;=&nbsp;&lt;stock&gt;-cat.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ADD&nbsp;&lt;tstckdet&gt;-score&nbsp;TO&nbsp;ls_stckscore-score.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSEIF&nbsp;&lt;stock&gt;-cat&nbsp;=&nbsp;is_ltap-cat.<br />
+   </div>
+   <div class="codeComment">
+*     Same Category gets Maximum Score (100) if not in table<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ADD&nbsp;100&nbsp;TO&nbsp;ls_stckscore-score.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;it_tstckdet&nbsp;ASSIGNING&nbsp;&lt;tstckdet&gt;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WITH&nbsp;KEY&nbsp;st_attr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;wmegc_attr_cat<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value_input&nbsp;=&nbsp;is_ltap-cat<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value_allow&nbsp;=&nbsp;'*'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ADD&nbsp;&lt;tstckdet&gt;-score&nbsp;TO&nbsp;ls_stckscore-score.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_stckscore&nbsp;TO&nbsp;et_stckscore.<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+ENDFUNCTION.<br />
+<br />
+<br />
+   </div>
+   <div class="codeComment">
+*Messages<br />
+*----------------------------------------------------------<br />
+*<br />
+* Message class : /SCMB/ESA_EMULATION<br />
+*021   Save cancelled; Objects will be reset<br />
+*<br />
+* Message class : /SCWM/CORE_API<br />
+*003   Process not supported: Parameter &1<br />
+*004   Call not allowed for goods receipt at warehouse task confirmation<br />
+*112   Quantity increase not allowed for inbound delivery<br />
+*<br />
+* Message class : /SCWM/FL_CD<br />
+*016   Process-oriented storage control skipped for WT with reference to FL CD<br />
+*<br />
+* Message class : /SCWM/GM<br />
+*022   Warehouse task &1 created<br />
+*101   You can't automatically post stock with type &1 to own stock (WT &2)<br />
+*<br />
+* Message class : /SCWM/HU_WM<br />
+*027   Product &1 does not exist in warehouse &2<br />
+*<br />
+* Message class : /SCWM/L3<br />
+*001   Warehouse process type &1 is not allowed (check your entry)<br />
+*022   Whse task & does not exist in whse no. & or is already conf. or canceled<br />
+*040   Maintain the number range interval &1 for warehouse tasks<br />
+*041   Check number range interval &1 for warehouse tasks (nearly finished)<br />
+*089   Transportation unit can be moved within the yard only<br />
+*092   HU &1 is already loaded<br />
+*100   An internal error has occurred<br />
+*113   Low stock check not supported for warehouse task &1<br />
+*119   Loading not possible; HU &1 is a Sub-HU<br />
+*132   *****Preallocation process ended. Normal putaway process starts*****<br />
+*208   Handling unit & is not consistent with other WT data<br />
+*340   Error while reading the lock table<br />
+*457   WTs activated<br />
+*676   Available qty is not sufficient for HU WT: Results in negative quantities<br />
+*682   Available quantity for prod. &1 is not sufficient<br />
+*683   HU &1 is already being moved<br />
+*684   HU &1 has a negative available quantity<br />
+*685   Enter a source HU<br />
+*686   Available quantity is not sufficient for HU WT<br />
+*694   Error while importing HU stocks for HU &1<br />
+*697   Available quantity in the source bin will be negative<br />
+*701   Default values are not defined for warehouse number &<br />
+*802   Handling unit &1 contains stocks that are blocked for physical inventory<br />
+*830   Error occurred while reading HU data for HU &1<br />
+*899   Split item for delivery could not be determined for batch &1 and UoM &2.<br />
+*<br />
+* Message class : /SCWM/L3A<br />
+*006   Total of quantities in split items does not result in target qty &1 &2 &3<br />
+*007   Enter a split quantity that is greater than zero<br />
+*008   No original item &1 &2 found for split item<br />
+*012   Homogeneous complete stock pick. Split not possible<br />
+*100   Stock could not be locked<br />
+*<br />
+* Message class : /SCWM/MEDI<br />
+*041   Warehouse: &1<br />
+*049   -------------------------------------------------------------------------<br />
+*<br />
+* Message class : /SCWM/MESINTEGRATION<br />
+*011   Could not find valid PMR for reservation &1 item &2.<br />
+*031   No reference to reservation for WR document &1 item &2.<br />
+*<br />
+* Message class : /SCWM/MFS<br />
+*461   Error trying to start new task in server group &1<br />
+*<br />
+* Message class : /SCWM/POHU<br />
+*009   General error while creating planned shipping HUs<br />
+*063   Start of cartonization planning<br />
+*064   End of cartonization planning<br />
+*066   &1 planned shipping HUs created<br />
+*067   &1 items packed into planned shipping HUs<br />
+*<br />
+* Message class : /SCWM/PUT_BIN_DET<br />
+*029   Destination resource &1 does not exist<br />
+*105   Check slotting status: Putaway WT for prod. &1 not allowed in whse no. &2<br />
+*<br />
+* Message class : /SCWM/REM_BIN_DET<br />
+*130   WT was created for HU &1 due to layout-oriented storage control<br />
+*302   Could not determine stock GUID for product &1<br />
+*<br />
+* Message class : /SCWM/SERIAL<br />
+*031   Serial number specification is obligatory for final putaway<br />
+*<br />
+* Message class : /SCWM/SHP_RCV<br />
+*446   No activity is available for TU &1/&2<br />
+*<br />
+* Message class : /SCWM/TO_WHR_UPD<br />
+*007   Loading/unloading status could not be determined for HU &1<br />
+*<br />
+* Message class : /SCWM/UI_PACKING<br />
+*019   Data has changed. Action not possible<br />
+*136   You must save first<br />
+*<br />
+* Message class : /SCWM/WHO<br />
+*000   Warehouse order creation started<br />
+*054   The number range interval for warehouse orders is missing in whse no. &1<br />
+*067   Warehouse order creation started for WTs being activated<br />
+*073   Warehouse order &1 created<br />
+*074   &1 warehouse orders created<br />
+*610   Confirmation not possible due to WT &1 and HU requirement in destination.<br />
+*<br />
+* Message class : 01<br />
+*413   System lock administration error; notify your administrator<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2026. Sap Release 816</td>
+   </tr>
+</table>
+</body>
+</html>

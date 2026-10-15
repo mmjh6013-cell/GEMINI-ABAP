@@ -1,0 +1,328 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>ZMMIF_GR_CANC_ZIC_SRM_TO_SAP</title>
+<style type="text/css">
+.code{ font-family:"Courier New", Courier, monospace; color:#000; font-size:14px; background-color:#F2F4F7 }
+  .codeComment {font-family:"Courier New", Courier, monospace; color:#0000F0; font-size:14px; background-color:#F2F4F7 }
+  .normalBold{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; font-weight:800 }
+  .normalBoldLarge{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+</style>
+<style type="text/css">
+  .normal{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px }
+  .footer{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; text-align: center }
+  h2{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+  h3{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:14px; font-weight:800 }
+  .outerTable{
+   background-color:#E0E7ED;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-right-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+  .innerTable{
+   background-color:#F2F4F7;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-bottom-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function ZMMIF_GR_CANC_ZIC_SRM_TO_SAP</h2>
+<h3> Description: </h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION zmmif_gr_canc_zic_srm_to_sap .<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local Interface:<br />
+*"  IMPORTING<br />
+*"     VALUE(HEADER) LIKE  ZMMS_PO_GR_ZIC_CANC_HEADER STRUCTURE<br />
+*"        ZMMS_PO_GR_ZIC_CANC_HEADER<br />
+*"  EXPORTING<br />
+*"     VALUE(O_RETURN) LIKE  ZMMS_PO_GR_ZIC_CANC_RETURN STRUCTURE<br />
+*"        ZMMS_PO_GR_ZIC_CANC_RETURN<br />
+*"----------------------------------------------------------------------<br />
+<br />
+
+<div class="codeComment">*       <a href ="global-zmmif_gr_canc_zic_srm_to_sap.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lt_0180&nbsp;TYPE&nbsp;TABLE&nbsp;OF&nbsp;zmmt0180&nbsp;WITH&nbsp;HEADER&nbsp;LINE.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lS_list&nbsp;LIKE&nbsp;zmms_po_gr_zic_canc_header.<br />
+<br />
+<br />
+&nbsp;&nbsp;o_return-type&nbsp;=&nbsp;'E'.<br />
+&nbsp;&nbsp;o_return-message&nbsp;=&nbsp;TEXT-e70.&nbsp;"취소&nbsp;시&nbsp;자재문서(문서번호,&nbsp;연도)는&nbsp;필수입니다!<br />
+&nbsp;&nbsp;RETURN.<br />
+<br />
+<br />
+&nbsp;&nbsp;"&nbsp;lt_list[]&nbsp;=&nbsp;CORRESPONDING&nbsp;#(&nbsp;it_items[]&nbsp;).<br />
+   </div>
+   <div class="codeComment">
+*  IF lt_list[] IS NOT INITIAL.<br />
+*    ""자재문서 처리 시 동일 자재문서만 취소 처리.<br />
+*    DATA(lt_multi_mblnr) = lt_list[].<br />
+*    SORT lt_multi_mblnr BY mblnr. DELETE ADJACENT DUPLICATES FROM lt_multi_mblnr COMPARING mblnr.<br />
+*    IF lines( lt_multi_mblnr[] ) NE 1. "단일 건만 취소<br />
+*      "취소 처리 시 동일한 자재문서에 대한 취소만 가능합니다.<br />
+*      ot_items[] = CORRESPONDING #( lt_list[] ).<br />
+*<br />
+*      MODIFY ot_items FROM VALUE #( type = 'E'<br />
+*                                                     errcode = '000'<br />
+*                                                      message = TEXT-e10 ) TRANSPORTING type errcode message WHERE type IS INITIAL.<br />
+*      EXIT.<br />
+*<br />
+*    ELSE.<br />
+*      "단일 건 확인 후 자재문서에 취소 시 전체 데이터 들어왔는지 체크<br />
+*      READ TABLE lt_multi_mblnr INTO DATA(ls_mblnr) INDEX 1.<br />
+*      SELECT *<br />
+*        FROM matdoc<br />
+*        WHERE mblnr EQ @ls_mblnr-mblnr<br />
+*          AND cancellation_type = @abap_false<br />
+*          AND cancelled = @abap_false<br />
+*         INTO TABLE @DATA(lt_ALL_MATDOC).<br />
+*<br />
+*      LOOP AT lt_all_matdoc INTO DATA(ls_matdoc).<br />
+*<br />
+*        READ TABLE lt_list TRANSPORTING NO FIELDS WITH KEY mblnr = ls_matdoc-mblnr<br />
+*                                                                                      mjahr = ls_matdoc-mjahr<br />
+*                                                                                      zeile = ls_matdoc-zeile.<br />
+*<br />
+*        IF sy-subrc NE 0.<br />
+*          DATA(lv_not_all) = 'X'.<br />
+*          "취소 시 전체 품목에 대해 취소해야합니다!<br />
+*          DATA(lv_not_all_msg) = TEXT-e13 && ls_matdoc-zeile.<br />
+*        ENDIF.<br />
+*      ENDLOOP.<br />
+*      ot_items[] = CORRESPONDING #( lt_list[] ).<br />
+*      MODIFY ot_items FROM VALUE #( type = 'E'<br />
+*                                                     errcode = '000'<br />
+*                                                      message = lv_not_all_msg ) TRANSPORTING type errcode message WHERE type IS INITIAL.<br />
+*      EXIT.<br />
+*<br />
+*<br />
+*    ENDIF.<br />
+*<br />
+*<br />
+*<br />
+*    SELECT a~vbeln, a~posnr, a~ebeln, a~ebelp, a~matnr, a~re_flag<br />
+*             ,a~werks, a~mjahr, a~mblnr, a~zeile, a~sjahr, a~smbln, a~smblp<br />
+*              ,a~db_type, a~if_type, b~retpo<br />
+*      FROM zmmt0180 AS a<br />
+*      INNER JOIN ekpo AS b<br />
+*      ON a~ebeln EQ b~ebeln<br />
+*      AND a~ebelp EQ b~ebelp<br />
+*      FOR ALL ENTRIES IN @lt_list[]<br />
+*      WHERE a~mblnr EQ @lt_list-mblnr<br />
+*         AND a~mjahr EQ @lt_list-mjahr<br />
+*         AND a~zeile EQ @lt_list-zeile<br />
+*         AND a~ebeln EQ @lt_list-ebeln<br />
+*         AND a~ebelp EQ @lt_list-ebelp<br />
+*      INTO TABLE @DATA(lt_log).<br />
+<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;ls_list&nbsp;=&nbsp;header.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;ls_list&nbsp;IS&nbsp;NOT&nbsp;&nbsp;INITIAL.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"자재문서&nbsp;입력&nbsp;확인.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;ls_list-mblnr&nbsp;IS&nbsp;INITIAL&nbsp;OR&nbsp;ls_list-mjahr&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;o_return-type&nbsp;=&nbsp;'E'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;o_return-message&nbsp;=&nbsp;TEXT-e11.&nbsp;"취소&nbsp;시&nbsp;자재문서(문서번호,&nbsp;연도)는&nbsp;필수입니다!<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"0180&nbsp;관계사입고테이블과&nbsp;비교하여&nbsp;확인.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;SINGLE&nbsp;a~vbeln,&nbsp;a~posnr,&nbsp;a~ebeln,&nbsp;a~ebelp,&nbsp;a~matnr,&nbsp;a~re_flag<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,a~werks,&nbsp;a~mjahr,&nbsp;a~mblnr,&nbsp;a~zeile,&nbsp;a~sjahr,&nbsp;a~smbln,&nbsp;a~smblp<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,a~db_type,&nbsp;a~if_type,&nbsp;b~retpo<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;zmmt0180&nbsp;AS&nbsp;a<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INNER&nbsp;JOIN&nbsp;ekpo&nbsp;AS&nbsp;b<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ON&nbsp;a~ebeln&nbsp;EQ&nbsp;b~ebeln<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;a~ebelp&nbsp;EQ&nbsp;b~ebelp<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;a~mblnr&nbsp;EQ&nbsp;@ls_list-mblnr<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;a~mjahr&nbsp;EQ&nbsp;@ls_list-mjahr<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;@DATA(ls_log).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;EQ&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"이미&nbsp;정상적으로&nbsp;취소된&nbsp;문서입니다.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;ls_log-smbln&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;o_return-type&nbsp;=&nbsp;'E'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;o_return-message&nbsp;=&nbsp;TEXT-e10.&nbsp;"<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"관계사&nbsp;반품은&nbsp;취소&nbsp;할&nbsp;수&nbsp;없습니다!<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;ls_log-retpo&nbsp;IS&nbsp;NOT&nbsp;INITIAL&nbsp;OR&nbsp;ls_log-re_flag&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;o_return-type&nbsp;=&nbsp;'E'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;o_return-message&nbsp;=&nbsp;TEXT-e16.&nbsp;"<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;ls_log-db_type&nbsp;=&nbsp;'R'&nbsp;AND&nbsp;ls_log-if_type&nbsp;EQ&nbsp;'S'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"IF&nbsp;TYPE&nbsp;:&nbsp;S&nbsp;:&nbsp;입고&nbsp;후&nbsp;SRM&nbsp;으로&nbsp;전송된&nbsp;데이터<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"DY_TYPE&nbsp;R&nbsp;:&nbsp;MM&nbsp;GR&nbsp;:&nbsp;MM&nbsp;입고&nbsp;데이터&nbsp;위&nbsp;2케이스만&nbsp;취소&nbsp;처리&nbsp;가능<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;o_return-type&nbsp;=&nbsp;'E'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;o_return-message&nbsp;=&nbsp;TEXT-e15.&nbsp;"<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+   </div>
+   <div class="codeComment">
+*        CONTINUE.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"0180&nbsp;관계사로&nbsp;진행된&nbsp;자재문서를&nbsp;취소하려는&nbsp;경우&nbsp;에러&nbsp;처리<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;o_return-type&nbsp;=&nbsp;'E'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;o_return-message&nbsp;=&nbsp;TEXT-e15.&nbsp;"관계사&nbsp;구매오더입고&nbsp;이후&nbsp;SAP-&gt;SRM&nbsp;전송&nbsp;완료&nbsp;데이터만&nbsp;취소&nbsp;가능합니다.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"'직납&nbsp;처리&nbsp;내역이&nbsp;있는&nbsp;경우&nbsp;직납&nbsp;처리&nbsp;제안.<br />
+<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;goods_cancel_541&nbsp;USING&nbsp;ls_list<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;o_return.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CHECK&nbsp;o_return&nbsp;IS&nbsp;INITIAL.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;goods_cancel&nbsp;USING&nbsp;ls_list<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;o_return.<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+&nbsp;&nbsp;ELSE.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"수신&nbsp;이력이&nbsp;없는&nbsp;경우<br />
+&nbsp;&nbsp;&nbsp;&nbsp;o_return-type&nbsp;=&nbsp;'E'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;o_return-message&nbsp;=&nbsp;TEXT-m71."수신받은&nbsp;데이터가&nbsp;없습니다.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+   </div>
+   <div class="codeComment">
+*<br />
+*  LOOP AT lt_list ASSIGNING FIELD-SYMBOL(&lt;fs_list&gt;).<br />
+*<br />
+*    PERFORM obligatroy_check USING &lt;fs_list&gt;.<br />
+*<br />
+*    IF &lt;fs_list&gt;-type IS NOT INITIAL.<br />
+*<br />
+*      CONTINUE.<br />
+*<br />
+*    ENDIF.<br />
+*<br />
+*    READ TABLE lt_log INTO DATA(ls_log) WITH KEY ebeln = &lt;fs_list&gt;-ebeln<br />
+*                                                                  ebelp = &lt;fs_list&gt;-ebelp<br />
+*                                                                  mblnr = &lt;fs_list&gt;-mblnr<br />
+*                                                                  mjahr  = &lt;fs_list&gt;-mjahr<br />
+*                                                                  zeile = &lt;fs_list&gt;-zeile.<br />
+*<br />
+*    IF sy-subrc EQ 0.<br />
+*      IF ls_log-db_type = 'R' AND ls_log-if_type EQ 'S'.<br />
+*        "IF TYPE : S : 입고 후 SRM 으로 전송된 데이터<br />
+*        "DY_TYPE R : MM GR : MM 입고 데이터 위 2케이스만 취소 처리 가능<br />
+*      ELSE.<br />
+*        &lt;fs_list&gt;-type = 'E'.<br />
+*        &lt;fs_list&gt;-message = TEXT-e15.<br />
+*        "관계사 구매오더입고 이후 SAP-&gt;SRM 전송 완료 데이터만 취소 가능합니다.<br />
+*        CONTINUE.<br />
+*      ENDIF.<br />
+*<br />
+*      "반품 관련의 경우 취소 불가<br />
+*      IF ls_log-re_flag IS NOT INITIAL OR ls_log-retpo IS NOT INITIAL.<br />
+*        &lt;fs_list&gt;-type = 'E'.<br />
+*        &lt;fs_list&gt;-message = TEXT-e16.<br />
+*        CONTINUE.<br />
+*      ENDIF.<br />
+*<br />
+*    ELSE.<br />
+*      "해당 구매오더, 자재문서로 입고된 내역이 확인되지 않습니다.<br />
+*      &lt;fs_list&gt;-type = 'E'.<br />
+*      &lt;fs_list&gt;-message = TEXT-e14.<br />
+*      CONTINUE.<br />
+*    ENDIF.<br />
+*<br />
+*<br />
+<br />
+<br />
+*  ENDLOOP.<br />
+<br />
+<br />
+*  READ TABLE lt_list TRANSPORTING NO FIELDS WITH KEY type = 'E'.<br />
+*<br />
+*  IF sy-subrc NE 0.<br />
+*<br />
+*    PERFORM goods_cancel TABLES lt_list<br />
+*                                               ot_items.<br />
+<br />
+<br />
+*  ELSE.<br />
+*<br />
+*    "품목 벨리데이션 에러 발생 시 리턴 후 종료<br />
+*    ot_items[] = CORRESPONDING #( lt_list[] ).<br />
+*    MODIFY ot_items FROM VALUE #( type = 'E'<br />
+*                                                   errcode = '000'<br />
+*                                                    message = TEXT-e17 ) TRANSPORTING type errcode message WHERE type IS INITIAL.<br />
+*    EXIT.<br />
+*  ENDIF.<br />
+<br />
+<br />
+<br />
+<br />
+*ELSE.<br />
+*  "수신 데이터가 없는 경우<br />
+*  APPEND INITIAL LINE TO ot_items ASSIGNING FIELD-SYMBOL(&lt;fs_ot&gt;).<br />
+*  &lt;fs_ot&gt;-type = 'E'.<br />
+*  &lt;fs_ot&gt;-message = TEXT-m71."수신받은 데이터가 없습니다.<br />
+*<br />
+*ENDIF.<br />
+   </div>
+   <div class="code">
+ENDFUNCTION.<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2025. Sap Release 758</td>
+   </tr>
+</table>
+</body>
+</html>

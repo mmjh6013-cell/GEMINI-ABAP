@@ -1,0 +1,697 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http ://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http ://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>/SCWM/PUT_STOCK_LIST_INT</title>
+<style type="text/css">
+.code{ font-family :"Courier New", Courier, monospace; color :#000; font-size :14px; background-color :#F2F4F7 }
+  .codeComment {font-family :"Courier New", Courier, monospace; color :#0000F0; font-size :14px; background-color :#F2F4F7 }
+  .normalBold{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; font-weight :800 }
+  .normalBoldLarge{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+</style>
+<style type="text/css">
+  .normal{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px }
+  .footer{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; text-align : center }
+  h2{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+  h3{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :14px; font-weight :800 }
+  .outerTable{
+   background-color :#E0E7ED;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-right-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+  .innerTable{
+   background-color :#F2F4F7;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-bottom-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function /SCWM/PUT_STOCK_LIST_INT</h2>
+<h3> Description : Determine Putaway Bin for Stock Overview</h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION /scwm/put_stock_list_int.<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local Interface:<br />
+*"  IMPORTING<br />
+*"     REFERENCE(IS_PUTREQ) TYPE  /SCWM/S_PUTREQ<br />
+*"     REFERENCE(IS_RL03A) TYPE  /SCWM/RL03A<br />
+*"     REFERENCE(IS_MAT_GLOBAL) TYPE  /SCWM/S_MATERIAL_GLOBAL<br />
+*"     REFERENCE(IT_MAT_UOM) TYPE  /SCWM/TT_MATERIAL_UOM<br />
+*"     REFERENCE(IT_QSPERR) TYPE  /SCWM/TT_AQUA OPTIONAL<br />
+*"     REFERENCE(IO_PROT) TYPE REF TO  /SCWM/CL_LOG<br />
+*"  EXPORTING<br />
+*"     REFERENCE(ET_QMAT) TYPE  /SCWM/TT_AQUA_INT<br />
+*"     REFERENCE(ET_QMAT_LOCK) TYPE  /SCWM/TT_AQUA_INT<br />
+*"  RAISING<br />
+*"      /SCWM/CX_CORE<br />
+*"----------------------------------------------------------------------<br />
+*<br />
+
+<div class="codeComment">*       <a href ="global-_scwm_put_stock_list_int.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;DATA:<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_serid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_serid,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_qmat&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;TABLE&nbsp;OF&nbsp;/scwm/s_aqua_int,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_lagpe_ext&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_lagp_int,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_lagpe_int&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_lagp_int,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_ltap_vb&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_ltap_vb,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_mat_uom&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_material_uom.<br />
+<br />
+&nbsp;&nbsp;DATA:<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_dest_stock&nbsp;&nbsp;TYPE&nbsp;/scwm/s_stock,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_ltap&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/ltap,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_t331&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/t331,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_lagp_int&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/s_lagp_int,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_lagp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/lagp,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_mat_global&nbsp;&nbsp;TYPE&nbsp;/scwm/s_material_global,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_mat_lgnum&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/s_material_lgnum,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_mat_uom&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/s_material_uom,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_t333&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/t333,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_tmatpp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tmatpp,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_lagpe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/s_lagp_int,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_ltap_vb&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/ltap.<br />
+<br />
+&nbsp;&nbsp;DATA:<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_atsquan_hlp&nbsp;TYPE&nbsp;/scwm/de_atsquan,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_hlpquan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/de_atsquan.<br />
+<br />
+&nbsp;&nbsp;DATA:&nbsp;&nbsp;lx_core&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;REF&nbsp;TO&nbsp;/scwm/cx_core.<br />
+<br />
+&nbsp;&nbsp;FIELD-SYMBOLS:<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;qmat&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/s_aqua_int.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* get bins which has been looked through other<br />
+* action than HU_TO_INT<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;CLEAR:&nbsp;lt_lagpe_ext,&nbsp;lt_lagpe_int.<br />
+&nbsp;&nbsp;APPEND&nbsp;LINES&nbsp;OF&nbsp;gt_lagpe&nbsp;TO&nbsp;lt_lagpe_ext.<br />
+<br />
+&nbsp;&nbsp;MOVE-CORRESPONDING&nbsp;is_putreq&nbsp;TO&nbsp;ls_ltap.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* set location type<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;ls_ltap-dloc_type&nbsp;=&nbsp;wmegc_bin.<br />
+<br />
+&nbsp;&nbsp;TRY.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/MATERIAL_READ_SINGLE'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_putreq-lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_entitled&nbsp;&nbsp;&nbsp;=&nbsp;is_putreq-entitled<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_matid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_putreq-matid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_mat_global&nbsp;=&nbsp;ls_mat_global<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_mat_lgnum&nbsp;&nbsp;=&nbsp;ls_mat_lgnum.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CATCH&nbsp;/scwm/cx_md.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ENDTRY.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;ls_mat_global-meins&nbsp;&lt;&gt;&nbsp;is_putreq-unit.<br />
+   </div>
+   <div class="codeComment">
+*   calculation addition to stock will be based on<br />
+*   base unit of measurement<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;TRY.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/MATERIAL_QUAN_CONVERT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_matid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_putreq-matid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_quan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_putreq-quan<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_unit_from&nbsp;=&nbsp;is_putreq-unit<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_unit_to&nbsp;&nbsp;&nbsp;=&nbsp;ls_mat_global-meins<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_batchid&nbsp;&nbsp;&nbsp;=&nbsp;is_putreq-batchid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_quan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_ltap-vsolm.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CATCH&nbsp;/scwm/cx_md.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDTRY.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_ltap-meins&nbsp;=&nbsp;ls_mat_global-meins.<br />
+   </div>
+   <div class="codeComment">
+*   Take over Alternative UoM / SUoM<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;ls_ltap-vsola&nbsp;=&nbsp;is_putreq-quan.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_ltap-altme&nbsp;=&nbsp;is_putreq-unit.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/MATERIAL_SUOM_RELEVANT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_putreq-lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_matid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_putreq-matid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_entitled&nbsp;&nbsp;=&nbsp;is_putreq-entitled<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_mat_uom&nbsp;&nbsp;&nbsp;=&nbsp;lt_mat_uom.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lines(&nbsp;lt_mat_uom&nbsp;)&nbsp;&gt;&nbsp;1.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;lt_mat_uom&nbsp;TRANSPORTING&nbsp;NO&nbsp;FIELDS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WITH&nbsp;KEY&nbsp;meinh&nbsp;=&nbsp;ls_ltap-altme.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_ltap-suom&nbsp;=&nbsp;ls_ltap-altme.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_ltap-meins&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_putreq-unit.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_ltap-vsolm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_putreq-quan.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* Get data for product which has to be putawayed<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;it_mat_uom&nbsp;INTO&nbsp;ls_mat_uom<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WITH&nbsp;KEY&nbsp;matid&nbsp;=&nbsp;is_putreq-matid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;meinh&nbsp;=&nbsp;ls_ltap-meins&nbsp;.<br />
+&nbsp;&nbsp;CHECK&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* read destination storage type<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/T331_READ_SINGLE'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;=&nbsp;is_putreq-lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgtyp&nbsp;&nbsp;=&nbsp;is_putreq-nltyp<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_t331&nbsp;&nbsp;&nbsp;=&nbsp;ls_t331<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;not_found&nbsp;=&nbsp;1<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OTHERS&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;2.<br />
+&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;&lt;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* Source HU information are not available<br />
+* therefore the correct determination cannot be supported<br />
+* for pallet storage<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;CHECK&nbsp;ls_t331-behav&nbsp;&lt;&gt;&nbsp;wmegc_behav_pallet&nbsp;OR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_t331-behav&nbsp;&lt;&gt;&nbsp;&nbsp;wmegc_behav_block.<br />
+<br />
+&nbsp;&nbsp;TRY.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/TMATPP_READ_SINGLE'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_ltap-lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_put_stra&nbsp;=&nbsp;ls_mat_lgnum-put_stra<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgtyp&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_putreq-nltyp<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_tmatpp&nbsp;&nbsp;&nbsp;=&nbsp;ls_tmatpp.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CATCH&nbsp;/scwm/cx_core_no_data.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"#EC&nbsp;NO_HANDLER<br />
+&nbsp;&nbsp;ENDTRY.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;ls_t331-zulag&nbsp;=&nbsp;wmegc_zulag_ja&nbsp;OR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;ls_t331-zulag&nbsp;=&nbsp;wmegc_zulag_mat&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_tmatpp-zulag&nbsp;=&nbsp;wmegc_zulag_ja&nbsp;).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;gv_stock_list&nbsp;=&nbsp;abap_true.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;qmat_create&nbsp;USING&nbsp;&nbsp;&nbsp;&nbsp;is_putreq-nltyp<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_ltap<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;it_qsperr<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_t331<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_lagp<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;lt_qmat<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_dest_stock.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;gv_stock_list.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* get WT's which are created before calling the stock list<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;Clear&nbsp;lt_ltap_vb.<br />
+&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/L_TO_GET_INFO'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_ltap_vb&nbsp;=&nbsp;lt_ltap_vb.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* Additon to stock for dynamic bins is only done, when all attributes fit<br />
+* Addition to stock in other cases is only manually possible. If manual<br />
+* Addition to stock is done, mixed occupancy is checked by TO_HU_INT<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;lt_qmat&nbsp;ASSIGNING&nbsp;&lt;qmat&gt;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;matid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_dest_stock-matid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;batchid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_dest_stock-batchid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cat&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_dest_stock-cat&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;stock_doccat&nbsp;&nbsp;=&nbsp;ls_dest_stock-stock_doccat&nbsp;&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;stock_docno&nbsp;&nbsp;&nbsp;=&nbsp;ls_dest_stock-stock_docno&nbsp;&nbsp;&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;stock_itmno&nbsp;&nbsp;&nbsp;=&nbsp;ls_dest_stock-stock_itmno&nbsp;&nbsp;&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;doccat&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_dest_stock-doccat&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;stock_usage&nbsp;&nbsp;&nbsp;=&nbsp;ls_dest_stock-stock_usage&nbsp;&nbsp;&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;owner&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_dest_stock-owner&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;owner_role&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_dest_stock-owner_role&nbsp;&nbsp;&nbsp;&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;entitled&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_dest_stock-entitled&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;entitled_role&nbsp;=&nbsp;ls_dest_stock-entitled_role&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lgtyp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_t331-lgtyp.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CHECK&nbsp;&lt;qmat&gt;-kztyp&nbsp;&lt;&gt;&nbsp;'X'.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/LAGP_READ_SINGLE'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&lt;qmat&gt;-lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgpla&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&lt;qmat&gt;-lgpla<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_lagp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_lagp<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;wrong_input&nbsp;&nbsp;&nbsp;=&nbsp;1<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;not_found&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;2<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;enqueue_error&nbsp;=&nbsp;3<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OTHERS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;4.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;&lt;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CONTINUE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/HUMAIN_REFRESH'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_restore_save&nbsp;=&nbsp;'X'.<br />
+   </div>
+   <div class="codeComment">
+*   capacity check<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;TRY.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;storagebin_check_cap&nbsp;USING&nbsp;&nbsp;ls_t331<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_rl03a<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gv_split_done<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_t333<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_serid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;qmat&gt;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;ls_lagp<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_ltap.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CATCH&nbsp;/scwm/cx_core&nbsp;INTO&nbsp;lx_core.<br />
+   </div>
+   <div class="codeComment">
+*   capacity is not sufficient for the request<br />
+*   even if the capacity is not sufficient the stock will be available<br />
+*   for partial putaway<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;ENDTRY.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;lt_ltap_vb&nbsp;INTO&nbsp;ls_ltap_vb&nbsp;WHERE&nbsp;nlpla&nbsp;=&nbsp;&lt;qmat&gt;-lgpla&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nlenr&nbsp;=&nbsp;&lt;qmat&gt;-huident.<br />
+   </div>
+   <div class="codeComment">
+*      Increase the available QTY by the WT-QTY<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;qmat&gt;-quan&nbsp;=&nbsp;&lt;qmat&gt;-quan&nbsp;+&nbsp;ls_ltap_vb-vsolm.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*   check weight<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;gs_available-weight&nbsp;NE&nbsp;'999999999999.999'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;ls_mat_uom-brgew&nbsp;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;gs_available-unit_w&nbsp;&lt;&gt;&nbsp;ls_mat_uom-gewei.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;lv_hlpquan.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'UNIT_CONVERSION_SIMPLE'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;input&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;gs_available-weight<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unit_in&nbsp;&nbsp;=&nbsp;gs_available-unit_w<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unit_out&nbsp;=&nbsp;ls_mat_uom-gewei<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;output&nbsp;&nbsp;&nbsp;=&nbsp;lv_hlpquan<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OTHERS&nbsp;&nbsp;&nbsp;=&nbsp;0.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"#EC&nbsp;NO_HANDLER<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_hlpquan&nbsp;=&nbsp;gs_available-weight.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_atsquan_hlp&nbsp;=&nbsp;trunc(&nbsp;lv_hlpquan&nbsp;&nbsp;/&nbsp;ls_mat_uom-brgew&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;qmat&gt;-atsquan&nbsp;=&nbsp;lv_atsquan_hlp.<br />
+   </div>
+   <div class="codeComment">
+*     adjust QTY when WT has been created<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+   </div>
+   <div class="codeComment">
+*     no capacity restriction for the weight<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;qmat&gt;-atsquan&nbsp;&nbsp;&nbsp;=&nbsp;&lt;qmat&gt;-atsquan_a&nbsp;=&nbsp;999999999.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*   check volume<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;gs_available-volum&nbsp;NE&nbsp;'999999999999.999'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;ls_mat_uom-volum&nbsp;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;gs_available-unit_v&nbsp;&lt;&gt;&nbsp;ls_mat_uom-voleh.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;lv_hlpquan.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'UNIT_CONVERSION_SIMPLE'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;input&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;gs_available-volum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unit_in&nbsp;&nbsp;=&nbsp;gs_available-unit_v<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;unit_out&nbsp;=&nbsp;ls_mat_uom-voleh<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;output&nbsp;&nbsp;&nbsp;=&nbsp;lv_hlpquan<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OTHERS&nbsp;&nbsp;&nbsp;=&nbsp;0.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"#EC&nbsp;NO_HANDLER<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_hlpquan&nbsp;=&nbsp;gs_available-volum.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_atsquan_hlp&nbsp;=&nbsp;trunc(&nbsp;lv_hlpquan&nbsp;/&nbsp;ls_mat_uom-volum&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+   </div>
+   <div class="codeComment">
+*     no capacity restriction for the volume<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_atsquan_hlp&nbsp;&nbsp;&nbsp;=&nbsp;&lt;qmat&gt;-atsquan_a&nbsp;=&nbsp;lv_atsquan_hlp&nbsp;=&nbsp;999999999.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_atsquan_hlp&nbsp;&lt;&nbsp;&lt;qmat&gt;-atsquan.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;qmat&gt;-atsquan&nbsp;=&nbsp;lv_atsquan_hlp.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*   check capa figure<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;gs_available-capa&nbsp;NE&nbsp;'999999999999.999'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;ls_mat_uom-capause&nbsp;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_atsquan_hlp&nbsp;=&nbsp;trunc(&nbsp;gs_available-capa&nbsp;/&nbsp;ls_mat_uom-capause&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+   </div>
+   <div class="codeComment">
+*     no capacity restriction for the capacity figure<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_atsquan_hlp&nbsp;&nbsp;&nbsp;=&nbsp;&lt;qmat&gt;-atsquan_a&nbsp;=&nbsp;lv_atsquan_hlp&nbsp;=&nbsp;999999999.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_atsquan_hlp&nbsp;&lt;&nbsp;&lt;qmat&gt;-atsquan.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;qmat&gt;-atsquan&nbsp;=&nbsp;lv_atsquan_hlp.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;ls_ltap_vb-vsolm&nbsp;IS&nbsp;NOT&nbsp;INITIAL<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;&nbsp;&lt;qmat&gt;-atsquan&nbsp;NE&nbsp;999999999.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;qmat&gt;-atsquan&nbsp;=&nbsp;&lt;qmat&gt;-atsquan&nbsp;-&nbsp;ls_ltap_vb-vsolm.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;&lt;qmat&gt;-atsquan&nbsp;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;ls_mat_global-meins&nbsp;&lt;&gt;&nbsp;is_putreq-unit&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;qmat&gt;-atsquan&nbsp;NE&nbsp;999999999.<br />
+   </div>
+   <div class="codeComment">
+*       QTY calculation for alternative Unit of measurment if given<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TRY.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/MATERIAL_QUAN_CONVERT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_matid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_putreq-matid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_quan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&lt;qmat&gt;-atsquan<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_unit_from&nbsp;=&nbsp;ls_mat_global-meins<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_unit_to&nbsp;&nbsp;&nbsp;=&nbsp;is_putreq-unit<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_batchid&nbsp;&nbsp;&nbsp;=&nbsp;is_putreq-batchid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_quan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&lt;qmat&gt;-atsquan_a.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CATCH&nbsp;/scwm/cx_md.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDTRY.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;qmat&gt;-atsquan_a&nbsp;=&nbsp;trunc(&nbsp;&lt;qmat&gt;-atsquan_a&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;qmat&gt;-atsquan_a&nbsp;=&nbsp;&lt;qmat&gt;-atsquan.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;&lt;qmat&gt;&nbsp;TO&nbsp;et_qmat.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/HUMAIN_REFRESH'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_restore&nbsp;=&nbsp;abap_true.<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;gt_lagpe&nbsp;INTO&nbsp;ls_lagpe.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;lt_lagpe_ext&nbsp;TRANSPORTING&nbsp;NO&nbsp;FIELDS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WITH&nbsp;KEY&nbsp;lgpla&nbsp;=&nbsp;ls_lagpe-lgpla.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_lagpe&nbsp;TO&nbsp;lt_lagpe_int.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+<br />
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;et_qmat&nbsp;ASSIGNING&nbsp;&lt;qmat&gt;.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;lt_lagpe_int&nbsp;INTO&nbsp;ls_lagpe<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WITH&nbsp;KEY&nbsp;lgpla&nbsp;=&nbsp;&lt;qmat&gt;-lgpla.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+   </div>
+   <div class="codeComment">
+*     delete lagp locks set by TO_HU_INT<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/LAGP_DEQUEUE'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_lagpe-lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgpla&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_lagpe-lgpla<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_enqueue_type&nbsp;=&nbsp;'I'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;&lt;qmat&gt;-skzsi&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;&lt;qmat&gt;&nbsp;TO&nbsp;et_qmat_lock.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;et_qmat.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CONTINUE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/LAGP_READ_SINGLE'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&lt;qmat&gt;-lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgpla&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&lt;qmat&gt;-lgpla<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_lagp_int&nbsp;=&nbsp;ls_lagp_int<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OTHERS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;3.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;&lt;&gt;&nbsp;0&nbsp;OR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_lagp_int-skzue&nbsp;IS&nbsp;NOT&nbsp;INITIAL&nbsp;OR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_lagp_int-skzsi&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;&lt;qmat&gt;&nbsp;TO&nbsp;et_qmat_lock.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;et_qmat.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+ENDFUNCTION.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*Text elements<br />
+*----------------------------------------------------------<br />
+* 001 Stor.Bin Type<br />
+* 002 Storage Sec.<br />
+* 003 StorType<br />
+* 004 Weight<br />
+* 005 Volume<br />
+* 006 Capacity Consumpt.<br />
+* 007 Stor. Bin<br />
+* 008 Handling Unit<br />
+* 009 Putaway Seq.<br />
+<br />
+<br />
+*Messages<br />
+*----------------------------------------------------------<br />
+*<br />
+* Message class : /SCWM/DYNBIN<br />
+*042   Storage bin/flexible bin &1 already exists<br />
+*<br />
+* Message class : /SCWM/HU_WM<br />
+*011   Putaway of HU type &1 not allowed in bin type &2<br />
+*027   Product &1 does not exist in warehouse &2<br />
+*033   No mixed storage permitted in handling unit in storage type &1<br />
+*109   field overflow in the capacity data, see longtext<br />
+*<br />
+* Message class : /SCWM/L3<br />
+*021   Destination storage bin has no available capacity<br />
+*038   Putaway in storage section & is not allowed<br />
+*052   Missing authorization for Stor.Type, WhsePrcTpe, Ent.toDisp &1 &2 &3 &4<br />
+*061   Error due to inconsistent database (storage bin &)<br />
+*085   No partial quantities can be stored in storage type &<br />
+*100   An internal error has occurred<br />
+*127   HU &1 is a collective HU and must not undergo final putaway<br />
+*128   HU &1 has reference to a collective HU and must not undergo final putaway<br />
+*208   Handling unit & is not consistent with other WT data<br />
+*395   Stock transfers must be performed for each handling unit<br />
+*425   Handling unit type & is not compatible with current block definition<br />
+*434   HU status prevents (automatic) unpacking of HU &1 by WT movement<br />
+*569   Destination bin cannot be changed at this time<br />
+*636   'Pallet' behavior: bin &1 found (subdivision:&2, max.HUs:&3, bin type:&4)<br />
+*638   'Pallet' behavior: No item found in bin &1<br />
+*656   Hazard rating 1 &1 is not supported in storage type &2<br />
+*657   Hazard rating 2 &1 is not supported in storage type &2<br />
+*658   Storage type &1 is blocked for putaway of materials with haz. rating 1 &2<br />
+*659   Storage type &1 is blocked for putaway of materials with haz. rating 2 &2<br />
+*677   No entitled in warehouse task (warehouse no. &1).<br />
+*803   HU &1: Status prohibits HU change<br />
+*829   HU & does not exist<br />
+*833   No GR posting completed for SU &<br />
+*883   You cannot change HU&1 because Shipping Readiness is set to Ready<br />
+*889   You can't change HU &1 because its status is 'Packed for Shipping'.<br />
+*895   Destination HU could not be determined<br />
+*896   No empty Subbins could be determined for Main Bin &1<br />
+*<br />
+* Message class : /SCWM/LT<br />
+*001   Cannot combine putaway rule "General Stor. Area" and "Use fixed bins"<br />
+*<br />
+* Message class : /SCWM/PUT_BIN_DET<br />
+*001   Stor.type: &1, stor.area: &2, bin type: &3, stock mvmt: &4 being examined<br />
+*007   *****   Determine destination data - start *****<br />
+*010   No st. section search seq. found (st.tpe:&1,st.sec.ID:&2,Fnd1:&3,Fnd2:&4)<br />
+*011   Destination storage section check is not active in storage type &1<br />
+*012   Destination storage section &1 is entered in storage type: &2<br />
+*013   Destination storage section check is active for material:&1 stor. type:&2<br />
+*015   HU type check is not active in storage type &1<br />
+*016   No valid bin types found (storage type: &1, HU type: &2)<br />
+*019   Destination HU &1 does not exist as an active/planned HU<br />
+*020   Destination HU &1 does not exist<br />
+*021   HU data is inconsistent (source HU: &1 destination HU: &2)<br />
+*022   HU type check (storage type &1): HU type is initial<br />
+*024   HU type &1 is not permitted in storage type &2<br />
+*025   Destination storage type &1 was changed to ID-point-storage-type &2<br />
+*026   Destination storage type &1 checked successfully<br />
+*027   Destination storage section &1 was checked successfully<br />
+*028   Destination resource not predefined<br />
+*029   Destination resource &1 does not exist<br />
+*031   Dest. QTY &1 &4 was determined (storage type: &2, storage bin:&3)<br />
+*036   HU &1 was checked successfully<br />
+*041   Storage bin & is blocked for putaway<br />
+*042   Storage bin & is blocked for putaway due to physical inventory<br />
+*043   Defaults for destination data: &1<br />
+*045   Storage type search sequence &1 found<br />
+*046   Standard putaway behavior (storage type &1)<br />
+*047   'Pallet' putaway behavior (storage type &1)<br />
+*048   'Bulk' putaway behavior (storage type &1)<br />
+*049   Storage position valuations are used for bin determination<br />
+*050   Alternatives during bin search: 1st alt. &3, 2nd alt. &2, 3rd alt. &1<br />
+*051   Storage bin &1 was found (storage type &2)<br />
+*052   Putaway rule 'Distribution Group' is not configured in storage type &1<br />
+*053   Putaway rule 'Distribution Group': no storage bin found (storage type:&1)<br />
+*054   Could not fully determine the destination data<br />
+*055   HU type &1 is not permitted for storage bin type &2<br />
+*056   Error while finding destination bin in bulk storage type<br />
+*057   Storage bin & not sectioned correctly<br />
+*059   An internal error has occurred<br />
+*061   Storage bin &2 not found in fixed bin storage type &1<br />
+*065   The check for the given destination bin &1 failed<br />
+*066   Determining a fixed bin (storage type &1)<br />
+*068   Stor. bin &1 found and assigned to product &2 as a fixed bin<br />
+*069   No suitable empty bins found in stor. type &1 (section: &2, bin type: &3)<br />
+*070   Maximum storage type quantity in storage type &1 (&2) is being checked<br />
+*071   Storage type &1: No putaway - max. storage type qty exceeded (current:&2)<br />
+*072   No dest. bin determination. No valid stor.type/sec./bin type combinations<br />
+*073   Sort rule "Near to Fixed Bin" active f. finding empty bins (stor.type:&1)<br />
+*074   Addition to existing stock performed into storage bin &1<br />
+*075   No bin search possible. Storage types/sections/bin types incomplete<br />
+*077   Goods receipt not yet posted - nevertheless, source bin = destination bin<br />
+*078   Dest. location is TU and stock type is temporary storage - no WT possible<br />
+*079   Split during putaway active for storage type &1<br />
+*080   Split during putaway active - product &1 in storage type &2<br />
+*081   No split during putaway in storage type &1 (product: &2, bin: &3)<br />
+*082   No split during putaway - Detailed information<br />
+*083   Partial qty &1 is put away in storage bin &2 (product:&4,storage type:&3)<br />
+*084   Split Occurred - Detailed information<br />
+*085   Can only put away &1 &2 due to maximum storage type quantity (&3)<br />
+*088   Storage bin &1 already being used in internal WT items<br />
+*089   Destination transportation unit &1 does not exist<br />
+*090   Maximum number of fixed bins (&1) reached in storage type &2<br />
+*091   Max. no. opt. fixed bins (&1) reached for rearrangement in stor. type &2<br />
+*092   Maximum number of dynamic bins (&1) reached in storage type &2<br />
+*093   Maximum no. of bins maintained (&1) - Check not active in stor. type &2<br />
+*095   Access table for bin search:<br />
+*096   Storage type: &1 storage section: &2 bin type: &3 whse pos. eval.: &4<br />
+*097   Start of destination bin search<br />
+*098   Goods receipt not yet posted and HU is in GR zone: WT forbidden<br />
+*099   Destination storage bin &1(storage type:&3) determined from predef. HU &2<br />
+*101   Storage type &1: HU requirement<br />
+*102   Storage type &1: HUs not allowed<br />
+*103   Storage type &1: HUs allowed but not required<br />
+*104   Existing fixed bin &1 found (storage type &2)<br />
+*106   Storage bin &1 found and assigned as fixed bin to consolidation group &2<br />
+*107   Storage bin &1 is already being used as a fixed bin<br />
+*114   Fixed bin cannot be defined. Party entitled to dispose unknown.<br />
+*115   Max. no. bins (&1) for (reserve) storage type &2, product &3 reached<br />
+*116   Goods receipt not posted yet - nonetheless source TU = destination TU<br />
+*117   Specified destination bin &1 is not in specified destination bin type &2<br />
+*118   Specified destination bin &1 is not in specified destination section &2<br />
+*119   Only bins from it_bins_nfb are allowed to be returned in et_bins_nfb<br />
+*122   Bin &1 not assigned to a distribution group because no dist.grp. given<br />
+*123   Fixed bin cannot be defined. Product unknown.<br />
+*124   No existing fixed storage bins found in storage type &1<br />
+*125   No matching reserve bins found<br />
+*128   Product &1 on bin &2 is blocked for putaway due to physical inventory<br />
+*129   Storage bin &1 given in access table row<br />
+*130   Stor. Type &1 could not be locked to check max. Quantity and no. of Bins<br />
+*131   Bin type &1 not allowed for product &2 and storage type &3<br />
+*132   Sub-bin must be entered; storage bin &1 is already sectioned<br />
+*134   Storage bin &1 found for consolidation group &2<br />
+*135   Fixed bins assigned to consolidation group &1 found<br />
+*136   'Flexible Storage' putaway behavior (storage type &1)<br />
+*201   Determined destination bin &1 can not be used.<br />
+*234   Destination storage type determination for MFS (source storage type &1)<br />
+*235   Destination storage type determination for MFS (source resource &1)<br />
+*236   No dest. storage type for MFS found, try Storage Type Search Sequence<br />
+*250   Dest. storage type(s) for MFS found, no determination via Search Seq.<br />
+*262   Internal empty bin buffer cleared due to BAdI decision<br />
+*264   List of empty bins determined in BAdI<br />
+*<br />
+* Message class : /SCWM/TW_WT<br />
+*010   Consolidation group &1 contradicts &2 of destination bin &3<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2026. Sap Release 816</td>
+   </tr>
+</table>
+</body>
+</html>

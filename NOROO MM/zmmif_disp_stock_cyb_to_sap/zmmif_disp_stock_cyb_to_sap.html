@@ -1,0 +1,342 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>ZMMIF_DISP_STOCK_CYB_TO_SAP</title>
+<style type="text/css">
+.code{ font-family:"Courier New", Courier, monospace; color:#000; font-size:14px; background-color:#F2F4F7 }
+  .codeComment {font-family:"Courier New", Courier, monospace; color:#0000F0; font-size:14px; background-color:#F2F4F7 }
+  .normalBold{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; font-weight:800 }
+  .normalBoldLarge{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+</style>
+<style type="text/css">
+  .normal{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px }
+  .footer{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; text-align: center }
+  h2{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+  h3{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:14px; font-weight:800 }
+  .outerTable{
+   background-color:#E0E7ED;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-right-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+  .innerTable{
+   background-color:#F2F4F7;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-bottom-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function ZMMIF_DISP_STOCK_CYB_TO_SAP</h2>
+<h3> Description: </h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION ZMMIF_DISP_STOCK_CYB_TO_SAP .<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local Interface:<br />
+*"  EXPORTING<br />
+*"     VALUE(O_RETURN) LIKE  ZSIFMSG STRUCTURE  ZSIFMSG<br />
+*"  TABLES<br />
+*"      IT_ITEMS STRUCTURE  ZMMS_CYB_T_DISP_IN<br />
+*"      OT_ITEMS STRUCTURE  ZMMS_CYB_T_DISP<br />
+*"----------------------------------------------------------------------<br />
+
+<div class="codeComment">*       <a href ="global-zmmif_disp_stock_cyb_to_sap.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LT_REDATA&nbsp;LIKE&nbsp;TABLE&nbsp;OF&nbsp;ZSDS2030.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LV_MATNR&nbsp;TYPE&nbsp;MATNR18.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LV_BUKRS&nbsp;TYPE&nbsp;BUKRS.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LV_SPMON&nbsp;TYPE&nbsp;SPMON.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LV_PSPMON&nbsp;TYPE&nbsp;SPMON.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LV_PDATUM&nbsp;TYPE&nbsp;SY-DATUM.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LV_DATUM&nbsp;TYPE&nbsp;SY-DATUM.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LV_STARTDATE&nbsp;TYPE&nbsp;VDM_V_START_DATE,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_ENDDATE&nbsp;&nbsp;&nbsp;TYPE&nbsp;VDM_V_END_DATE.<br />
+<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LT_OUT&nbsp;LIKE&nbsp;TABLE&nbsp;OF&nbsp;ZMMS_CYB_T_DISP,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_OUT&nbsp;LIKE&nbsp;ZMMS_CYB_T_DISP.<br />
+<br />
+<br />
+&nbsp;&nbsp;"수신&nbsp;데이타<br />
+&nbsp;&nbsp;DATA(LT_ITEMS)&nbsp;=&nbsp;IT_ITEMS[].<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;LT_ITEMS[]&nbsp;IS&nbsp;INITIAL.&nbsp;"수신&nbsp;데이터&nbsp;확인<br />
+&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;S053(ZMMM10)&nbsp;INTO&nbsp;DATA(LV_ERRMSG).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;O_RETURN&nbsp;=&nbsp;VALUE&nbsp;#(&nbsp;TYPE&nbsp;=&nbsp;'E'&nbsp;ERRCODE&nbsp;=&nbsp;'001'&nbsp;MESSAGE&nbsp;=&nbsp;LV_ERRMSG&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ELSE.&nbsp;"중복&nbsp;확인<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DATA(LT_DUP)&nbsp;=&nbsp;LT_ITEMS[].<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SORT&nbsp;LT_DUP&nbsp;BY&nbsp;BUKRS&nbsp;MATNR&nbsp;SPMON.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;ADJACENT&nbsp;DUPLICATES&nbsp;FROM&nbsp;LT_DUP&nbsp;COMPARING&nbsp;BUKRS&nbsp;MATNR&nbsp;SPMON.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;SY-SUBRC&nbsp;EQ&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;S000(ZMMM10)&nbsp;WITH&nbsp;TEXT-E03&nbsp;INTO&nbsp;DATA(LV_ERRMSG2).&nbsp;"중복된&nbsp;데이터가&nbsp;존재합니다.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;O_RETURN&nbsp;=&nbsp;VALUE&nbsp;#(&nbsp;TYPE&nbsp;=&nbsp;'E'&nbsp;ERRCODE&nbsp;=&nbsp;'001'&nbsp;MESSAGE&nbsp;=&nbsp;LV_ERRMSG2&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"조회&nbsp;일&nbsp;복수&nbsp;확인&nbsp;연월&nbsp;조회&nbsp;시&nbsp;단일&nbsp;연월&nbsp;조회<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DATA(LT_SPMON)&nbsp;=&nbsp;LT_ITEMS[].<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SORT&nbsp;LT_SPMON&nbsp;BY&nbsp;SPMON.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;ADJACENT&nbsp;DUPLICATES&nbsp;FROM&nbsp;LT_SPMON&nbsp;COMPARING&nbsp;SPMON.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;LINES(&nbsp;LT_SPMON&nbsp;)&nbsp;&gt;&nbsp;1.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;S000(ZMMM10)&nbsp;WITH&nbsp;TEXT-E04&nbsp;INTO&nbsp;DATA(LV_ERRMSG3).&nbsp;"조회&nbsp;시&nbsp;연월&nbsp;일자는&nbsp;단일&nbsp;연월&nbsp;데이터만&nbsp;조회&nbsp;가능합니다.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;O_RETURN&nbsp;=&nbsp;VALUE&nbsp;#(&nbsp;TYPE&nbsp;=&nbsp;'E'&nbsp;ERRCODE&nbsp;=&nbsp;'001'&nbsp;MESSAGE&nbsp;=&nbsp;LV_ERRMSG3&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;"수신&nbsp;데이터&nbsp;컨버전<br />
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;LT_ITEMS&nbsp;ASSIGNING&nbsp;FIELD-SYMBOL(&lt;LS_LIST&gt;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;_MATN1&nbsp;'I'&nbsp;&lt;LS_list&gt;-MATNR&nbsp;&lt;LS_list&gt;-MATNR.&nbsp;"자재코드&nbsp;컨버전<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+<br />
+&nbsp;&nbsp;"회사코드&nbsp;자재코드&nbsp;유효성&nbsp;검증<br />
+&nbsp;&nbsp;SELECT&nbsp;A~BUKRS,&nbsp;B~MATNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;T001K&nbsp;AS&nbsp;A<br />
+&nbsp;&nbsp;&nbsp;&nbsp;INNER&nbsp;JOIN&nbsp;@LT_ITEMS&nbsp;AS&nbsp;B<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ON&nbsp;A~BUKRS&nbsp;EQ&nbsp;B~BUKRS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;INNER&nbsp;JOIN&nbsp;MARC&nbsp;AS&nbsp;C<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ON&nbsp;A~BWKEY&nbsp;EQ&nbsp;C~WERKS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;B~MATNR&nbsp;EQ&nbsp;C~MATNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ORDER&nbsp;BY&nbsp;A~BUKRS,&nbsp;B~MATNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;TABLE&nbsp;@DATA(LT_MARC).<br />
+<br />
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;LT_ITEMS&nbsp;ASSIGNING&nbsp;FIELD-SYMBOL(&lt;LS_ITEM&gt;).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;LT_MARC&nbsp;INTO&nbsp;DATA(LS_MARC)&nbsp;WITH&nbsp;KEY&nbsp;BUKRS&nbsp;=&nbsp;&lt;LS_ITEM&gt;-BUKRS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MATNR&nbsp;=&nbsp;&lt;LS_ITEM&gt;-MATNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;BINARY&nbsp;SEARCH.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;SY-SUBRC&nbsp;NE&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DATA(LV_ERR)&nbsp;=&nbsp;'X'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DATA(LV_MATNR_O)&nbsp;=&nbsp;|{&nbsp;&lt;LS_ITEM&gt;-MATNR&nbsp;&nbsp;ALPHA&nbsp;=&nbsp;OUT&nbsp;}|.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;S010(ZMMM20)&nbsp;WITH&nbsp;&lt;LS_ITEM&gt;-BUKRS&nbsp;LV_MATNR_O&nbsp;INTO&nbsp;DATA(LV_ERRMSG4).&nbsp;"회사코드,&nbsp;자재코드가&nbsp;유효하지&nbsp;않습니다.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;O_RETURN&nbsp;=&nbsp;VALUE&nbsp;#(&nbsp;TYPE&nbsp;=&nbsp;'E'&nbsp;ERRCODE&nbsp;=&nbsp;'001'&nbsp;MESSAGE&nbsp;=&nbsp;LV_ERRMSG4&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+&nbsp;&nbsp;"valid&nbsp;체크&nbsp;시&nbsp;exit.<br />
+&nbsp;&nbsp;IF&nbsp;LV_ERR&nbsp;EQ&nbsp;'X'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+<br />
+   </div>
+   <div class="codeComment">
+*-- 전월재고 수량 GET 조회월 전월의 마지막 일 기준 수량 GET<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;LT_ITEMS&nbsp;INTO&nbsp;DATA(LS_DATUM)&nbsp;INDEX&nbsp;1.<br />
+&nbsp;&nbsp;LV_DATUM&nbsp;=&nbsp;LS_DATUM-SPMON&nbsp;&&&nbsp;'01'.<br />
+&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'RP_CALC_DATE_IN_INTERVAL'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DATE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;LV_DATUM<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MONTHS&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;1<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DAYS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;0<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;YEARS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;0<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SIGNUM&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;'-'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALC_DATE&nbsp;=&nbsp;LV_PDATUM.<br />
+&nbsp;&nbsp;"전월&nbsp;마지막일<br />
+&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'RP_LAST_DAY_OF_MONTHS'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DAY_IN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;LV_PDATUM<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LAST_DAY_OF_MONTH&nbsp;=&nbsp;LV_ENDDATE.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*-- 전월 마지막 일 회사별 재고 .GET<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;SELECT&nbsp;A~COMPANYCODE&nbsp;AS&nbsp;BUkrS,&nbsp;"회사코드<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A~PLANT&nbsp;AS&nbsp;WERKS,&nbsp;"&nbsp;플랜트<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A~MATERIAL&nbsp;AS&nbsp;MATNR,&nbsp;"&nbsp;자재코드<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SUM(&nbsp;&nbsp;A~MATLWRHSSTKQTYINMATLBASEUNIT&nbsp;)&nbsp;AS&nbsp;MENGE,&nbsp;"수량<br />
+&nbsp;&nbsp;&nbsp;&nbsp;B~MEINS&nbsp;"단위<br />
+&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;I_MATERIALSTOCKTIMESERIES(&nbsp;P_PERIODTYPE&nbsp;=&nbsp;@GC_D,&nbsp;"일별<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;P_STARTDATE&nbsp;&nbsp;=&nbsp;@LV_enddate,&nbsp;"마지막일<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;P_ENDDATE&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;@LV_ENDDATE&nbsp;)&nbsp;AS&nbsp;A<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INNER&nbsp;JOIN&nbsp;MARA&nbsp;AS&nbsp;B<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ON&nbsp;A~MATERIAL&nbsp;EQ&nbsp;B~MATNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INNER&nbsp;JOIN&nbsp;@LT_ITEMS&nbsp;AS&nbsp;C<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ON&nbsp;A~CompanyCode&nbsp;EQ&nbsp;C~BUKRS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;A~Material&nbsp;EQ&nbsp;C~MATNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;GROUP&nbsp;BY&nbsp;A~CompanyCode,&nbsp;A~PLANT,&nbsp;A~Material,&nbsp;B~MEINS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ORDER&nbsp;BY&nbsp;A~CompanyCode,&nbsp;A~PLANT,&nbsp;&nbsp;A~Material,&nbsp;B~MEINS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;TABLE&nbsp;@DATA(LT_LAST_STOCK).<br />
+<br />
+<br />
+<br />
+&nbsp;&nbsp;"납입실적&nbsp;(생산&nbsp;/&nbsp;구매실적)<br />
+&nbsp;&nbsp;SELECT&nbsp;A~BUKRS,&nbsp;A~MATNR,&nbsp;A~WERKS,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SUM(&nbsp;CASE&nbsp;WHEN&nbsp;A~SHKZG&nbsp;EQ&nbsp;'H'&nbsp;THEN&nbsp;A~MENGE&nbsp;*&nbsp;-1&nbsp;WHEN&nbsp;A~SHKZG&nbsp;EQ&nbsp;'S'&nbsp;THEN&nbsp;A~MENGE&nbsp;END&nbsp;)&nbsp;AS&nbsp;MENGE<br />
+&nbsp;&nbsp;&nbsp;FROM&nbsp;MATDOC&nbsp;AS&nbsp;&nbsp;A<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INNER&nbsp;JOIN&nbsp;@LT_ITEMS&nbsp;AS&nbsp;B<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ON&nbsp;A~MATBF&nbsp;EQ&nbsp;B~MATNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;A~BUKRS&nbsp;EQ&nbsp;B~BUKRS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;A~KZZUG&nbsp;NE&nbsp;@GC_X&nbsp;"STO&nbsp;입고&nbsp;제외<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;A~YEARMONTH_BUDAT&nbsp;EQ&nbsp;B~SPMON<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;A~RECORD_TYPE&nbsp;=&nbsp;'MDOC'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;A~BWART&nbsp;EQ&nbsp;'101'&nbsp;OR&nbsp;A~BWART&nbsp;EQ&nbsp;'102'&nbsp;OR&nbsp;A~BWART&nbsp;EQ&nbsp;'161'&nbsp;OR&nbsp;A~BWART&nbsp;EQ&nbsp;'162'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GROUP&nbsp;BY&nbsp;A~BUKRS,&nbsp;A~WERKS,&nbsp;&nbsp;A~MATNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ORDER&nbsp;BY&nbsp;A~BUKRS,&nbsp;A~WERKS,&nbsp;&nbsp;A~MATNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;TABLE&nbsp;@DATA(LT_MATDOC).<br />
+<br />
+   </div>
+   <div class="codeComment">
+*  SELECT A~BUkrS, A~WERKS, A~MATNR,<br />
+*           A~MBLNR, A~MJAHR, A~ZEILE, A~MENGE, A~MEINS, A~SHKZG<br />
+*       FROM MATDOC AS  A<br />
+*    INNER JOIN @LT_ITEMS AS B<br />
+*    ON A~MATBF EQ B~MATNR<br />
+*    AND A~BUKRS EQ B~BUKRS<br />
+*    AND A~YEARMONTH_BUDAT EQ B~SPMON<br />
+*   AND A~KZZUG NE @GC_X "STO 입고 제외<br />
+*    WHERE A~RECORD_TYPE = 'MDOC'<br />
+*    AND A~BWART EQ '101' OR A~BWART EQ '102' OR A~BWART EQ '161' OR A~BWART EQ '162'<br />
+**     GROUP BY A~BUKRS, A~WERKS,  A~MATNR<br />
+**     ORDER BY A~BUKRS, A~WERKS,  A~MATNR<br />
+*    INTO TABLE @DATA(LT_MATDOC).<br />
+<br />
+<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;"자재&nbsp;기본&nbsp;단위<br />
+&nbsp;&nbsp;SELECT&nbsp;A~MATNR,&nbsp;A~MEINS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;MARA&nbsp;AS&nbsp;A<br />
+&nbsp;&nbsp;&nbsp;&nbsp;INNER&nbsp;JOIN&nbsp;@LT_ITEMS&nbsp;AS&nbsp;B<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ON&nbsp;A~MATNR&nbsp;EQ&nbsp;B~MATNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ORDER&nbsp;BY&nbsp;A~MATNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;TABLE&nbsp;@DATA(LT_MARA).<br />
+<br />
+&nbsp;&nbsp;"전월&nbsp;재고&nbsp;수량<br />
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;LT_LAST_STOCK&nbsp;INTO&nbsp;DATA(LS_LAST_STOCK).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;:&nbsp;LS_OUT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LS_OUT-BUKRS&nbsp;&nbsp;=&nbsp;LS_LAST_STOCK-BUKRS.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LS_OUT-WERKS&nbsp;&nbsp;=&nbsp;LS_LAST_STOCK-WERKS.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LS_OUT-MATNR&nbsp;&nbsp;=&nbsp;LS_LAST_STOCK-MATNR.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LS_OUT-LABST&nbsp;&nbsp;=&nbsp;LS_LAST_STOCK-MENGE.&nbsp;"전월&nbsp;재고&nbsp;수량<br />
+&nbsp;&nbsp;&nbsp;&nbsp;COLLECT&nbsp;LS_OUT&nbsp;INTO&nbsp;LT_OUT.<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+&nbsp;&nbsp;"조회월&nbsp;납입실적<br />
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;LT_MATDOC&nbsp;INTO&nbsp;DATA(LS_MATDOC).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;:&nbsp;LS_OUT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LS_OUT-BUKRS&nbsp;&nbsp;=&nbsp;LS_MATDOC-BUKRS.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LS_OUT-WERKS&nbsp;&nbsp;=&nbsp;LS_MATDOC-WERKS.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LS_OUT-MATNR&nbsp;&nbsp;=&nbsp;LS_MATDOC-MATNR.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LS_OUT-MENGE&nbsp;&nbsp;=&nbsp;LS_MATDOC-MENGE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;COLLECT&nbsp;LS_OUT&nbsp;INTO&nbsp;LT_OUT.<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+&nbsp;&nbsp;"자재마스터&nbsp;단위&nbsp;기입<br />
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;LT_OUT&nbsp;ASSIGNING&nbsp;FIELD-SYMBOL(&lt;FS_OUT&gt;).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;LT_MARA&nbsp;INTO&nbsp;DATA(LS_MARA)&nbsp;WITH&nbsp;KEY&nbsp;MATNR&nbsp;=&nbsp;&lt;FS_OUT&gt;-MATNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;BINARY&nbsp;SEARCH.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;SY-SUBRC&nbsp;EQ&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;FS_OUT&gt;-MEINS&nbsp;=&nbsp;LS_MARA-MEINS.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+&nbsp;&nbsp;SORT&nbsp;LT_OUT&nbsp;BY&nbsp;BUKRS&nbsp;WERKS&nbsp;MATNR.<br />
+&nbsp;&nbsp;DELETE&nbsp;LT_OUT&nbsp;WHERE&nbsp;(&nbsp;MENGE&nbsp;IS&nbsp;INITIAL&nbsp;AND&nbsp;LABST&nbsp;IS&nbsp;INITIAL&nbsp;).&nbsp;"재고가&nbsp;없는&nbsp;경우&nbsp;미전송<br />
+<br />
+&nbsp;&nbsp;OT_ITEMS[]&nbsp;=&nbsp;CORRESPONDING&nbsp;#(&nbsp;LT_OUT[]&nbsp;).<br />
+&nbsp;&nbsp;IF&nbsp;OT_ITEMS[]&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;O_RETURN&nbsp;=&nbsp;VALUE&nbsp;#(&nbsp;TYPE&nbsp;=&nbsp;'E'&nbsp;ERRCODE&nbsp;=&nbsp;'001'&nbsp;MESSAGE&nbsp;=&nbsp;TEXT-E02&nbsp;).<br />
+&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DATA(LV_LINES)&nbsp;=&nbsp;LINES(&nbsp;OT_ITEMS[]&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"건&nbsp;조회되었습니다<br />
+&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;S010(ZMMM10)&nbsp;INTO&nbsp;DATA(LV_MSG)&nbsp;WITH&nbsp;LV_LINES.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;O_RETURN&nbsp;=&nbsp;VALUE&nbsp;#(&nbsp;TYPE&nbsp;=&nbsp;'S'&nbsp;ERRCODE&nbsp;=&nbsp;'001'&nbsp;MESSAGE&nbsp;=&nbsp;LV_MSG&nbsp;).<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+<br />
+   </div>
+   <div class="codeComment">
+*<br />
+*<br />
+*  IF lt_data[] IS INITIAL.<br />
+*    "수신 데이터가 유효하지 않습니다. SAP 담당자에게 문의해주세요<br />
+*    o_return = VALUE #( type = 'E' errcode = '001' message = TEXT-e01 ).<br />
+*    RETURN.<br />
+*  ENDIF.<br />
+*<br />
+*  SORT lt_data BY werks.<br />
+*<br />
+*  LOOP AT lt_data ASSIGNING FIELD-SYMBOL(&lt;fs_data&gt;).<br />
+*<br />
+*    CALL FUNCTION 'ZSD_AVAILABLE_STOCK_SALES'<br />
+*      EXPORTING<br />
+*        i_plant       = &lt;fs_data&gt;-werks<br />
+*        i_material    = &lt;fs_data&gt;-matnr<br />
+*        i_unit        = &lt;fs_data&gt;-meins<br />
+**       I_CHECK_RULE  = 'A'<br />
+**       I_VKORG       = '1000'<br />
+**       I_VTWEG       = '10'<br />
+**   IMPORTING<br />
+**       E_RETURN_GB   =<br />
+**       E_ERR_MESSAGE =<br />
+*      TABLES<br />
+*        et_stock_info = lt_redata.<br />
+*<br />
+*    ot_items[] = CORRESPONDING #( BASE ( ot_items[] ) lt_redata MAPPING werks = plant<br />
+*                                                                                                  matnr = material<br />
+*                                                                                                  labst = com_qty<br />
+*                                                                                                  meins = unit ).<br />
+*    CLEAR : lt_redata.<br />
+*<br />
+*  ENDLOOP.<br />
+*<br />
+*<br />
+*  IF ot_items[] IS INITIAL.<br />
+*    o_return = VALUE #( type = 'E' errcode = '001' message = TEXT-e02 ).<br />
+*  ELSE.<br />
+*    DATA(lv_lines) = lines( ot_items[] ).<br />
+*    "건 조회되었습니다<br />
+*    MESSAGE s010(zmmm10) INTO DATA(lv_msg) WITH lv_lines.<br />
+*    o_return = VALUE #( type = 'S' errcode = '001' message = lv_msg ).<br />
+*  ENDIF.<br />
+<br />
+<br />
+<br />
+   </div>
+   <div class="code">
+ENDFUNCTION.<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2025. Sap Release 758</td>
+   </tr>
+</table>
+</body>
+</html>

@@ -1,0 +1,392 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http ://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http ://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>/SCWM/TO_POST</title>
+<style type="text/css">
+.code{ font-family :"Courier New", Courier, monospace; color :#000; font-size :14px; background-color :#F2F4F7 }
+  .codeComment {font-family :"Courier New", Courier, monospace; color :#0000F0; font-size :14px; background-color :#F2F4F7 }
+  .normalBold{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; font-weight :800 }
+  .normalBoldLarge{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+</style>
+<style type="text/css">
+  .normal{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px }
+  .footer{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; text-align : center }
+  h2{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+  h3{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :14px; font-weight :800 }
+  .outerTable{
+   background-color :#E0E7ED;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-right-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+  .innerTable{
+   background-color :#F2F4F7;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-bottom-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function /SCWM/TO_POST</h2>
+<h3> Description : Update Internal Warehouse Task Tables</h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION /scwm/to_post.<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local Interface:<br />
+*"  IMPORTING<br />
+*"     VALUE(IV_UPDATE_TASK) TYPE  /SCWM/RL03AVERBU DEFAULT 'X'<br />
+*"     VALUE(IV_COMMIT_WORK) TYPE  /SCWM/RL03ACOMIT DEFAULT SPACE<br />
+*"     VALUE(IV_MAT_CHECK) TYPE  /SCWM/DE_MAT_CHECK DEFAULT SPACE<br />
+*"     VALUE(IV_PROCESSOR_DET) TYPE  /SCWM/DE_CONFIRM_RF DEFAULT SPACE<br />
+*"     VALUE(IV_PARALLEL) TYPE  XFELD DEFAULT SPACE<br />
+*"     VALUE(IV_SET_ON_HOLD) TYPE  XFELD DEFAULT SPACE<br />
+*"     VALUE(IV_RELEASE_SINGLE) TYPE  XFELD DEFAULT SPACE<br />
+*"     VALUE(IV_ONE_WO_CALL) TYPE  XFELD DEFAULT SPACE<br />
+*"     VALUE(IV_WT_CREA_ONLY) TYPE  XFELD DEFAULT SPACE<br />
+*"     VALUE(IS_MFS_CONF) TYPE  /SCWM/S_MFS_CONF OPTIONAL<br />
+*"     REFERENCE(IT_DOC) TYPE  /SCWM/TT_PDENIAL_ATTR OPTIONAL<br />
+*"     REFERENCE(IV_WO_NOPRINT) TYPE  XFELD OPTIONAL<br />
+*"     REFERENCE(IT_LTAP_BIND) TYPE  /SCWM/TT_LTAP_VB OPTIONAL<br />
+*"     REFERENCE(IS_MMIM_POSTING_HEADER) TYPE<br />
+*"        /SCWM/S_MMIM_POSTING_HEADER OPTIONAL<br />
+*"  EXPORTING<br />
+*"     VALUE(EV_TANUM) TYPE  /SCWM/TANUM<br />
+*"     VALUE(EV_SEVERITY) TYPE  BAPI_MTYPE<br />
+*"     VALUE(EV_LOGNR) TYPE  BALOGNR<br />
+*"     REFERENCE(ET_LTAP_VB) TYPE  /SCWM/TT_LTAP_VB<br />
+*"     REFERENCE(ET_LTAP_ERR) TYPE  /SCWM/TT_LTAP_VB<br />
+*"     REFERENCE(ET_BAPIRET) TYPE  BAPIRETTAB<br />
+*"----------------------------------------------------------------------<br />
+<br />
+
+<div class="codeComment">*       <a href ="global-_scwm_to_post.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;DATA:&nbsp;lv_cntlines&nbsp;TYPE&nbsp;sytabix,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_severity&nbsp;TYPE&nbsp;bapi_mtype.<br />
+<br />
+&nbsp;&nbsp;DATA:&nbsp;lt_bapiret&nbsp;TYPE&nbsp;bapirettab,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_tap&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_ltap_vb,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_tap2&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_ltap_vb.<br />
+<br />
+&nbsp;&nbsp;BREAK-POINT&nbsp;ID&nbsp;/scwm/core.<br />
+<br />
+&nbsp;&nbsp;CLEAR:&nbsp;ev_severity,&nbsp;ev_tanum,&nbsp;et_bapiret,&nbsp;et_ltap_vb,&nbsp;et_ltap_err.<br />
+&nbsp;&nbsp;CLEAR:&nbsp;ev_lognr.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* Post allowed only once<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;IF&nbsp;gv_post&nbsp;=&nbsp;'X'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;gv_post&nbsp;=&nbsp;'X'.<br />
+<br />
+&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/TO_LOG_SET_EXT'.<br />
+<br />
+&nbsp;&nbsp;TRY.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*     check parameter<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;xfeld_pruefen&nbsp;USING&nbsp;iv_update_task.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;xfeld_pruefen&nbsp;USING&nbsp;iv_commit_work.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*     Pick Denial<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;pdenial_create&nbsp;USING&nbsp;it_doc.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gs_rl03a-verbu&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;iv_update_task.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/L_TO_POST_INT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_processor_det&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;iv_processor_det<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_parallel&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;iv_parallel<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_set_on_hold&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;iv_set_on_hold<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_release_single&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;iv_release_single<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_one_wo_call&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;iv_one_wo_call<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_rl03a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;gs_rl03a<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_t340d&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;gs_t340d<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_wo_noprint&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;iv_wo_noprint<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;it_ltap_bind&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;it_ltap_bind<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_mmim_posting_header&nbsp;=&nbsp;is_mmim_posting_header<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_tanum&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ev_tanum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_ltap_vb&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;et_ltap_vb<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_ltap_err&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;et_ltap_err<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_lognr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ev_lognr<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;error_message&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;4.&nbsp;"#EC&nbsp;EXCEPT_TRY<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;4.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;go_prot&nbsp;IS&nbsp;BOUND.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;go_prot-&gt;add_message(&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RAISE&nbsp;EXCEPTION&nbsp;TYPE&nbsp;/scwm/cx_core.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DESCRIBE&nbsp;TABLE&nbsp;et_ltap_vb&nbsp;LINES&nbsp;lv_cntlines.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_cntlines&nbsp;&gt;&nbsp;1.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CLEAR:&nbsp;ev_tanum.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/TO_LOG_ADD_EXT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_severity&nbsp;=&nbsp;ev_severity<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_bapiret&nbsp;&nbsp;=&nbsp;et_bapiret.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"BOPF&nbsp;Handling<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DATA(lo_bopf_manager)&nbsp;=&nbsp;/scwm/cl_bopf_manager=&gt;get_instance(&nbsp;).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"This&nbsp;will&nbsp;be&nbsp;done&nbsp;once&nbsp;in&nbsp;the&nbsp;CHECK_SAVE&nbsp;of&nbsp;EWM&nbsp;Transaction&nbsp;Manager<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lo_bopf_manager-&gt;do_pre_commit(&nbsp;).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;commit_work&nbsp;USING&nbsp;iv_commit_work<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gv_lgnum.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CATCH&nbsp;/scwm/cx_core.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/TO_LOG_ADD_EXT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_severity&nbsp;=&nbsp;ev_severity<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_bapiret&nbsp;&nbsp;=&nbsp;et_bapiret.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cl_abap_behv_aux=&gt;get_current_context(&nbsp;IMPORTING&nbsp;from_projection&nbsp;=&nbsp;DATA(lv_projection)&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_projection&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DATA(lo_tm_bobf_int)&nbsp;=&nbsp;CAST&nbsp;/scwm/if_tm_bobf_integration(&nbsp;/scwm/cl_tm_factory=&gt;get_service(<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/scwm/if_tm_bobf_integration=&gt;sc_my_tm_factory_name&nbsp;)&nbsp;).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;abap_false&nbsp;=&nbsp;lo_tm_bobf_int-&gt;is_bobf_active(&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;standard:&nbsp;stop&nbsp;everything&nbsp;and&nbsp;write&nbsp;log<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ROLLBACK&nbsp;WORK.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"#EC&nbsp;CI_ROLLBACK<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;central&nbsp;cleanup<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/scwm/cl_tm=&gt;cleanup(&nbsp;EXPORTING&nbsp;iv_lgnum&nbsp;=&nbsp;gv_lgnum&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;BOBF&nbsp;requires&nbsp;a&nbsp;different&nbsp;sequence<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;/scwm/if_tm_global_info=&gt;sc_bus_obj_whr&nbsp;&lt;&gt;&nbsp;lo_tm_bobf_int-&gt;get_responsible(&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lo_tm_bobf_int-&gt;after_failed_save(&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/scwm/cl_tm=&gt;cleanup(&nbsp;EXPORTING&nbsp;iv_lgnum&nbsp;=&nbsp;gv_lgnum&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ROLLBACK&nbsp;WORK.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;write_log&nbsp;USING&nbsp;gv_lgnum&nbsp;ev_severity&nbsp;et_bapiret<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;ev_lognr.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;OData/EML&nbsp;(Entity-Markup-Language&nbsp;calling&nbsp;released&nbsp;RAP&nbsp;BOs):&nbsp;work&nbsp;RAP&nbsp;compliant,&nbsp;no&nbsp;ROLLBACK&nbsp;or&nbsp;CLEANUP<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;With&nbsp;Cloud&nbsp;Release&nbsp;2011&nbsp;it&nbsp;is&nbsp;still&nbsp;NOT&nbsp;possible&nbsp;to&nbsp;propagate&nbsp;error&nbsp;messages&nbsp;to&nbsp;the&nbsp;RAP&nbsp;Framework<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;Therefore,&nbsp;we&nbsp;must&nbsp;stop&nbsp;here!&nbsp;=&gt;&nbsp;OData&nbsp;V4&nbsp;will&nbsp;use&nbsp;the&nbsp;new&nbsp;message&nbsp;during&nbsp;late&nbsp;save<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_projection&nbsp;=&nbsp;'A_WAREHOUSETASK'&nbsp;OR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_projection&nbsp;=&nbsp;'A_WAREHOUSEORDER'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ASSERT&nbsp;ID&nbsp;/scwm/core_save_rap&nbsp;SUBKEY&nbsp;sy-msgid&nbsp;&&&nbsp;sy-msgno<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FIELDS&nbsp;sy-msgid&nbsp;sy-msgno&nbsp;sy-msgv1&nbsp;sy-msgv2&nbsp;sy-msgv3&nbsp;sy-msgv4<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CONDITION&nbsp;1&nbsp;=&nbsp;0.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;Provide&nbsp;X&nbsp;message&nbsp;for&nbsp;error&nbsp;analysis!<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;ID&nbsp;sy-msgid&nbsp;TYPE&nbsp;'X'&nbsp;NUMBER&nbsp;sy-msgno<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WITH&nbsp;sy-msgv1&nbsp;sy-msgv2&nbsp;sy-msgv3&nbsp;sy-msgv4.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;ENDTRY.<br />
+<br />
+ENDFUNCTION.<br />
+<br />
+<br />
+   </div>
+   <div class="codeComment">
+*Messages<br />
+*----------------------------------------------------------<br />
+*<br />
+* Message class : /SCWM/CORE<br />
+*376   No packing instruction/packaging spec. found for delivery order item &1<br />
+*<br />
+* Message class : /SCWM/CROSS_DOCKING<br />
+*014   HU &1 or at least one lower-level HU is relevant for TCD<br />
+*016   An open HU WT already exists for HU &1<br />
+*<br />
+* Message class : /SCWM/DLV_SERIAL<br />
+*218   Quantity &1 does not correspond with the number of SNs and UIIs entered<br />
+*324   Enter valid serial numbers. Provisional serial numbers are not supported<br />
+*<br />
+* Message class : /SCWM/ERPINTEGRATION<br />
+*011   Application log &1: Could not convert queue &2<br />
+*<br />
+* Message class : /SCWM/FL_CD<br />
+*016   Process-oriented storage control skipped for WT with reference to FL CD<br />
+*027   HU &1 can큧 be nested as it contains items relevant for quality insp.<br />
+*<br />
+* Message class : /SCWM/GM<br />
+*102   You can't automatically post stock with type &1 to own stock<br />
+*782   GR correction not possible in this process<br />
+*<br />
+* Message class : /SCWM/GOODS_MOVEMENT<br />
+*049   HU &1 has no exact valuation quantity<br />
+*<br />
+* Message class : /SCWM/HUFUNCTIONS<br />
+*005   System data cannot be changed<br />
+*<br />
+* Message class : /SCWM/L1<br />
+*007   Storage bin & does not exist<br />
+*<br />
+* Message class : /SCWM/L3<br />
+*001   Warehouse process type &1 is not allowed (check your entry)<br />
+*005   Enter a warehouse process type<br />
+*022   Whse task & does not exist in whse no. & or is already conf. or canceled<br />
+*027   You should only confirm differences with the appropriate exception code<br />
+*046   Whse process control must not be deactivated acc. to whse proc. cat. &1<br />
+*051   You do not have authorization for warehouse number &1<br />
+*053   You do not have authorization for activity area &1 &2<br />
+*060   No bin sectioning defined for storage bin &<br />
+*062   Product WT creation for HU &1 failed<br />
+*080   Warehouse number & does not exist (new selection required)<br />
+*094   HU WT creation for HU &1 failed<br />
+*113   Low stock check not supported for warehouse task &1<br />
+*126   HU &1 is intended for process oriented storage control for int. movement<br />
+*130   Warehouse tasks created internally for HU &1 will be deleted<br />
+*133   Low stock check not supported for WT &1 - another open PI doc. exists<br />
+*134   Low stock check not supported for WT &1 - bin &2 can not be locked<br />
+*135   Low stock check not supported for WT &1 - open putaway WT exists<br />
+*136   Low stock check not supported for WT &1 - another open picking WT exists<br />
+*137   Low stock Phys.Inv. not supported for WT &1 - PI completed in fiscal year<br />
+*138   Low stock check not supported for WT &1 - not exactly one quant on bin &2<br />
+*141   An error occurred during blocking<br />
+*142   Error locking tRFC &1 by user &2<br />
+*204   HU type & does not exist in warehouse number &2 (check your entry)<br />
+*216   Enter a handling unit<br />
+*223   Handling unit &1 is in a warehouse task that has not been confirmed<br />
+*337   Storage section &2 does not exist in storage type &1 (check your entry)<br />
+*370   Warehouse task &1 must be canceled before proceeding<br />
+*375   Check your transfer parameters<br />
+*431   Low Stock Check is not supported when unit of measure was changed<br />
+*450   Storage control active for HU &1 with storage process &2<br />
+*451   ***** Putaway Warehouse Task Creation for HU &1 - Start<br />
+*452   ***** Putaway Warehouse Task Creation for HU &1 - End<br />
+*453   'Deconsolidate' is not required for HU &1<br />
+*454   Storage process step &1 determined for HU &2<br />
+*455   Warehouse process type set to &1 due to storage control<br />
+*456   Destination data set to &1 &2 &3 &4 due to storage control<br />
+*459   No HU WT required for HU &1 and storage process step &2<br />
+*460   Additional HU WT required for storage process step &1<br />
+*461   Storage control active: Specifying the destination HU is not supported<br />
+*522   &1 warehouse tasks created<br />
+*701   Default values are not defined for warehouse number &<br />
+*714   A documentary batch must be entered for warehouse task &1<br />
+*715   No documentary batch can be entered for warehouse task &1<br />
+*790   You don't have authorization to make changes in warehouse &1<br />
+*803   HU &1: Status prohibits HU change<br />
+*830   Error occurred while reading HU data for HU &1<br />
+*863   Destination data already determined; HU destination data ignored<br />
+*864   Dest. data already determined; sub-HU dest. data in top HU &1 ignored<br />
+*865   Destination bin &1 in handling unit &2 determined<br />
+*866   Multiple destination bins determined in sub-HUs of highest-level HU &1<br />
+*883   You cannot change HU&1 because Shipping Readiness is set to Ready<br />
+*886   The seg. strategy assigns stk seg. &1 to req. seg. &2 in sequence &3.<br />
+*887   *****   Segmentation Strategy    *****<br />
+*889   You can't change HU &1 because its status is 'Packed for Shipping'.<br />
+*891   Batch related to the item has already been maintained.<br />
+*<br />
+* Message class : /SCWM/L3A<br />
+*006   Total of quantities in split items does not result in target qty &1 &2 &3<br />
+*010   Confirm with target = actual for warehouse task &1<br />
+*011   Deactivation of WT &1 not possible for split items<br />
+*<br />
+* Message class : /SCWM/LC1<br />
+*022   Error creating storage bin<br />
+*<br />
+* Message class : /SCWM/LT<br />
+*037   Only propose immediate confirmation if you also allow it<br />
+*<br />
+* Message class : /SCWM/MD<br />
+*002   Product does not exist<br />
+*<br />
+* Message class : /SCWM/MEDI<br />
+*077   HU &1 or at least one lower-level HU is relevant to merchand. distrib.<br />
+*<br />
+* Message class : /SCWM/PUT_BIN_DET<br />
+*055   HU type &1 is not permitted for storage bin type &2<br />
+*<br />
+* Message class : /SCWM/RF_EN<br />
+*393   No goods movement posting possible; product &1 batch &2 'not released'<br />
+*<br />
+* Message class : /SCWM/S2C_HU<br />
+*003   Handling unit &1 is relevant for JIS calls (Supply to Customer)<br />
+*004   HU &1 already staged in JIS call; WT created as immediately confirmed<br />
+*<br />
+* Message class : /SCWM/SERIAL<br />
+*004   Serial number &1 already exists<br />
+*011   Quantities with decimal places not allowed for serial numbers<br />
+*012   Number of serial numbers does not correspond with quantity in item<br />
+*013   Serial number &1 is not on source HU<br />
+*014   Combination of product number and serial number must be unique<br />
+*015   Serial numbers of type SNBP or SNLN are not allowed w/out delivery ref.<br />
+*019   Specification of serial numbers is only allowed for serialized products<br />
+*021   Stock-managed serial numbers not allowed for negative differences<br />
+*022   Could not determine all serial numbers<br />
+*028   Serial number specification for difference quantity is not allowed<br />
+*029   Provisional and non-provisional serial numbers not allowed on source HU<br />
+*030   Input of provisional serial numbers is not allowed<br />
+*031   Serial number specification is obligatory for final putaway<br />
+*032   Not possible to replace provisional serial numbers<br />
+*036   Serial number specification is not allowed<br />
+*037   Serial number specification is obligatory<br />
+*064   Warehouse task conf. is only possible with the specified serial numbers<br />
+*102   Serial number &1 has already been reserved by warehouse task &2<br />
+*105   Unique item identifier &1 already exists<br />
+*110   Unique item identifier has been entered more than once<br />
+*130   Warehouse task confirmaton is only possible with the specified UII<br />
+*132   Automatic assignment of serialnumbers to Sub-HUs is not possible.<br />
+*<br />
+* Message class : /SCWM/STOCK_UPLOAD<br />
+*056   Valuation unit of measure &1 is not maintained for product &2<br />
+*060   Product &1: Log. unit of measure &2 entered is valuation unit of measure<br />
+*<br />
+* Message class : /SCWM/TW_WT<br />
+*009   Process-oriented stor.ctrl must be deactive in WPT &1 for transit HU &2<br />
+*<br />
+* Message class : /SCWM/UI_PACKING<br />
+*111   HU is not yet in warehouse and therefore cannot be processed<br />
+*144   No destination storage type exists for work center determination<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2026. Sap Release 816</td>
+   </tr>
+</table>
+</body>
+</html>

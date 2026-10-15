@@ -1,0 +1,269 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http ://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http ://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>/SCWM/AUOM_DET</title>
+<style type="text/css">
+.code{ font-family :"Courier New", Courier, monospace; color :#000; font-size :14px; background-color :#F2F4F7 }
+  .codeComment {font-family :"Courier New", Courier, monospace; color :#0000F0; font-size :14px; background-color :#F2F4F7 }
+  .normalBold{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; font-weight :800 }
+  .normalBoldLarge{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+</style>
+<style type="text/css">
+  .normal{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px }
+  .footer{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; text-align : center }
+  h2{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+  h3{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :14px; font-weight :800 }
+  .outerTable{
+   background-color :#E0E7ED;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-right-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+  .innerTable{
+   background-color :#F2F4F7;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-bottom-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function /SCWM/AUOM_DET</h2>
+<h3> Description : Determine AUoM based on PUoM</h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION /scwm/auom_det.<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local Interface:<br />
+*"  IMPORTING<br />
+*"     REFERENCE(IV_LGNUM) TYPE  /SCWM/LGNUM<br />
+*"     REFERENCE(IV_SHIP_FROM) TYPE  /SCWM/DE_SHIP_FROM<br />
+*"     REFERENCE(IS_DLV_ITEM) TYPE  /SCWM/S_DLV_ITEM_AUOM_DET<br />
+*"  EXPORTING<br />
+*"     REFERENCE(EV_QTY) TYPE  /SCDL/DL_QUANTITY<br />
+*"     REFERENCE(EV_UOM) TYPE  /SCDL/DL_UOM<br />
+*"----------------------------------------------------------------------<br />
+<br />
+
+<div class="codeComment">*       <a href ="global-_scwm_auom_det.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;DATA:<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lo_customizing&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;REF&nbsp;TO&nbsp;/scdl/if_af_business_conf,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_item_type_key&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scdl/dl_itmtype_extkey_str,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_item_type_customizing&nbsp;TYPE&nbsp;/scdl/dl_itype_detail_str,<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lv_batchid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/de_batchid,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lv_preferred_uom&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/de_puom,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lv_base_uom&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/de_base_uom,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lv_is_stock_specific&nbsp;&nbsp;TYPE&nbsp;/scwm/de_flg_suom,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lv_quan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/de_quantity,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lv_quan_integer&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;i,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lo_badi&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;REF&nbsp;TO&nbsp;/scwm/ex_md_puom_det.<br />
+<br />
+&nbsp;&nbsp;BREAK-POINT&nbsp;ID&nbsp;/scwm/suom.<br />
+<br />
+&nbsp;&nbsp;ev_qty&nbsp;=&nbsp;is_dlv_item-qty.<br />
+&nbsp;&nbsp;ev_uom&nbsp;=&nbsp;is_dlv_item-uom.<br />
+<br />
+&nbsp;&nbsp;TRY.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"read&nbsp;the&nbsp;customizing&nbsp;of&nbsp;the&nbsp;delivery&nbsp;item&nbsp;type<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lo_customizing&nbsp;?=&nbsp;/scdl/cl_af_management=&gt;get_instance(&nbsp;)-&gt;get_service(&nbsp;/scdl/if_af_management_c=&gt;sc_business_conf&nbsp;).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_item_type_key-category&nbsp;=&nbsp;is_dlv_item-doccat.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_item_type_key-item_type&nbsp;=&nbsp;is_dlv_item-itemtype.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lo_customizing-&gt;get_item_bc_by_type(<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_item_extkey&nbsp;=&nbsp;ls_item_type_key<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_langu&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;sy-langu<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_itype&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_item_type_customizing&nbsp;).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CATCH&nbsp;/scdl/cx_af_management&nbsp;##no_handler.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CATCH&nbsp;/scdl/cx_af_business_conf&nbsp;##no_handler.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"if&nbsp;we&nbsp;can't&nbsp;read&nbsp;the&nbsp;customizing&nbsp;we&nbsp;don't&nbsp;propose&nbsp;a&nbsp;UoM<br />
+&nbsp;&nbsp;ENDTRY.<br />
+<br />
+&nbsp;&nbsp;"check&nbsp;the&nbsp;customizing&nbsp;of&nbsp;the&nbsp;item&nbsp;type<br />
+&nbsp;&nbsp;"the&nbsp;preferred&nbsp;UoM&nbsp;is&nbsp;only&nbsp;determined&nbsp;if&nbsp;the&nbsp;usage&nbsp;of&nbsp;the&nbsp;alterative&nbsp;UoM&nbsp;is&nbsp;activated<br />
+&nbsp;&nbsp;IF&nbsp;ls_item_type_customizing-use_alt_uom&nbsp;=&nbsp;abap_true.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;TRY.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"check&nbsp;if&nbsp;the&nbsp;product&nbsp;is&nbsp;SUoM&nbsp;relevant.&nbsp;if&nbsp;the&nbsp;product&nbsp;is&nbsp;not&nbsp;SUoM&nbsp;relevant&nbsp;the<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"function&nbsp;module&nbsp;does&nbsp;not&nbsp;return&nbsp;a&nbsp;preferred&nbsp;UoM<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/MATERIAL_SUOM_RELEVANT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;iv_lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_matid&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_dlv_item-productid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_entitled&nbsp;=&nbsp;is_dlv_item-entitled<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_buom&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lv_base_uom<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_puom&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lv_preferred_uom.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"the&nbsp;peferred&nbsp;UoM&nbsp;is&nbsp;only&nbsp;proposed&nbsp;if&nbsp;the&nbsp;delivery&nbsp;item&nbsp;quantity&nbsp;is&nbsp;not&nbsp;already&nbsp;in&nbsp;an&nbsp;alternative&nbsp;UoM<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;is_dlv_item-uom&nbsp;=&nbsp;lv_base_uom&nbsp;OR&nbsp;is_dlv_item-uom&nbsp;IS&nbsp;INITIAL.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"if&nbsp;no&nbsp;preferred&nbsp;UoM&nbsp;is&nbsp;specified&nbsp;there&nbsp;is&nbsp;nothing&nbsp;to&nbsp;do<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_preferred_uom&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"check&nbsp;if&nbsp;the&nbsp;preferred&nbsp;UoM&nbsp;is&nbsp;stock&nbsp;specific;&nbsp;otherwise&nbsp;it&nbsp;is&nbsp;not&nbsp;proposed<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/TUOM_QCLA_READ'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;iv_lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_unit&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lv_preferred_uom<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_flg_suom&nbsp;=&nbsp;lv_is_stock_specific.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_is_stock_specific&nbsp;=&nbsp;abap_true.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;is_dlv_item-uom&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"if&nbsp;the&nbsp;delviery&nbsp;item&nbsp;doesn't&nbsp;already&nbsp;have&nbsp;a&nbsp;UoM&nbsp;we&nbsp;just&nbsp;propose&nbsp;it<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_uom&nbsp;=&nbsp;lv_preferred_uom.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"if&nbsp;the&nbsp;delivery&nbsp;item&nbsp;has&nbsp;a&nbsp;quantity&nbsp;with&nbsp;UoM&nbsp;we&nbsp;take&nbsp;it&nbsp;into&nbsp;account<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_batchid&nbsp;=&nbsp;is_dlv_item-batchno.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/MATERIAL_QUAN_CONVERT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_matid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_dlv_item-productid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_quan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_dlv_item-qty<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_unit_from&nbsp;=&nbsp;is_dlv_item-uom<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_unit_to&nbsp;&nbsp;&nbsp;=&nbsp;lv_preferred_uom<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_batchid&nbsp;&nbsp;&nbsp;=&nbsp;lv_batchid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_quan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lv_quan.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"check&nbsp;if&nbsp;the&nbsp;quantity&nbsp;conversion&nbsp;results&nbsp;in&nbsp;whole&nbsp;units<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"and&nbsp;therefore&nbsp;the&nbsp;proposal&nbsp;of&nbsp;the&nbsp;preferred&nbsp;UoM&nbsp;makes&nbsp;sense<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_quan_integer&nbsp;=&nbsp;lv_quan.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_quan_integer&nbsp;=&nbsp;lv_quan&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_quan_integer&nbsp;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_qty&nbsp;=&nbsp;lv_quan.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_uom&nbsp;=&nbsp;lv_preferred_uom.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CATCH&nbsp;/scwm/cx_md&nbsp;##no_handler.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"if&nbsp;we&nbsp;can't&nbsp;propose&nbsp;a&nbsp;UoM&nbsp;the&nbsp;original&nbsp;one&nbsp;is&nbsp;used<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDTRY.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;"call&nbsp;BAdI&nbsp;for&nbsp;customer&nbsp;own&nbsp;determination&nbsp;of&nbsp;the&nbsp;PUoM<br />
+&nbsp;&nbsp;TRY.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GET&nbsp;BADI&nbsp;lo_badi<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FILTERS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lgnum&nbsp;=&nbsp;iv_lgnum.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;BADI&nbsp;lo_badi-&gt;determine_puom<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;iv_lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_ship_from&nbsp;=&nbsp;iv_ship_from<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_dlv_item&nbsp;&nbsp;=&nbsp;is_dlv_item<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cv_qty&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ev_qty<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cv_uom&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ev_uom.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CATCH&nbsp;cx_badi&nbsp;##no_handler.<br />
+&nbsp;&nbsp;ENDTRY.<br />
+<br />
+ENDFUNCTION.<br />
+<br />
+<br />
+   </div>
+   <div class="codeComment">
+*Messages<br />
+*----------------------------------------------------------<br />
+*<br />
+* Message class : /SCWM/HUGENERAL<br />
+*011   HU &1 could not be found<br />
+*<br />
+* Message class : /SCWM/HU_WM<br />
+*134   Inconsistent state for HU &1 in move: no open HU WT found<br />
+*<br />
+* Message class : /SCWM/L1<br />
+*033   &1&2<br />
+*042   An internal error has occurred (& & & &)<br />
+*<br />
+* Message class : /SCWM/L3<br />
+*013   Error determining the location of the stock<br />
+*052   Missing authorization for Stor.Type, WhsePrcTpe, Ent.toDisp &1 &2 &3 &4<br />
+*078   Remove the batch number<br />
+*079   Enter a batch number<br />
+*145   Location &2 already being processed by user &1<br />
+*179   Storage bin & blocked for stock removals<br />
+*180   Storage bin & blocked for putaways<br />
+*830   Error occurred while reading HU data for HU &1<br />
+*<br />
+* Message class : /SCWM/MD<br />
+*002   Product does not exist<br />
+*<br />
+* Message class : /SCWM/MONITOR<br />
+*033   Lower date limit is greater than upper date limit<br />
+*<br />
+* Message class : /SCWM/PS_WM<br />
+*002   Pack. spec. &3 is using HU type &2; &2 is not defined for warehouse &1<br />
+*003   Pack. spec. &3 is using HU type &2; &2 invalid for whse &1 stor. type &4<br />
+*<br />
+* Message class : /SCWM/PUT_BIN_DET<br />
+*128   Product &1 on bin &2 is blocked for putaway due to physical inventory<br />
+*<br />
+* Message class : /SCWM/REM_BIN_DET<br />
+*301   Packaging specification not maintained for product &1<br />
+*<br />
+* Message class : /SCWM/SERIAL<br />
+*102   Serial number &1 has already been reserved by warehouse task &2<br />
+*<br />
+* Message class : /SCWM/UI_PACKING<br />
+*204   Unable to record differences for kits<br />
+*<br />
+* Message class : /SCWM/UI_POST<br />
+*018   Stock could not be read<br />
+*<br />
+* Message class : /SCWM/WAVE<br />
+*153   Enter a date and a time<br />
+*<br />
+* Message class : /SCWM/WAVE_PLAN<br />
+*014   Enter a time between 00:00:00 and 23:59:59<br />
+*<br />
+* Message class : /SCWM/WM_SEL<br />
+*001   Parameters not consistent<br />
+*017   No data records selected in table /SCWM/AQUA<br />
+*023   You didn't enter a warehouse number<br />
+*041   Storage process step &2 is not assigned to storage process &1<br />
+*062   Select either storage types or storage type groups<br />
+*068   You do not have authorization to display stock<br />
+*076   Selection yielded no results<br />
+*100   Error during determination of stock data for HU<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2026. Sap Release 816</td>
+   </tr>
+</table>
+</body>
+</html>

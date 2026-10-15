@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>ZMM_GW_PO_PR_CHANGE</title>
+<style type="text/css">
+.code{ font-family:"Courier New", Courier, monospace; color:#000; font-size:14px; background-color:#F2F4F7 }
+  .codeComment {font-family:"Courier New", Courier, monospace; color:#0000F0; font-size:14px; background-color:#F2F4F7 }
+  .normalBold{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; font-weight:800 }
+  .normalBoldLarge{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+</style>
+<style type="text/css">
+  .normal{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px }
+  .footer{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; text-align: center }
+  h2{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+  h3{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:14px; font-weight:800 }
+  .outerTable{
+   background-color:#E0E7ED;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-right-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+  .innerTable{
+   background-color:#F2F4F7;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-bottom-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function ZMM_GW_PO_PR_CHANGE</h2>
+<h3> Description: </h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION ZMM_GW_PO_PR_CHANGE.<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local Interface:<br />
+*"  IMPORTING<br />
+*"     VALUE(IV_BANFN) TYPE  BANFN<br />
+*"     VALUE(IV_EBELN) TYPE  BSTNR<br />
+*"  EXPORTING<br />
+*"     VALUE(EV_RETURN) TYPE  ZSIFMSG<br />
+*"----------------------------------------------------------------------<br />
+<br />
+
+<div class="codeComment">*       <a href ="global-zmm_gw_po_pr_change.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+data(ls_banfn) = iv_banfn.<br />
+data(ls_ebeln) = iv_ebeln.<br />
+<br />
+data : lt_ekpo type table of ekpo,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_ekko&nbsp;type&nbsp;table&nbsp;of&nbsp;ekko.<br />
+data : lt_eban type table of eban.<br />
+data : ls_del type char02.<br />
+<br />
+SELECT *<br />
+&nbsp;&nbsp;FROM&nbsp;ekko<br />
+&nbsp;&nbsp;where&nbsp;ebeln&nbsp;=&nbsp;@ls_ebeln<br />
+&nbsp;&nbsp;INTO&nbsp;CORRESPONDING&nbsp;FIELDS&nbsp;OF&nbsp;TABLE&nbsp;@lt_ekko.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;eq&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;lt_ekko&nbsp;INTO&nbsp;data(lv_ekko)&nbsp;INDEX&nbsp;1.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;check&nbsp;lv_ekko-bsart&nbsp;EQ&nbsp;'ZMR'.&nbsp;"MRO&nbsp;유형만&nbsp;체크함.<br />
+&nbsp;&nbsp;else.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;exit.<br />
+&nbsp;&nbsp;endif.<br />
+<br />
+&nbsp;&nbsp;SELECT&nbsp;*<br />
+&nbsp;&nbsp;FROM&nbsp;ekpo<br />
+&nbsp;&nbsp;where&nbsp;ebeln&nbsp;=&nbsp;@ls_ebeln<br />
+&nbsp;&nbsp;INTO&nbsp;CORRESPONDING&nbsp;FIELDS&nbsp;OF&nbsp;TABLE&nbsp;@lt_ekpo.<br />
+&nbsp;&nbsp;SORT&nbsp;lt_ekpo&nbsp;by&nbsp;ebeln&nbsp;ebelp.<br />
+<br />
+&nbsp;&nbsp;SELECT&nbsp;*<br />
+&nbsp;&nbsp;FROM&nbsp;eban<br />
+&nbsp;&nbsp;where&nbsp;banfn&nbsp;=&nbsp;@ls_banfn<br />
+&nbsp;&nbsp;INTO&nbsp;CORRESPONDING&nbsp;FIELDS&nbsp;OF&nbsp;TABLE&nbsp;@lt_eban.<br />
+&nbsp;&nbsp;SORT&nbsp;lt_eban&nbsp;by&nbsp;banfn&nbsp;bnfpo.<br />
+<br />
+&nbsp;&nbsp;DATA(lscnt_ekpo)&nbsp;=&nbsp;lines(&nbsp;lt_ekpo[]&nbsp;).<br />
+&nbsp;&nbsp;DATA(lscnt_eban)&nbsp;=&nbsp;lines(&nbsp;lt_eban[]&nbsp;).<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;lscnt_ekpo&nbsp;NE&nbsp;lscnt_eban.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_del&nbsp;=&nbsp;gc_x.<br />
+&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;lt_ekpo&nbsp;INTO&nbsp;data(lv_ekop).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;lt_eban&nbsp;INTO&nbsp;data(lv_eban)&nbsp;WITH&nbsp;KEY&nbsp;bnfpo&nbsp;=&nbsp;lv_ekop-ebelp&nbsp;BINARY&nbsp;SEARCH.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;EQ&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_ekop-menge&nbsp;NE&nbsp;lv_eban-menge.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_del&nbsp;=&nbsp;gc_x.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_del&nbsp;=&nbsp;gc_x.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDLOOP.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;ls_del&nbsp;is&nbsp;not&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"PR&nbsp;CHANGE&nbsp;DEL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;BAPI_PR_CHANGE&nbsp;USING&nbsp;IV_BANFN<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EV_RETURN.<br />
+&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EV_RETURN-TYPE&nbsp;=&nbsp;gc_s.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EV_RETURN-errcode&nbsp;=&nbsp;gc_1.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+<br />
+ENDFUNCTION.<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2025. Sap Release 758</td>
+   </tr>
+</table>
+</body>
+</html>

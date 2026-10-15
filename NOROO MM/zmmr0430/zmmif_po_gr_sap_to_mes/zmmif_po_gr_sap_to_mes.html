@@ -1,0 +1,204 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>ZMMIF_PO_GR_SAP_TO_MES</title>
+<style type="text/css">
+.code{ font-family:"Courier New", Courier, monospace; color:#000; font-size:14px; background-color:#F2F4F7 }
+  .codeComment {font-family:"Courier New", Courier, monospace; color:#0000F0; font-size:14px; background-color:#F2F4F7 }
+  .normalBold{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; font-weight:800 }
+  .normalBoldLarge{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+</style>
+<style type="text/css">
+  .normal{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px }
+  .footer{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; text-align: center }
+  h2{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+  h3{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:14px; font-weight:800 }
+  .outerTable{
+   background-color:#E0E7ED;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-right-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+  .innerTable{
+   background-color:#F2F4F7;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-bottom-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function ZMMIF_PO_GR_SAP_TO_MES</h2>
+<h3> Description: </h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION ZMMIF_PO_GR_SAP_TO_MES.<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local Interface:<br />
+*"  EXPORTING<br />
+*"     REFERENCE(O_RETURN) LIKE  ZSIFMSG STRUCTURE  ZSIFMSG<br />
+*"  TABLES<br />
+*"      T_DATA STRUCTURE  ZMMS_PO_GR_SAP_TO_MES_IN<br />
+*"----------------------------------------------------------------------<br />
+*-- 개요<br />
+*--1. MES 요청 사항으로 1003 (포승 플랜트 ) 입고 시 입고 정보 MES에 전달.<br />
+<br />
+
+<div class="codeComment">*       <a href ="global-zmmif_po_gr_sap_to_mes.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LV_IS_RESULT&nbsp;TYPE&nbsp;ZCAE_RESULT.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LV_IS_MSG&nbsp;TYPE&nbsp;ZCAE_MSGTXT.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LV_IS_RETURN&nbsp;TYPE&nbsp;STRING.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LT_DATA_FORM&nbsp;LIKE&nbsp;TABLE&nbsp;OF&nbsp;ZMMS_REQ_MES_ITEM_OUT&nbsp;WITH&nbsp;HEADER&nbsp;LINE.<br />
+<br />
+&nbsp;&nbsp;"공장&nbsp;별&nbsp;MES&nbsp;서버&nbsp;이원화로&nbsp;1003&nbsp;포승&nbsp;공장은&nbsp;별도의&nbsp;서버&nbsp;사용으로&nbsp;별도&nbsp;I/F&nbsp;ID&nbsp;MESP&nbsp;로&nbsp;전송<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LS_SEND_STRING&nbsp;TYPE&nbsp;ZMMS_PO_GR_SAP_TO_MES_OUT.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LT_SEND_STRING&nbsp;TYPE&nbsp;TABLE&nbsp;OF&nbsp;ZMMS_PO_GR_SAP_TO_MES_OUT&nbsp;WITH&nbsp;HEADER&nbsp;LINE.&nbsp;"&nbsp;포승&nbsp;1003,<br />
+<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LV_MENGE&nbsp;&nbsp;TYPE&nbsp;CHAR50,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_ERFMG&nbsp;&nbsp;TYPE&nbsp;CHAR50,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_FMENGE&nbsp;TYPE&nbsp;CHAR50,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_EMENGE&nbsp;TYPE&nbsp;CHAR50.<br />
+<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LV_SJSON&nbsp;TYPE&nbsp;STRING,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_RJSON&nbsp;TYPE&nbsp;STRING.<br />
+<br />
+&nbsp;&nbsp;DATA&nbsp;&nbsp;:&nbsp;LV_RTN_CD&nbsp;&nbsp;TYPE&nbsp;ZCAE_RESULT,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_RTN_MSG&nbsp;TYPE&nbsp;ZCAE_MSGTXT.<br />
+<br />
+&nbsp;&nbsp;DATA(LT_DATA)&nbsp;=&nbsp;T_DATA[].<br />
+<br />
+&nbsp;&nbsp;SORT&nbsp;LT_DATA&nbsp;BY&nbsp;MJAHR&nbsp;MBLNR&nbsp;ZEILE&nbsp;MATNR.<br />
+<br />
+&nbsp;&nbsp;SELECT&nbsp;A~*<br />
+&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;MATDOC&nbsp;AS&nbsp;A<br />
+&nbsp;&nbsp;&nbsp;&nbsp;INNER&nbsp;JOIN&nbsp;@LT_DATA&nbsp;AS&nbsp;B<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ON&nbsp;A~MBLNR&nbsp;EQ&nbsp;B~MBLNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;A~MJAHR&nbsp;EQ&nbsp;B~MJAHR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;A~ZEILE&nbsp;EQ&nbsp;B~ZEILE<br />
+&nbsp;&nbsp;&nbsp;ORDER&nbsp;BY&nbsp;A~MJAHR,&nbsp;A~MBLNR,&nbsp;A~ZEILE<br />
+&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;TABLE&nbsp;@DATA(LT_MATDOC).<br />
+<br />
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;LT_DATA&nbsp;INTO&nbsp;DATA(LS_DATA).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"반품인&nbsp;경우&nbsp;구분자&nbsp;-&nbsp;추후&nbsp;변동&nbsp;사항이&nbsp;발생&nbsp;확신&nbsp;-&nbsp;MES에서&nbsp;입고&nbsp;취소&nbsp;정보를&nbsp;받지&nbsp;않아&nbsp;재고가&nbsp;안맞음<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"MES에&nbsp;전달&nbsp;후&nbsp;그래도&nbsp;필요&nbsp;없다고&nbsp;하여&nbsp;I/F&nbsp;확정<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"이슈&nbsp;발생&nbsp;시&nbsp;수정될&nbsp;내용으로&nbsp;확인하여&nbsp;조치&nbsp;예정<br />
+&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;LT_MATDOC&nbsp;INTO&nbsp;DATA(LS_MATDOC)&nbsp;WITH&nbsp;KEY&nbsp;MBLNR&nbsp;=&nbsp;LS_DATA-MBLNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MJAHR&nbsp;=&nbsp;LS_DATA-MJAHR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ZEILE&nbsp;=&nbsp;LS_DATA-ZEILE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;SY-SUBRC&nbsp;EQ&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CASE&nbsp;LS_MATDOC-BWART.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHEN&nbsp;'101'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_DATA-GUBUN&nbsp;=&nbsp;GC_1.&nbsp;&nbsp;"입고<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHEN&nbsp;'161'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_DATA-GUBUN&nbsp;=&nbsp;GC_3.&nbsp;&nbsp;"반품<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHEN&nbsp;OTHERS.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CONTINUE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDCASE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+<br />
+<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"데이터&nbsp;컨버전<br />
+&nbsp;&nbsp;&nbsp;&nbsp;_ALPHA&nbsp;'O'&nbsp;LS_DATA-CHARG&nbsp;&nbsp;LS_DATA-CHARG.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;_ALPHA&nbsp;'O'&nbsp;LS_DATA-ZEILE&nbsp;&nbsp;LS_DATA-ZEILE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;_ALPHA&nbsp;'O'&nbsp;LS_DATA-EBELN&nbsp;&nbsp;LS_DATA-EBELN.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;_ALPHA&nbsp;'O'&nbsp;LS_DATA-EBELP&nbsp;&nbsp;LS_DATA-EBELP.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;_MATN1&nbsp;'O'&nbsp;LS_DATA-MATNR&nbsp;&nbsp;LS_DATA-MATNR.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"수량&nbsp;필드&nbsp;컨버전<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LV_MENGE&nbsp;=&nbsp;LS_DATA-MENGE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CONDENSE&nbsp;LV_MENGE&nbsp;NO-GAPS.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'CLOI_PUT_SIGN_IN_FRONT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VALUE&nbsp;=&nbsp;LV_MENGE.<br />
+<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;MOVE-CORRESPONDING&nbsp;LS_DATA&nbsp;TO&nbsp;LS_SEND_STRING.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;수량&nbsp;필드<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LS_SEND_STRING-MENGE&nbsp;=&nbsp;LV_MENGE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"날짜&nbsp;.&nbsp;제거<br />
+&nbsp;&nbsp;&nbsp;&nbsp;REPLACE&nbsp;ALL&nbsp;OCCURRENCES&nbsp;OF&nbsp;'.'&nbsp;IN&nbsp;LS_SEND_STRING-BUDAT<br />
+&nbsp;&nbsp;&nbsp;&nbsp;WITH&nbsp;'&nbsp;'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CONDENSE&nbsp;LS_SEND_STRING-BUDAT&nbsp;NO-GAPS.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;LS_SEND_STRING&nbsp;TO&nbsp;LT_SEND_STRING.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;:&nbsp;LS_SEND_STRING,&nbsp;LV_MENGE.<br />
+<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+&nbsp;&nbsp;LV_SJSON&nbsp;=&nbsp;/UI2/CL_JSON=&gt;SERIALIZE(<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DATA&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;LT_SEND_STRING[]<br />
+&nbsp;&nbsp;).<br />
+<br />
+&nbsp;&nbsp;DATA(LV_SJSON_LEN)&nbsp;=&nbsp;STRLEN(&nbsp;LV_SJSON&nbsp;)&nbsp;-&nbsp;2.<br />
+&nbsp;&nbsp;LV_SJSON&nbsp;=&nbsp;SUBSTRING(&nbsp;VAL&nbsp;=&nbsp;LV_SJSON&nbsp;OFF&nbsp;=&nbsp;1&nbsp;LEN&nbsp;=&nbsp;LV_SJSON_LEN&nbsp;).<br />
+<br />
+&nbsp;&nbsp;CONCATENATE&nbsp;'{"item"&nbsp;:&nbsp;[&nbsp;'LV_SJSON'&nbsp;]}'&nbsp;INTO&nbsp;LV_SJSON.<br />
+&nbsp;&nbsp;CONCATENATE&nbsp;'{"IT_ITEMS"&nbsp;:'Lv_sjson'}'&nbsp;&nbsp;INTO&nbsp;LV_SJSON.<br />
+<br />
+&nbsp;&nbsp;call&nbsp;function&nbsp;<a&nbsp;href&nbsp;="../zca_rest_connection/zca_rest_connection.html">'ZCA_REST_CONNECTION'</a><br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;I_PREFIX&nbsp;&nbsp;&nbsp;=&nbsp;'NR0268P'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IV_JSON&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;LV_SJSON<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EV_RTN_CD&nbsp;&nbsp;=&nbsp;LV_RTN_CD<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EV_RTN_MSG&nbsp;=&nbsp;LV_RTN_MSG<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EV_JSON&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;LV_RJSON.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;LV_RJSON&nbsp;IS&nbsp;NOT&nbsp;&nbsp;INITIAL&nbsp;AND&nbsp;LV_RTN_CD&nbsp;EQ&nbsp;GC_S.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;call&nbsp;function&nbsp;<a&nbsp;href&nbsp;="../zpp_if_conv_return/zpp_if_conv_return.html">'ZPP_IF_CONV_RETURN'</a><br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;I_JSON&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;LV_RJSON<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN&nbsp;=&nbsp;O_RETURN.<br />
+<br />
+&nbsp;&nbsp;ELSE.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;O_RETURN&nbsp;=&nbsp;VALUE&nbsp;#(&nbsp;TYPE&nbsp;=&nbsp;LV_RTN_CD&nbsp;MESSAGE&nbsp;=&nbsp;LV_RTN_MSG&nbsp;).<br />
+<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+ENDFUNCTION.<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2025. Sap Release 758</td>
+   </tr>
+</table>
+</body>
+</html>

@@ -1,0 +1,401 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http ://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http ://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>/SCWM/POHU_SELECT</title>
+<style type="text/css">
+.code{ font-family :"Courier New", Courier, monospace; color :#000; font-size :14px; background-color :#F2F4F7 }
+  .codeComment {font-family :"Courier New", Courier, monospace; color :#0000F0; font-size :14px; background-color :#F2F4F7 }
+  .normalBold{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; font-weight :800 }
+  .normalBoldLarge{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+</style>
+<style type="text/css">
+  .normal{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px }
+  .footer{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; text-align : center }
+  h2{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+  h3{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :14px; font-weight :800 }
+  .outerTable{
+   background-color :#E0E7ED;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-right-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+  .innerTable{
+   background-color :#F2F4F7;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-bottom-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function /SCWM/POHU_SELECT</h2>
+<h3> Description : Read Planned Shipping HU From Database</h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION /scwm/pohu_select.<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local Interface:<br />
+*"  IMPORTING<br />
+*"     REFERENCE(IV_LOCK) TYPE  CHAR1 DEFAULT SPACE<br />
+*"     REFERENCE(IV_WAIT) TYPE  XFELD DEFAULT SPACE<br />
+*"     REFERENCE(IS_LOCATION) TYPE  /LIME/LOC_KEY OPTIONAL<br />
+*"     REFERENCE(IT_GUID_HU) TYPE  /SCWM/TT_GUID_HU OPTIONAL<br />
+*"     REFERENCE(IT_IDENT) TYPE  /SCWM/TT_IDENT OPTIONAL<br />
+*"     REFERENCE(IT_HUIDENT) TYPE  /SCWM/TT_HUIDENT OPTIONAL<br />
+*"     REFERENCE(IO_LOG) TYPE REF TO  /SCWM/CL_LOG OPTIONAL<br />
+*"  EXPORTING<br />
+*"     REFERENCE(ET_HUHDR) TYPE  /SCWM/TT_HUHDR_INT<br />
+*"     REFERENCE(ET_IDENT) TYPE  /SCWM/TT_IDENT_INT<br />
+*"     REFERENCE(ET_REF) TYPE  /SCWM/TT_HUREF_INT<br />
+*"     REFERENCE(ET_TREE) TYPE  /SCWM/TT_HUTREE<br />
+*"     REFERENCE(ET_HUITM) TYPE  /SCWM/TT_HUITM_INT<br />
+*"     REFERENCE(ET_HUSTOBJ) TYPE  /SCWM/TT_HUSTOBJ<br />
+*"     REFERENCE(ET_HUSTATUS) TYPE  /SCWM/TT_HUSTATUS<br />
+*"  EXCEPTIONS<br />
+*"      NOT_FOUND<br />
+*"      ERROR<br />
+*"----------------------------------------------------------------------<br />
+
+<div class="codeComment">*       <a href ="global-_scwm_pohu_select.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;DATA:&nbsp;lt_huident&nbsp;TYPE&nbsp;TABLE&nbsp;OF&nbsp;/scwm/hu_ident,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_ident1&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_ident,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_ident2&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_ident.<br />
+&nbsp;&nbsp;DATA:&nbsp;ls_hutree&nbsp;&nbsp;TYPE&nbsp;/scwm/s_hutree,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_huhdr&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/s_huhdr_int,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_hustat&nbsp;&nbsp;TYPE&nbsp;/scwm/s_hustatus,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_hustobj&nbsp;TYPE&nbsp;/scwm/s_hustobj.<br />
+&nbsp;&nbsp;DATA:&nbsp;lv_msg&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;string.<br />
+&nbsp;&nbsp;DATA:&nbsp;lt_pohuhdr&nbsp;&nbsp;&nbsp;TYPE&nbsp;STANDARD&nbsp;TABLE&nbsp;OF&nbsp;/scwm/pohuhdr,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_pohu_t&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;STANDARD&nbsp;TABLE&nbsp;OF&nbsp;/scwm/pohuhdr,&nbsp;"&nbsp;Total&nbsp;entries<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_top&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_huid_top,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_top_t&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_huid_top,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_pohuitm&nbsp;&nbsp;&nbsp;TYPE&nbsp;STANDARD&nbsp;TABLE&nbsp;OF&nbsp;/scwm/pohuitm,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_pohuref&nbsp;&nbsp;&nbsp;TYPE&nbsp;STANDARD&nbsp;TABLE&nbsp;OF&nbsp;/scwm/pohuref,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_pohuident&nbsp;TYPE&nbsp;STANDARD&nbsp;TABLE&nbsp;OF&nbsp;/scwm/pohuident.<br />
+<br />
+&nbsp;&nbsp;FIELD-SYMBOLS:&nbsp;&lt;pohuhdr&gt;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/pohuhdr,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;huitm_int&gt;&nbsp;TYPE&nbsp;/scwm/s_huitm_int.<br />
+<br />
+&nbsp;&nbsp;CLEAR:&nbsp;et_huhdr,&nbsp;et_ident,&nbsp;et_ref,&nbsp;et_tree,&nbsp;et_huitm,&nbsp;et_hustobj,&nbsp;et_hustatus.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*Select header depending on input parameters<br />
+<br />
+* Read headers based on parameter it_guid_hu<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;IF&nbsp;NOT&nbsp;it_guid_hu&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;guid_hu&nbsp;guid_parent&nbsp;guid_top&nbsp;lgnum&nbsp;FROM&nbsp;/scwm/pohuhdr&nbsp;INTO&nbsp;TABLE&nbsp;lt_top&nbsp;"#EC&nbsp;ENHOK<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FOR&nbsp;ALL&nbsp;ENTRIES&nbsp;IN&nbsp;it_guid_hu<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;guid_hu&nbsp;=&nbsp;it_guid_hu-guid_hu.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;LINES&nbsp;OF&nbsp;lt_top&nbsp;TO&nbsp;lt_top_t.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* Read headers based on parameter it_ident (addtional Indentifiers) and is_location<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;IF&nbsp;NOT&nbsp;it_ident&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lt_ident1&nbsp;=&nbsp;lt_ident2&nbsp;=&nbsp;it_ident.<br />
+   </div>
+   <div class="codeComment">
+* Get the entries which idart is not intial.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;lt_ident1&nbsp;WHERE&nbsp;idart&nbsp;IS&nbsp;INITIAL.<br />
+   </div>
+   <div class="codeComment">
+* Get the entries which idart is intial.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;lt_ident2&nbsp;WHERE&nbsp;idart&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;NOT&nbsp;lt_ident1&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;*&nbsp;FROM&nbsp;/scwm/pohuident&nbsp;INTO&nbsp;TABLE&nbsp;lt_huident&nbsp;&nbsp;&nbsp;"#EC&nbsp;ENHOK<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FOR&nbsp;ALL&nbsp;ENTRIES&nbsp;IN&nbsp;lt_ident1<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;huident&nbsp;=&nbsp;lt_ident1-ident&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;idart&nbsp;=&nbsp;lt_ident1-idart.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;NOT&nbsp;lt_ident2&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;*&nbsp;FROM&nbsp;/scwm/pohuident&nbsp;APPENDING&nbsp;TABLE&nbsp;lt_huident&nbsp;"#EC&nbsp;ENHOK<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FOR&nbsp;ALL&nbsp;ENTRIES&nbsp;IN&nbsp;lt_ident2<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;huident&nbsp;=&nbsp;lt_ident2-ident.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;NOT&nbsp;lt_huident&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;lt_top.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;guid_hu&nbsp;guid_parent&nbsp;guid_top&nbsp;lgnum&nbsp;FROM&nbsp;/scwm/pohuhdr&nbsp;INTO&nbsp;TABLE&nbsp;lt_top&nbsp;"#EC&nbsp;ENHOK<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FOR&nbsp;ALL&nbsp;ENTRIES&nbsp;IN&nbsp;lt_huident<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;guid_hu&nbsp;=&nbsp;lt_huident-guid_hu.<br />
+   </div>
+   <div class="codeComment">
+*    Delete entries from table lt_top which warehouse numebr is not equal is_location-lgnum.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;lt_top&nbsp;WHERE&nbsp;lgnum&nbsp;&lt;&gt;&nbsp;is_location-lgnum.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;LINES&nbsp;OF&nbsp;lt_top&nbsp;TO&nbsp;lt_top_t.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* Read headers based on parameter it_huident (addtional Indentifiers) and is_location<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;IF&nbsp;NOT&nbsp;it_huident&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;lt_top.<br />
+   </div>
+   <div class="codeComment">
+*    IF is_location-lgnum IS INITIAL.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;it_huident&nbsp;TRANSPORTING&nbsp;NO&nbsp;FIELDS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WITH&nbsp;KEY&nbsp;lgnum&nbsp;=&nbsp;'&nbsp;&nbsp;&nbsp;&nbsp;'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;IS&nbsp;INITIAL&nbsp;AND&nbsp;is_location-lgnum&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;guid_hu&nbsp;guid_parent&nbsp;guid_top&nbsp;lgnum&nbsp;FROM&nbsp;/scwm/pohuhdr&nbsp;INTO&nbsp;TABLE&nbsp;lt_top&nbsp;"#EC&nbsp;ENHOK<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FOR&nbsp;ALL&nbsp;ENTRIES&nbsp;IN&nbsp;it_huident&nbsp;"#EC&nbsp;CI_NOFIRST<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;huident&nbsp;=&nbsp;it_huident-huident&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;vhi&nbsp;=&nbsp;wmegc_vhi_plan_shipping.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSEIF&nbsp;NOT&nbsp;sy-subrc&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;guid_hu&nbsp;guid_parent&nbsp;guid_top&nbsp;lgnum&nbsp;FROM&nbsp;/scwm/pohuhdr&nbsp;INTO&nbsp;TABLE&nbsp;lt_top&nbsp;"#EC&nbsp;ENHOK<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FOR&nbsp;ALL&nbsp;ENTRIES&nbsp;IN&nbsp;it_huident&nbsp;"#EC&nbsp;CI_NOFIRST<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;lgnum&nbsp;&nbsp;&nbsp;=&nbsp;it_huident-lgnum&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;huident&nbsp;=&nbsp;it_huident-huident&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;vhi&nbsp;=&nbsp;wmegc_vhi_plan_shipping.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;guid_hu&nbsp;guid_parent&nbsp;guid_top&nbsp;lgnum&nbsp;FROM&nbsp;/scwm/pohuhdr&nbsp;INTO&nbsp;TABLE&nbsp;lt_top&nbsp;"#EC&nbsp;ENHOK<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FOR&nbsp;ALL&nbsp;ENTRIES&nbsp;IN&nbsp;it_huident<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;lgnum&nbsp;&nbsp;=&nbsp;is_location-lgnum&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;huident&nbsp;=&nbsp;it_huident-huident&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;vhi&nbsp;=&nbsp;wmegc_vhi_plan_shipping.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;LINES&nbsp;OF&nbsp;lt_top&nbsp;TO&nbsp;lt_top_t.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;lt_top_t&nbsp;IS&nbsp;INITIAL&nbsp;AND&nbsp;is_location-idx_loc&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;e098(/scwm/hu_wm)&nbsp;INTO&nbsp;lv_msg.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RAISE&nbsp;not_found.<br />
+&nbsp;&nbsp;ENDIF.<br />
+   </div>
+   <div class="codeComment">
+*<br />
+<br />
+* For each entry in table lt_top_t the field GUID_TOP shall not be initial<br />
+* For the top HU the fields GUID_HU and GUID_TOP have the same value.<br />
+* ===&gt; Get all top HU GUIDs using field guid_top<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;SORT&nbsp;lt_top_t&nbsp;BY&nbsp;guid_top.<br />
+&nbsp;&nbsp;DELETE&nbsp;&nbsp;ADJACENT&nbsp;DUPLICATES&nbsp;FROM&nbsp;lt_top_t&nbsp;COMPARING&nbsp;guid_top.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* Read top HUs.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;CLEAR&nbsp;lt_pohuhdr.<br />
+&nbsp;&nbsp;if&nbsp;NOT&nbsp;lt_top_t&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;*&nbsp;FROM&nbsp;&nbsp;/scwm/pohuhdr&nbsp;INTO&nbsp;TABLE&nbsp;lt_pohuhdr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"#EC&nbsp;ENHOK<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FOR&nbsp;ALL&nbsp;ENTRIES&nbsp;IN&nbsp;lt_top_t<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;guid_hu&nbsp;&nbsp;=&nbsp;lt_top_t-guid_top.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* Lock the top HUs for selection<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;IF&nbsp;NOT&nbsp;iv_lock&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;pohu_lock&nbsp;USING&nbsp;&nbsp;&nbsp;&nbsp;iv_lock&nbsp;iv_wait&nbsp;io_log<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;lt_pohuhdr.<br />
+&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;CHECK&nbsp;lt_pohuhdr&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+   </div>
+   <div class="codeComment">
+* Select all entries which GUID_TOP is contained in internal table lt_pohuhdr<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;CLEAR&nbsp;lt_pohu_t.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;NOT&nbsp;lt_pohuhdr&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;*&nbsp;FROM&nbsp;&nbsp;/scwm/pohuhdr&nbsp;INTO&nbsp;TABLE&nbsp;lt_pohu_t&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"#EC&nbsp;ENHOK<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FOR&nbsp;ALL&nbsp;ENTRIES&nbsp;IN&nbsp;lt_pohuhdr<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;guid_top&nbsp;&nbsp;=&nbsp;lt_pohuhdr-guid_hu.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;lt_pohu_t&nbsp;ASSIGNING&nbsp;&lt;pohuhdr&gt;.<br />
+   </div>
+   <div class="codeComment">
+* Build Header Data<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;ls_huhdr.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;MOVE-CORRESPONDING&nbsp;&lt;pohuhdr&gt;&nbsp;TO&nbsp;ls_huhdr.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_huhdr-higher_guid&nbsp;=&nbsp;&lt;pohuhdr&gt;-guid_parent.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_huhdr-phystat&nbsp;=&nbsp;'A'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_huhdr&nbsp;TO&nbsp;et_huhdr.<br />
+   </div>
+   <div class="codeComment">
+* Build Tree<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;ls_hutree.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;&lt;pohuhdr&gt;-guid_parent&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+   </div>
+   <div class="codeComment">
+* Field idx and idx_parent are index contants in LIME ==&gt; Not used in PSHU<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_hutree-guid&nbsp;&nbsp;=&nbsp;&lt;pohuhdr&gt;-guid_hu.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_hutree-type&nbsp;&nbsp;=&nbsp;wmegc_lime_type_hu.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_hutree-idx&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;wmegc_idx_hu.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_hutree-guid_parent&nbsp;=&nbsp;&lt;pohuhdr&gt;-guid_parent.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_hutree-type_parent&nbsp;=&nbsp;wmegc_lime_type_hu.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_hutree-idx_parent&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;wmegc_idx_hu.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;&nbsp;ls_hutree&nbsp;TO&nbsp;et_tree.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+   </div>
+   <div class="codeComment">
+* Build Status<br />
+* though we have nostatus on the database the HU needs the status transient<br />
+* Only the status IHU01 (planned) is set.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR:&nbsp;ls_hustobj,&nbsp;ls_hustat.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_hustobj-mandt&nbsp;=&nbsp;ls_huhdr-mandt.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_hustobj-objnr&nbsp;=&nbsp;ls_huhdr-guid_hu.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_hustobj-obtyp&nbsp;=&nbsp;'HUP'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_hustobj&nbsp;TO&nbsp;et_hustobj.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_hustat-mandt&nbsp;&nbsp;=&nbsp;ls_huhdr-mandt.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_hustat-objnr&nbsp;&nbsp;=&nbsp;ls_huhdr-guid_hu.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_hustat-stat&nbsp;&nbsp;&nbsp;=&nbsp;wmegc_hustat_plan.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_hustat&nbsp;TO&nbsp;et_hustatus.<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;NOT&nbsp;et_huhdr[]&nbsp;IS&nbsp;INITIAL.<br />
+   </div>
+   <div class="codeComment">
+* Read additional Identifiers<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;SELECT&nbsp;*&nbsp;FROM&nbsp;&nbsp;/scwm/pohuident&nbsp;INTO&nbsp;CORRESPONDING&nbsp;FIELDS&nbsp;OF&nbsp;TABLE&nbsp;et_ident<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FOR&nbsp;ALL&nbsp;ENTRIES&nbsp;IN&nbsp;et_huhdr<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;guid_hu&nbsp;&nbsp;=&nbsp;et_huhdr-guid_hu.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* Read items<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;SELECT&nbsp;*&nbsp;FROM&nbsp;&nbsp;/scwm/pohuitm&nbsp;INTO&nbsp;CORRESPONDING&nbsp;FIELDS&nbsp;OF&nbsp;TABLE&nbsp;et_huitm<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FOR&nbsp;ALL&nbsp;ENTRIES&nbsp;IN&nbsp;et_huhdr<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;guid_parent&nbsp;&nbsp;=&nbsp;et_huhdr-guid_hu.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;et_huitm&nbsp;ASSIGNING&nbsp;&nbsp;&lt;huitm_int&gt;.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&lt;huitm_int&gt;-guid_stock0&nbsp;=&nbsp;&lt;huitm_int&gt;-matid.<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* Read HU Refs<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;IF&nbsp;NOT&nbsp;et_huhdr&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;*&nbsp;FROM&nbsp;&nbsp;/scwm/pohuref&nbsp;INTO&nbsp;CORRESPONDING&nbsp;FIELDS&nbsp;OF&nbsp;TABLE&nbsp;et_ref<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FOR&nbsp;ALL&nbsp;ENTRIES&nbsp;IN&nbsp;et_huhdr<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;guid_hu&nbsp;&nbsp;=&nbsp;et_huhdr-guid_hu.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;PERFORM&nbsp;transit_warehouse_po&nbsp;CHANGING&nbsp;et_huhdr.<br />
+<br />
+ENDFUNCTION.<br />
+<br />
+<br />
+FORM transit_warehouse_po CHANGING ct_huhdr TYPE /scwm/tt_huhdr_int.<br />
+<br />
+&nbsp;&nbsp;DATA:&nbsp;ls_guid_hu&nbsp;TYPE&nbsp;/scwm/s_guid_hu.<br />
+<br />
+&nbsp;&nbsp;DATA:&nbsp;lt_guid_hu&nbsp;TYPE&nbsp;/scwm/tt_guid_hu,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_huhdrtw&nbsp;TYPE&nbsp;/scwm/tt_pohuhdrtw.<br />
+<br />
+&nbsp;&nbsp;FIELD-SYMBOLS:&nbsp;&lt;huhdr&gt;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/s_huhdr_int,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;huhdrtw&gt;&nbsp;TYPE&nbsp;/scwm/pohuhdrtw.<br />
+<br />
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;ct_huhdr&nbsp;ASSIGNING&nbsp;&lt;huhdr&gt;&nbsp;WHERE<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;flgtwext&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_guid_hu-guid_hu&nbsp;=&nbsp;&lt;huhdr&gt;-guid_hu.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_guid_hu&nbsp;TO&nbsp;lt_guid_hu.<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;lt_guid_hu&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;*&nbsp;FROM&nbsp;/scwm/pohuhdrtw&nbsp;INTO&nbsp;TABLE&nbsp;lt_huhdrtw&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"#EC&nbsp;ENHOK<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FOR&nbsp;ALL&nbsp;ENTRIES&nbsp;IN&nbsp;lt_guid_hu<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;guid_hu&nbsp;=&nbsp;lt_guid_hu-guid_hu<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ORDER&nbsp;BY&nbsp;PRIMARY&nbsp;KEY.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;ct_huhdr&nbsp;ASSIGNING&nbsp;&lt;huhdr&gt;&nbsp;WHERE<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;flgtwext&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;lt_huhdrtw&nbsp;ASSIGNING&nbsp;&lt;huhdrtw&gt;&nbsp;WITH&nbsp;KEY<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;guid_hu&nbsp;=&nbsp;&lt;huhdr&gt;-guid_hu.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MOVE-CORRESPONDING&nbsp;&lt;huhdrtw&gt;&nbsp;TO&nbsp;&lt;huhdr&gt;.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CONTINUE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+ENDFORM.<br />
+<br />
+<br />
+   </div>
+   <div class="codeComment">
+*Messages<br />
+*----------------------------------------------------------<br />
+*<br />
+* Message class : /SCWM/HU_WM<br />
+*015   Required handling units could not be found<br />
+*021   Cannot determine the higher level<br />
+*074   Handling unit &2 is already locked by user &1<br />
+*098   Required planned shipping HUs could not be found<br />
+*099   Planned shipping HU &2 is blocked by user &1<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2026. Sap Release 816</td>
+   </tr>
+</table>
+</body>
+</html>

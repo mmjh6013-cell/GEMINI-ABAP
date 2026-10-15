@@ -1,0 +1,239 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>ZMMIF_REQ_RESULT_SAP_TO_MES</title>
+<style type="text/css">
+.code{ font-family:"Courier New", Courier, monospace; color:#000; font-size:14px; background-color:#F2F4F7 }
+  .codeComment {font-family:"Courier New", Courier, monospace; color:#0000F0; font-size:14px; background-color:#F2F4F7 }
+  .normalBold{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; font-weight:800 }
+  .normalBoldLarge{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+</style>
+<style type="text/css">
+  .normal{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px }
+  .footer{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; text-align: center }
+  h2{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+  h3{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:14px; font-weight:800 }
+  .outerTable{
+   background-color:#E0E7ED;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-right-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+  .innerTable{
+   background-color:#F2F4F7;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-bottom-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function ZMMIF_REQ_RESULT_SAP_TO_MES</h2>
+<h3> Description: </h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION zmmif_req_result_sap_to_mes.<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local Interface:<br />
+*"  IMPORTING<br />
+*"     VALUE(I_PREFIX) TYPE  CHAR20<br />
+*"  EXPORTING<br />
+*"     REFERENCE(EV_RTN_CD) TYPE  ZCAE_RESULT<br />
+*"     REFERENCE(EV_RTN_MSG) TYPE  ZCAE_MSGTXT<br />
+*"     REFERENCE(EV_RETURN) TYPE  STRING<br />
+*"     REFERENCE(ES_IFMSG) LIKE  ZSIFMSG STRUCTURE  ZSIFMSG<br />
+*"  TABLES<br />
+*"      I_ITEMS STRUCTURE  ZMMS_REQ_MES_ITEM_OUT OPTIONAL<br />
+*"      O_ITEMS STRUCTURE  ZMMS_REQ_RESULT_MES_OUT OPTIONAL<br />
+*"----------------------------------------------------------------------<br />
+*--MES의 이동요청은 SAP, 원료관리시스템 두 시스템에서 처리함<br />
+*--MES의 요청을 SAP에서 처리한 결과와 원료관리시스템에서 요청결과를 SAP에서 수신받아 연동 처리 후 결과를 MES에 전송<br />
+<br />
+
+<div class="codeComment">*       <a href ="global-zmmif_req_result_sap_to_mes.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lv_is_result&nbsp;TYPE&nbsp;zcae_result.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lv_is_msg&nbsp;TYPE&nbsp;zcae_msgtxt.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lv_is_return&nbsp;TYPE&nbsp;string.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lt_data_form&nbsp;LIKE&nbsp;TABLE&nbsp;OF&nbsp;zmms_req_mes_item_out&nbsp;WITH&nbsp;HEADER&nbsp;LINE.<br />
+<br />
+&nbsp;&nbsp;"공장&nbsp;별&nbsp;MES&nbsp;서버&nbsp;이원화로&nbsp;1003&nbsp;포승&nbsp;공장은&nbsp;별도의&nbsp;서버&nbsp;사용으로&nbsp;별도&nbsp;I/F&nbsp;ID&nbsp;MESP&nbsp;로&nbsp;전송<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lt_send_mes&nbsp;TYPE&nbsp;TABLE&nbsp;OF&nbsp;zmms_req_mes_item_out_string&nbsp;WITH&nbsp;HEADER&nbsp;LINE.&nbsp;"&nbsp;안양&nbsp;1001,&nbsp;칠서&nbsp;1002&nbsp;&nbsp;등&nbsp;포승&nbsp;이외<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lt_send_mesp&nbsp;TYPE&nbsp;TABLE&nbsp;OF&nbsp;zmms_req_mes_item_out_string&nbsp;WITH&nbsp;HEADER&nbsp;LINE.&nbsp;"&nbsp;포승&nbsp;1003,<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;ls_send_string&nbsp;TYPE&nbsp;zmms_req_mes_item_out_string.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lt_send_string&nbsp;TYPE&nbsp;TABLE&nbsp;OF&nbsp;zmms_req_mes_item_out_string&nbsp;WITH&nbsp;HEADER&nbsp;LINE.&nbsp;"&nbsp;포승&nbsp;1003,<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lt_result_mes&nbsp;TYPE&nbsp;TABLE&nbsp;OF&nbsp;zmms_req_result_mes_out&nbsp;WITH&nbsp;HEADER&nbsp;LINE.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lt_result_mesp&nbsp;TYPE&nbsp;TABLE&nbsp;OF&nbsp;zmms_req_result_mes_out&nbsp;WITH&nbsp;HEADER&nbsp;LINE.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lv_prefix&nbsp;TYPE&nbsp;string.<br />
+<br />
+&nbsp;&nbsp;CLEAR&nbsp;:&nbsp;lv_prefix.<br />
+&nbsp;&nbsp;lv_prefix&nbsp;=&nbsp;i_prefix.<br />
+&nbsp;&nbsp;CONDENSE&nbsp;lv_prefix&nbsp;NO-GAPS.<br />
+<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lv_menge&nbsp;&nbsp;TYPE&nbsp;char50,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_erfmg&nbsp;&nbsp;TYPE&nbsp;char50,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_fmenge&nbsp;TYPE&nbsp;char50,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_emenge&nbsp;TYPE&nbsp;char50.<br />
+<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lv_sjson&nbsp;TYPE&nbsp;string,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_rjson&nbsp;TYPE&nbsp;string.<br />
+<br />
+&nbsp;&nbsp;DATA(lt_data)&nbsp;=&nbsp;i_items[].<br />
+<br />
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;lt_data&nbsp;INTO&nbsp;DATA(ls_data).<br />
+<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;""SAP&nbsp;재고&nbsp;정보&nbsp;포함하여&nbsp;전송.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;menge_avaliablity&nbsp;USING&nbsp;ls_data.<br />
+<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"데이터&nbsp;컨버전<br />
+   </div>
+   <div class="codeComment">
+*    _alpha 'O' ls_data-reqit  ls_data-reqit.<br />
+*    _alpha 'O' ls_data-zeile  ls_data-zeile.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;_alpha&nbsp;'O'&nbsp;ls_data-charg&nbsp;&nbsp;ls_data-charg.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;_matn1&nbsp;'O'&nbsp;ls_data-matnr&nbsp;&nbsp;ls_data-matnr.<br />
+<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"수량&nbsp;필드&nbsp;컨버전<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lv_menge&nbsp;=&nbsp;ls_data-menge.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CONDENSE&nbsp;lv_menge&nbsp;NO-GAPS.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'CLOI_PUT_SIGN_IN_FRONT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value&nbsp;=&nbsp;lv_menge.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lv_erfmg&nbsp;=&nbsp;ls_data-erfmg.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CONDENSE&nbsp;lv_menge&nbsp;NO-GAPS.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'CLOI_PUT_SIGN_IN_FRONT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value&nbsp;=&nbsp;lv_erfmg.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lv_fmenge&nbsp;=&nbsp;ls_data-f_labst.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CONDENSE&nbsp;lv_menge&nbsp;NO-GAPS.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'CLOI_PUT_SIGN_IN_FRONT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value&nbsp;=&nbsp;lv_fmenge.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lv_emenge&nbsp;=&nbsp;ls_data-e_labst.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CONDENSE&nbsp;lv_menge&nbsp;NO-GAPS.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'CLOI_PUT_SIGN_IN_FRONT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value&nbsp;=&nbsp;lv_emenge.<br />
+<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;MOVE-CORRESPONDING&nbsp;ls_data&nbsp;TO&nbsp;ls_send_string.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;수량&nbsp;필드<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_send_string-erfmg&nbsp;=&nbsp;lv_erfmg.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_send_string-menge&nbsp;=&nbsp;lv_menge.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_send_string-f_labst&nbsp;=&nbsp;lv_fmenge.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_send_string-e_labst&nbsp;=&nbsp;lv_emenge.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_send_string&nbsp;TO&nbsp;lt_send_string.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;:&nbsp;ls_send_string,&nbsp;lv_erfmg,&nbsp;lv_menge.<br />
+<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+&nbsp;&nbsp;lv_sjson&nbsp;=&nbsp;/ui2/cl_json=&gt;serialize(<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;data&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_send_string[]<br />
+&nbsp;&nbsp;&nbsp;&nbsp;).<br />
+&nbsp;&nbsp;DATA(lv_sjson_len)&nbsp;=&nbsp;strlen(&nbsp;lv_sjson&nbsp;)&nbsp;-&nbsp;2.<br />
+&nbsp;&nbsp;lv_sjson&nbsp;=&nbsp;substring(&nbsp;val&nbsp;=&nbsp;lv_sjson&nbsp;off&nbsp;=&nbsp;1&nbsp;len&nbsp;=&nbsp;lv_sjson_len&nbsp;).<br />
+<br />
+&nbsp;&nbsp;CONCATENATE&nbsp;'{"item"&nbsp;:&nbsp;[&nbsp;'lv_sjson'&nbsp;]}'&nbsp;INTO&nbsp;lv_sjson.<br />
+&nbsp;&nbsp;CONCATENATE&nbsp;'{"I_ITEMS"&nbsp;:'Lv_sjson&nbsp;&nbsp;&nbsp;'}'&nbsp;&nbsp;INTO&nbsp;lv_sjson.<br />
+<br />
+&nbsp;&nbsp;call&nbsp;function&nbsp;<a&nbsp;href&nbsp;="../zca_rest_connection/zca_rest_connection.html">'ZCA_REST_CONNECTION'</a><br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i_prefix&nbsp;=&nbsp;lv_prefix&nbsp;"&nbsp;MES,&nbsp;MESP(T포승)<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_json&nbsp;&nbsp;=&nbsp;lv_sjson<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_rtn_cd&nbsp;&nbsp;=&nbsp;&nbsp;ev_rtn_cd<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_rtn_msg&nbsp;=&nbsp;ev_rtn_msg<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_json&nbsp;&nbsp;=&nbsp;lv_rjson.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;lv_rjson&nbsp;IS&nbsp;NOT&nbsp;&nbsp;INITIAL&nbsp;AND&nbsp;EV_RTN_CD&nbsp;EQ&nbsp;GC_S.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;call&nbsp;function&nbsp;<a&nbsp;href&nbsp;="../zmm_rest_return/zmm_rest_return.html">'ZMM_REST_RETURN'</a><br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_json&nbsp;&nbsp;&nbsp;=&nbsp;lv_rjson<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_header&nbsp;=&nbsp;'O_ITEMS'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_item&nbsp;&nbsp;&nbsp;=&nbsp;'item'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TABLES<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_return&nbsp;=&nbsp;o_items.<br />
+&nbsp;&nbsp;ELSE.<br />
+<br />
+<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+<br />
+<br />
+<br />
+   </div>
+   <div class="codeComment">
+*  CALL FUNCTION 'ZMM_REST_OUTBOUND'<br />
+*    EXPORTING<br />
+*      i_prefix       = lv_prefix<br />
+*      it_sdata       = lt_send_string[]<br />
+*      iv_tabhname    = 'I_ITEMS' " INPUT<br />
+*      IV_Tabname     = 'item'<br />
+*      iv_tabouthname = 'O_ITEMS' "RETURN<br />
+*      iv_taboutname  = 'item'<br />
+*      i_type         = 'S' " S-SENDER R  :RECEIVER<br />
+*      i_rtype        = 'T' " 리턴타입 S 단일 ,T 멀티<br />
+*    IMPORTING<br />
+*      ev_rtn_cd      = lv_is_result<br />
+*      ev_rtn_msg     = lv_is_msg<br />
+*      ev_return      = lv_is_return<br />
+*    TABLES<br />
+*      et_rdata       = o_items. " 전송 후 RESPONSE<br />
+*<br />
+*<br />
+*  ev_rtn_cd   = lv_is_result.<br />
+*  ev_rtn_msg  = lv_is_msg.<br />
+*  ev_return   = lv_is_return.<br />
+<br />
+<br />
+   </div>
+   <div class="code">
+ENDFUNCTION.<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2025. Sap Release 758</td>
+   </tr>
+</table>
+</body>
+</html>

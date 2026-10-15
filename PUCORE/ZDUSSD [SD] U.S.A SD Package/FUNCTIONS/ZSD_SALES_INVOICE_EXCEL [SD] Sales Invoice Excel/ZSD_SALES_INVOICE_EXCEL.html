@@ -1,0 +1,669 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=euc-kr" />
+<title>ZSD_SALES_INVOICE_EXCEL</title>
+<style type="text/css">
+.code{ font-family:"Courier New", Courier, monospace; color:#000; font-size:14px; background-color:#F2F4F7 }
+  .codeComment {font-family:"Courier New", Courier, monospace; color:#0000F0; font-size:14px; background-color:#F2F4F7 }
+  .normalBold{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; font-weight:800 }
+  .normalBoldLarge{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+</style>
+<style type="text/css">
+  .normal{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px }
+  .footer{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; text-align: center }
+  h2{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+  h3{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:14px; font-weight:800 }
+  .outerTable{
+   background-color:#E0E7ED;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-right-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+  .innerTable{
+   background-color:#F2F4F7;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-bottom-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function ZSD_SALES_INVOICE_EXCEL</h2>
+<h3> Description: [SD] Sales Invoice Excel</h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION&nbsp;ZSD_SALES_INVOICE_EXCEL.<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local&nbsp;Interface:<br />
+*"&nbsp;&nbsp;IMPORTING<br />
+*"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;REFERENCE(IV_VBELN)&nbsp;TYPE&nbsp;&nbsp;VBELN_VF<br />
+*"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;REFERENCE(IV_PATH)&nbsp;TYPE&nbsp;&nbsp;STRING&nbsp;OPTIONAL<br />
+*"&nbsp;&nbsp;EXPORTING<br />
+*"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;REFERENCE(ES_RETURN)&nbsp;TYPE&nbsp;&nbsp;ZDSDS0210<br />
+*"&nbsp;&nbsp;TABLES<br />
+*"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IT_QTY&nbsp;STRUCTURE&nbsp;&nbsp;ZDSDS0260&nbsp;OPTIONAL<br />
+*"----------------------------------------------------------------------<br />
+
+<div class="codeComment">*       <a href ="global-zsd_sales_invoice_excel.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;TABLES&nbsp;:&nbsp;ZDSDT0110.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LV_SUBRC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;SY-SUBRC.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LS_HEAD&nbsp;TYPE&nbsp;TY_EXCEL_SALES_HEAD,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_ITEM&nbsp;TYPE&nbsp;TY_EXCEL_SALES_ITEM.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LS_DATA&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;<a href ="../../../ZDUSSD [SD] U.S.A SD Package/DICTIONARY/zdsds0210 [SD] Structure Sales Invoice Result (US)/dictionary-zdsds0210.html">ZDSDS0210</a>,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_HEAD_01(20).<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LV_OUTPUT_DATE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;CHAR40,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_OUTPUT_DUE_DATE&nbsp;TYPE&nbsp;CHAR40.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LT_DUEDA&nbsp;TYPE&nbsp;TABLE&nbsp;OF&nbsp;VTOPIS,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_DUEDA&nbsp;TYPE&nbsp;SY-DATUM.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LV_SHIP_SUM(10),<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_PACK_SUM(10),<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_MISC_SUM(10),<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_MATR_SUM(10),<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_SHIP2_SUM(10),<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_SURC_SUM(10),<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_SALES_TOTAL(10),<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_FKIMG_SUM(10).<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LT_LINES&nbsp;TYPE&nbsp;TABLE&nbsp;OF&nbsp;TLINE.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LV_FILEPATH&nbsp;&nbsp;TYPE&nbsp;STRING.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LV_TSTMP&nbsp;TYPE&nbsp;TIMESTAMP.<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LV_DENOMINATOR(100)&nbsp;TYPE&nbsp;N,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_NUMERATOR(100)&nbsp;&nbsp;&nbsp;TYPE&nbsp;N,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_UNIT_IN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;T006-MSEHI,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_UNIT_OUT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;T006-MSEHI,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_RATE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;P&nbsp;LENGTH&nbsp;10&nbsp;DECIMALS&nbsp;5,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_FKIMG&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;P&nbsp;LENGTH&nbsp;13&nbsp;DECIMALS&nbsp;3,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_KUNNR(1).<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LT_QTY&nbsp;LIKE&nbsp;TABLE&nbsp;OF&nbsp;<a href ="../../../ZDUSSD [SD] U.S.A SD Package/DICTIONARY/zdsds0260 [SD] Sales Invoice Excel Function QTY/dictionary-zdsds0260.html">ZDSDS0260</a>.<br />
+<br />
+&nbsp;&nbsp;DATA(LV_VBELN)&nbsp;=&nbsp;IV_VBELN.<br />
+<br />
+&nbsp;&nbsp;GET&nbsp;TIME&nbsp;STAMP&nbsp;FIELD&nbsp;LV_TSTMP.<br />
+&nbsp;&nbsp;DATA(LV_TXT)&nbsp;=&nbsp;|Sales&nbsp;Invoice_{&nbsp;LV_VBELN&nbsp;}_{&nbsp;LV_TSTMP&nbsp;}|.<br />
+&nbsp;&nbsp;GV_DIRECTORY&nbsp;=&nbsp;IV_PATH.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*--&nbsp;HEADER&nbsp;DATA&nbsp;------------------------------------------------------*<br />
+<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;SELECT&nbsp;SINGLE&nbsp;A~VKORG,&nbsp;A~FKDAT,&nbsp;A~VBELN&nbsp;AS&nbsp;VBELN_VF,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A~FKART,&nbsp;A~KUNAG&nbsp;AS&nbsp;KUNNR,&nbsp;A~SPART,&nbsp;A~KUNRG,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A~FKTYP,&nbsp;A~VBTYP,&nbsp;A~VTWEG,&nbsp;A~ZTERM,&nbsp;A~KURRF,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A~ZUONR,&nbsp;A~ERDAT,&nbsp;A~ERNAM,&nbsp;A~BUKRS,&nbsp;A~WAERK,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A~LAND1,&nbsp;A~LANDTX,&nbsp;B~VSTEL,&nbsp;B~LGORT,&nbsp;B~AUGRU_AUFT,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;B~AUBEL,&nbsp;C~ADRNR,&nbsp;D~WADAT_IST",&nbsp;D~COUNTRY,&nbsp;D~NAME1<br />
+&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;VBRK&nbsp;AS&nbsp;A<br />
+&nbsp;&nbsp;&nbsp;&nbsp;JOIN&nbsp;VBRP&nbsp;AS&nbsp;B&nbsp;ON&nbsp;B~VBELN&nbsp;EQ&nbsp;A~VBELN<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;B~POSNR&nbsp;EQ&nbsp;'000000'<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;JOIN&nbsp;VBPA&nbsp;AS&nbsp;C&nbsp;ON&nbsp;C~VBELN&nbsp;EQ&nbsp;B~VBELN<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;C~POSNR&nbsp;EQ&nbsp;'000000'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LEFT&nbsp;JOIN&nbsp;LIKP&nbsp;AS&nbsp;D&nbsp;ON&nbsp;D~VBELN&nbsp;EQ&nbsp;B~VGBEL<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;JOIN&nbsp;ADRC&nbsp;AS&nbsp;D&nbsp;ON&nbsp;D~ADDRNUMBER&nbsp;EQ&nbsp;C~ADRNR<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;A~VBELN&nbsp;EQ&nbsp;@LV_VBELN<br />
+&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;@DATA(LS_EXDATA).<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;LS_EXDATA&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-TYPE&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;'E'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-MESSAGE&nbsp;=&nbsp;'Sales&nbsp;Invoice&nbsp;does&nbsp;not&nbsp;exists'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*--&nbsp;50번&nbsp;프로그램&nbsp;유지보수뷰에&nbsp;존재하는&nbsp;고객은&nbsp;엑셀&nbsp;양식&nbsp;분리<br />
+*--&nbsp;가격&nbsp;Shipping&nbsp;cost&nbsp;Adust만&nbsp;출력<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;SELECT&nbsp;KUNNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;<a href ="../../../ZDUSSD [SD] U.S.A SD Package/DICTIONARY/zdsdt0160 [SD] Subcontract Master Management/dictionary-zdsdt0160.html">ZDSDT0160</a> <br />
+&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;TABLE&nbsp;@DATA(LT_T0160).<br />
+<br />
+&nbsp;&nbsp;CLEAR&nbsp;LV_KUNNR.<br />
+&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;LT_T0160&nbsp;INTO&nbsp;DATA(LS_T0160)&nbsp;WITH&nbsp;KEY&nbsp;KUNNR&nbsp;=&nbsp;LS_EXDATA-KUNNR.<br />
+&nbsp;&nbsp;IF&nbsp;SY-SUBRC&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LV_KUNNR&nbsp;=&nbsp;ABAP_TRUE.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;"Invoice&nbsp;헤더&nbsp;텍스트<br />
+&nbsp;&nbsp;IF&nbsp;LS_EXDATA-FKTYP&nbsp;=&nbsp;'L'&nbsp;AND&nbsp;LS_EXDATA-VBTYP&nbsp;=&nbsp;'M'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LV_HEAD_01&nbsp;=&nbsp;|INVOICE|.<br />
+&nbsp;&nbsp;ELSEIF&nbsp;LS_EXDATA-FKTYP&nbsp;=&nbsp;'L'&nbsp;AND&nbsp;LS_EXDATA-VBTYP&nbsp;=&nbsp;'O'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LV_HEAD_01&nbsp;=&nbsp;|RETURN|.<br />
+&nbsp;&nbsp;ELSEIF&nbsp;LS_EXDATA-FKTYP&nbsp;=&nbsp;'A'&nbsp;AND&nbsp;LS_EXDATA-VBTYP&nbsp;=&nbsp;'O'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LV_HEAD_01&nbsp;=&nbsp;|CREDIT&nbsp;NOTE|.<br />
+&nbsp;&nbsp;ELSEIF&nbsp;LS_EXDATA-FKTYP&nbsp;=&nbsp;'A'&nbsp;AND&nbsp;LS_EXDATA-VBTYP&nbsp;=&nbsp;'P'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LV_HEAD_01&nbsp;=&nbsp;|DEBIT&nbsp;NOTE|.<br />
+&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;"Date<br />
+&nbsp;&nbsp;PERFORM&nbsp;GET_DATE&nbsp;USING&nbsp;LS_EXDATA-FKDAT<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;LV_OUTPUT_DATE.<br />
+&nbsp;&nbsp;"DUE&nbsp;DATE<br />
+&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'SD_PRINT_TERMS_OF_PAYMENT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;BLDAT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;LS_EXDATA-FKDAT<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;BUDAT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;LS_EXDATA-FKDAT<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TERMS_OF_PAYMENT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;LS_EXDATA-ZTERM<br />
+&nbsp;&nbsp;&nbsp;&nbsp;TABLES<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TOP_TEXT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;LT_DUEDA<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TERMS_OF_PAYMENT_NOT_IN_T052&nbsp;=&nbsp;1<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OTHERS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;2.<br />
+&nbsp;&nbsp;IF&nbsp;SY-SUBRC&nbsp;&lt;&gt;&nbsp;0.<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Implement&nbsp;suitable&nbsp;error&nbsp;handling&nbsp;here<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;LT_DUEDA&nbsp;INTO&nbsp;DATA(LS_DUEDA)&nbsp;INDEX&nbsp;1.<br />
+&nbsp;&nbsp;IF&nbsp;SY-SUBRC&nbsp;EQ&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LV_DUEDA&nbsp;=&nbsp;LS_DUEDA-HDATUM.<br />
+&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;PERFORM&nbsp;GET_DATE&nbsp;USING&nbsp;LS_DUEDA-HDATUM<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;LV_OUTPUT_DUE_DATE.<br />
+&nbsp;&nbsp;"Seller<br />
+&nbsp;&nbsp;SELECT&nbsp;SINGLE&nbsp;A~BUKRS,&nbsp;A~WAERS,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;C~NAME1,&nbsp;C~NAME2,&nbsp;C~REGION,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;C~POST_CODE1,&nbsp;C~CITY1,&nbsp;C~STREET,&nbsp;C~TEL_NUMBER<br />
+&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;TVKO&nbsp;AS&nbsp;A<br />
+&nbsp;&nbsp;&nbsp;&nbsp;JOIN&nbsp;T001&nbsp;AS&nbsp;B&nbsp;ON&nbsp;B~BUKRS&nbsp;EQ&nbsp;A~BUKRS<br />
+LEFT&nbsp;JOIN&nbsp;ADRC&nbsp;AS&nbsp;C&nbsp;ON&nbsp;C~ADDRNUMBER&nbsp;EQ&nbsp;B~ADRNR<br />
+&nbsp;&nbsp;&nbsp;WHERE&nbsp;A~VKORG&nbsp;EQ&nbsp;@LS_EXDATA-VKORG<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;C~LANGU&nbsp;EQ&nbsp;'E'<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;@DATA(LS_ADRC).<br />
+<br />
+&nbsp;&nbsp;"Bill&nbsp;to<br />
+&nbsp;&nbsp;SELECT&nbsp;SINGLE&nbsp;D~NAME1,&nbsp;D~NAME2,&nbsp;D~REGION,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D~POST_CODE1,&nbsp;D~CITY1,&nbsp;D~STREET,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;E~AD_NAMTEXT2<br />
+&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;VBRK&nbsp;AS&nbsp;A<br />
+&nbsp;&nbsp;&nbsp;&nbsp;JOIN&nbsp;VBRP&nbsp;AS&nbsp;B&nbsp;ON&nbsp;B~VBELN&nbsp;EQ&nbsp;A~VBELN<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;B~POSNR&nbsp;EQ&nbsp;'000000'<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;JOIN&nbsp;(&nbsp;VBPA&nbsp;AS&nbsp;C&nbsp;LEFT&nbsp;JOIN&nbsp;ZDSDT0110&nbsp;AS&nbsp;E&nbsp;ON&nbsp;E~KUNNR&nbsp;&nbsp;EQ&nbsp;C~KUNNR&nbsp;)&nbsp;ON&nbsp;C~VBELN&nbsp;EQ&nbsp;B~VBELN<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;C~POSNR&nbsp;EQ&nbsp;'000000'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;C~PARVW&nbsp;EQ&nbsp;'RG'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LEFT&nbsp;JOIN&nbsp;ADRC&nbsp;AS&nbsp;D&nbsp;ON&nbsp;D~ADDRNUMBER&nbsp;EQ&nbsp;C~ADRNR<br />
+&nbsp;&nbsp;&nbsp;WHERE&nbsp;A~VBELN&nbsp;EQ&nbsp;@LV_VBELN<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;D~LANGU&nbsp;EQ&nbsp;'E'<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;@DATA(LS_BUYER).<br />
+&nbsp;&nbsp;"Ship&nbsp;to<br />
+&nbsp;&nbsp;IF&nbsp;LS_EXDATA-FKART&nbsp;NE&nbsp;'ZOR6'&nbsp;OR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_EXDATA-FKART&nbsp;NE&nbsp;'ZRTA'&nbsp;OR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_EXDATA-FKART&nbsp;NE&nbsp;'ZRTB'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;SINGLE&nbsp;D~NAME1,&nbsp;D~NAME2,&nbsp;D~REGION,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D~POST_CODE1,&nbsp;D~CITY1,&nbsp;D~STREET,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;E~AD_NAMTEXT2<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;VBRK&nbsp;AS&nbsp;A<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;JOIN&nbsp;VBRP&nbsp;AS&nbsp;B&nbsp;ON&nbsp;B~VBELN&nbsp;EQ&nbsp;A~VBELN<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;B~POSNR&nbsp;EQ&nbsp;'000000'<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;JOIN&nbsp;(&nbsp;VBPA&nbsp;AS&nbsp;C&nbsp;LEFT&nbsp;JOIN&nbsp;ZDSDT0110&nbsp;AS&nbsp;E&nbsp;ON&nbsp;E~KUNNR&nbsp;&nbsp;EQ&nbsp;C~KUNNR&nbsp;)&nbsp;ON&nbsp;C~VBELN&nbsp;EQ&nbsp;B~VBELN<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;C~POSNR&nbsp;EQ&nbsp;'000000'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;C~PARVW&nbsp;EQ&nbsp;'WE'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LEFT&nbsp;JOIN&nbsp;ADRC&nbsp;AS&nbsp;D&nbsp;ON&nbsp;D~ADDRNUMBER&nbsp;EQ&nbsp;C~ADRNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;A~VBELN&nbsp;EQ&nbsp;@LV_VBELN<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;D~LANGU&nbsp;EQ&nbsp;'E'<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;@DATA(LS_SHIPTO).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;SINGLE&nbsp;BSTKD<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;VBKD<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;VBELN&nbsp;EQ&nbsp;@LS_EXDATA-AUBEL<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;POSNR&nbsp;EQ&nbsp;@LS_EXDATA-AUPOS<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;@DATA(LV_BSTKD).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;LV_BSTKD&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;SINGLE&nbsp;BSTKD<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;VBKD<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;VBELN&nbsp;EQ&nbsp;@LS_EXDATA-AUBEL<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;POSNR&nbsp;EQ&nbsp;000000<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;POSNR&nbsp;EQ&nbsp;@LS_SAVE-VGPOS<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;@LV_BSTKD.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;SO&nbsp;NUMBER,&nbsp;SHIPMENT&nbsp;DATE,&nbsp;CUSTOMER&nbsp;PO.NO.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LS_HEAD-HEAD_18&nbsp;=&nbsp;LS_EXDATA-AUBEL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LS_HEAD-HEAD_19&nbsp;=&nbsp;|{&nbsp;LS_EXDATA-WADAT_IST+4(2)&nbsp;}/{&nbsp;LS_EXDATA-WADAT_IST+6(2)&nbsp;}/{&nbsp;LS_EXDATA-WADAT_IST(4)&nbsp;}|.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LS_HEAD-HEAD_20&nbsp;=&nbsp;LV_BSTKD.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;"BANK<br />
+&nbsp;&nbsp;SELECT&nbsp;SINGLE&nbsp;CONTENT<br />
+&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;<a href ="../../../ZDUSSD [SD] U.S.A SD Package/DICTIONARY/zdsdt0150 [SD] Bank Information/dictionary-zdsdt0150.html">ZDSDT0150</a> <br />
+&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;DOC_ID&nbsp;=&nbsp;'SHINHAN_BANK'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;@DATA(LV_BANK).<br />
+<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_27&nbsp;=&nbsp;LV_BANK.<br />
+<br />
+&nbsp;&nbsp;"&nbsp;Hader<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_01&nbsp;=&nbsp;LV_HEAD_01.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_02&nbsp;=&nbsp;|{&nbsp;LS_EXDATA-VBELN_VF&nbsp;}|.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_03&nbsp;=&nbsp;|{&nbsp;LV_OUTPUT_DATE&nbsp;}|.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_04&nbsp;=&nbsp;|{&nbsp;LV_OUTPUT_DUE_DATE&nbsp;}|.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_05&nbsp;=&nbsp;|{&nbsp;LS_EXDATA-KUNRG&nbsp;}|.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_06&nbsp;=&nbsp;|{&nbsp;LS_ADRC-NAME1&nbsp;},&nbsp;{&nbsp;LS_ADRC-NAME2&nbsp;}|.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_07&nbsp;=&nbsp;|{&nbsp;LS_ADRC-STREET&nbsp;}|.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_08&nbsp;=&nbsp;|{&nbsp;LS_ADRC-CITY1&nbsp;},&nbsp;{&nbsp;LS_ADRC-REGION&nbsp;}&nbsp;{&nbsp;LS_ADRC-POST_CODE1&nbsp;}|.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_09&nbsp;=&nbsp;|Phone:&nbsp;{&nbsp;LS_ADRC-TEL_NUMBER&nbsp;}|.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_10&nbsp;=&nbsp;|{&nbsp;LS_BUYER-NAME1&nbsp;}{&nbsp;LS_BUYER-NAME2&nbsp;}|.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_11&nbsp;=&nbsp;|{&nbsp;LS_BUYER-STREET&nbsp;}|.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_12&nbsp;=&nbsp;|{&nbsp;LS_BUYER-CITY1&nbsp;},&nbsp;{&nbsp;LS_BUYER-REGION&nbsp;}&nbsp;{&nbsp;LS_BUYER-POST_CODE1&nbsp;}|.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_13&nbsp;=&nbsp;|Attn:&nbsp;{&nbsp;LS_BUYER-AD_NAMTEXT2&nbsp;}|.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_14&nbsp;=&nbsp;|{&nbsp;LS_SHIPTO-NAME1&nbsp;}{&nbsp;LS_SHIPTO-NAME2&nbsp;}|.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_15&nbsp;=&nbsp;|{&nbsp;LS_SHIPTO-STREET&nbsp;}|.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_16&nbsp;=&nbsp;|{&nbsp;LS_SHIPTO-CITY1&nbsp;},&nbsp;{&nbsp;LS_SHIPTO-REGION&nbsp;}&nbsp;{&nbsp;LS_SHIPTO-POST_CODE1&nbsp;}|.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_17&nbsp;=&nbsp;|Attn:&nbsp;{&nbsp;LS_SHIPTO-AD_NAMTEXT2&nbsp;}|.<br />
+<br />
+<br />
+<br />
+&nbsp;&nbsp;CONDENSE&nbsp;:&nbsp;LS_HEAD-HEAD_01,&nbsp;LS_HEAD-HEAD_02,&nbsp;LS_HEAD-HEAD_03,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_HEAD-HEAD_04,&nbsp;LS_HEAD-HEAD_05,&nbsp;LS_HEAD-HEAD_06,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_HEAD-HEAD_07,&nbsp;LS_HEAD-HEAD_08,&nbsp;LS_HEAD-HEAD_09,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_HEAD-HEAD_10,&nbsp;LS_HEAD-HEAD_11,&nbsp;LS_HEAD-HEAD_12,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_HEAD-HEAD_13,&nbsp;LS_HEAD-HEAD_14,&nbsp;LS_HEAD-HEAD_15,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_HEAD-HEAD_16,&nbsp;LS_HEAD-HEAD_17,&nbsp;LS_HEAD-HEAD_18,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_HEAD-HEAD_19,&nbsp;LS_HEAD-HEAD_20,&nbsp;LS_HEAD-HEAD_27.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*--&nbsp;HEADER&nbsp;DATA&nbsp;END&nbsp;--------------------------------------------------*<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;"--*&nbsp;ITEM&nbsp;Data&nbsp;&nbsp;&nbsp;*-------------------------<br />
+<br />
+&nbsp;&nbsp;TRY.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;A~VBELN,&nbsp;B~POSNR,&nbsp;A~KNUMV,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A~VKORG,&nbsp;A~VTWEG,&nbsp;A~KUNAG,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A~KURRF,&nbsp;B~MATNR,&nbsp;A~KUNRG&nbsp;AS&nbsp;KUNNR,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;B~PRSFD,&nbsp;B~KZWI1,&nbsp;B~MWSBP,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;B~ARKTX,&nbsp;B~FKIMG,&nbsp;B~VRKME,&nbsp;B~VGBEL,&nbsp;B~VGPOS,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;G~KBETR,&nbsp;G~WAERS,&nbsp;A~FKTYP,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;G~KWERT,&nbsp;G~WAERK,&nbsp;G~KPEIN,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;H~KWERT&nbsp;AS&nbsp;KWERT_SHIP,&nbsp;H~WAERK&nbsp;AS&nbsp;WAERK_SHIP,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;I~KWERT&nbsp;AS&nbsp;KWERT_PACK,&nbsp;I~WAERK&nbsp;AS&nbsp;WAERK_PACK,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;J~KWERT&nbsp;AS&nbsp;KWERT_MISC,&nbsp;J~WAERK&nbsp;AS&nbsp;WAERK_MISC,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;K~KWERT&nbsp;AS&nbsp;KWERT_MATR,&nbsp;K~WAERK&nbsp;AS&nbsp;WAERK_MATR,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;L~KWERT&nbsp;AS&nbsp;KWERT_SHIP2,&nbsp;L~WAERK&nbsp;AS&nbsp;WAERK_SHIP2,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;M~KBETR&nbsp;AS&nbsp;KBETR_SURC,&nbsp;M~WAERK&nbsp;AS&nbsp;WAERK_SURC,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;M~KWERT&nbsp;AS&nbsp;KWERT_SURC,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;B~KZWI2,&nbsp;B~KZWI3,&nbsp;B~KZWI4<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;VBRK&nbsp;AS&nbsp;A<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;JOIN&nbsp;VBRP&nbsp;AS&nbsp;B&nbsp;ON&nbsp;B~VBELN&nbsp;EQ&nbsp;A~VBELN<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;JOIN&nbsp;LIPS&nbsp;AS&nbsp;D&nbsp;ON&nbsp;D~VBELN&nbsp;EQ&nbsp;B~VGBEL<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;D~POSNR&nbsp;EQ&nbsp;B~VGPOS<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;JOIN&nbsp;VBAP&nbsp;AS&nbsp;E&nbsp;ON&nbsp;E~VBELN&nbsp;EQ&nbsp;D~VGBEL<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;E~POSNR&nbsp;EQ&nbsp;D~VGPOS<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;JOIN&nbsp;VBAK&nbsp;AS&nbsp;F&nbsp;ON&nbsp;F~VBELN&nbsp;EQ&nbsp;E~VBELN<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;LEFT&nbsp;JOIN&nbsp;PRCD_ELEMENTS&nbsp;AS&nbsp;G&nbsp;ON&nbsp;G~KSCHL&nbsp;IN&nbsp;(&nbsp;'ZPR2',&nbsp;'ZLP3',&nbsp;'ZLP4'&nbsp;)&nbsp;"2025.08.19&nbsp;ZLP3,&nbsp;ZLP4&nbsp;추가<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;G~KNUMV&nbsp;=&nbsp;A~KNUMV<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;G~KPOSN&nbsp;=&nbsp;B~POSNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;G~KBETR&nbsp;IS&nbsp;NOT&nbsp;INITIAL<br />
+&nbsp;&nbsp;&nbsp;LEFT&nbsp;JOIN&nbsp;PRCD_ELEMENTS&nbsp;AS&nbsp;H&nbsp;ON&nbsp;H~KSCHL&nbsp;IN&nbsp;(&nbsp;'ZFE1'&nbsp;)&nbsp;&nbsp;"&nbsp;Shipping&nbsp;Cost<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;H~KNUMV&nbsp;=&nbsp;A~KNUMV<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;H~KPOSN&nbsp;=&nbsp;B~POSNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;H~KBETR&nbsp;IS&nbsp;NOT&nbsp;INITIAL<br />
+&nbsp;&nbsp;&nbsp;LEFT&nbsp;JOIN&nbsp;PRCD_ELEMENTS&nbsp;AS&nbsp;I&nbsp;ON&nbsp;I~KSCHL&nbsp;IN&nbsp;(&nbsp;'ZFE2'&nbsp;)&nbsp;&nbsp;"&nbsp;Package&nbsp;Cost<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;I~KNUMV&nbsp;=&nbsp;A~KNUMV<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;I~KPOSN&nbsp;=&nbsp;B~POSNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;I~KBETR&nbsp;IS&nbsp;NOT&nbsp;INITIAL<br />
+&nbsp;&nbsp;&nbsp;LEFT&nbsp;JOIN&nbsp;PRCD_ELEMENTS&nbsp;AS&nbsp;J&nbsp;ON&nbsp;J~KSCHL&nbsp;IN&nbsp;(&nbsp;'ZFE3'&nbsp;)&nbsp;&nbsp;"&nbsp;Miscellaneous&nbsp;Cost<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;J~KNUMV&nbsp;=&nbsp;A~KNUMV<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;J~KPOSN&nbsp;=&nbsp;B~POSNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;J~KBETR&nbsp;IS&nbsp;NOT&nbsp;INITIAL<br />
+&nbsp;&nbsp;&nbsp;LEFT&nbsp;JOIN&nbsp;PRCD_ELEMENTS&nbsp;AS&nbsp;K&nbsp;ON&nbsp;K~KSCHL&nbsp;IN&nbsp;(&nbsp;'ZFE4'&nbsp;)&nbsp;&nbsp;"&nbsp;Material&nbsp;Cost<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;K~KNUMV&nbsp;=&nbsp;A~KNUMV<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;K~KPOSN&nbsp;=&nbsp;B~POSNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;K~KBETR&nbsp;IS&nbsp;NOT&nbsp;INITIAL<br />
+&nbsp;&nbsp;&nbsp;LEFT&nbsp;JOIN&nbsp;PRCD_ELEMENTS&nbsp;AS&nbsp;L&nbsp;ON&nbsp;L~KSCHL&nbsp;IN&nbsp;(&nbsp;'ZFE5'&nbsp;)&nbsp;&nbsp;"&nbsp;Shipping&nbsp;Cost&nbsp;Adjust<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;L~KNUMV&nbsp;=&nbsp;A~KNUMV<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;L~KPOSN&nbsp;=&nbsp;B~POSNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;L~KBETR&nbsp;IS&nbsp;NOT&nbsp;INITIAL<br />
+&nbsp;&nbsp;&nbsp;LEFT&nbsp;JOIN&nbsp;PRCD_ELEMENTS&nbsp;AS&nbsp;M&nbsp;ON&nbsp;M~KSCHL&nbsp;IN&nbsp;(&nbsp;'ZFE6'&nbsp;)&nbsp;&nbsp;"&nbsp;Surcharge&nbsp;&gt;&gt;&nbsp;20250926&nbsp;추가<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;M~KNUMV&nbsp;=&nbsp;A~KNUMV<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;M~KPOSN&nbsp;=&nbsp;B~POSNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;M~KBETR&nbsp;IS&nbsp;NOT&nbsp;INITIAL<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;A~VBELN&nbsp;EQ&nbsp;@LV_VBELN<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;TABLE&nbsp;@DATA(LT_EXITEM).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CATCH&nbsp;CX_ROOT&nbsp;INTO&nbsp;DATA(LO_ROOT).<br />
+&nbsp;&nbsp;ENDTRY.<br />
+&nbsp;&nbsp;SORT&nbsp;LT_EXITEM&nbsp;BY&nbsp;KNUMV&nbsp;POSNR.<br />
+&nbsp;&nbsp;DELETE&nbsp;ADJACENT&nbsp;DUPLICATES&nbsp;FROM&nbsp;LT_EXITEM&nbsp;COMPARING&nbsp;ALL&nbsp;FIELDS.<br />
+<br />
+&nbsp;&nbsp;SELECT&nbsp;KUNNR,&nbsp;MEINS,&nbsp;RATE<br />
+&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;<a href ="../../../ZDUSSD [SD] U.S.A SD Package/DICTIONARY/zdsdt0180 [SD] Unit Conversion/dictionary-zdsdt0180.html">ZDSDT0180</a> <br />
+&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;TABLE&nbsp;@DATA(LT_T0180).<br />
+<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LV_SUM(10).<br />
+&nbsp;&nbsp;CLEAR&nbsp;GT_EXCEL_SALE_ITEM.<br />
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;LT_EXITEM&nbsp;ASSIGNING&nbsp;FIELD-SYMBOL(&lt;LS_EXITEM&gt;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;:&nbsp;LS_ITEM,&nbsp;LV_SUM.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LS_ITEM-MATNR&nbsp;=&nbsp;&lt;LS_EXITEM&gt;-MATNR.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LS_ITEM-ARKTX&nbsp;=&nbsp;&lt;LS_EXITEM&gt;-ARKTX.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;CONVERSION_CURR&nbsp;USING&nbsp;&lt;LS_EXITEM&gt;-KBETR&nbsp;&lt;LS_EXITEM&gt;-WAERS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;&lt;LS_EXITEM&gt;-KBETR.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DATA&nbsp;:&nbsp;LV_KBETR&nbsp;TYPE&nbsp;P&nbsp;DECIMALS&nbsp;4.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;:&nbsp;LV_KBETR.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LV_KBETR&nbsp;=&nbsp;&lt;LS_EXITEM&gt;-KBETR&nbsp;/&nbsp;&lt;LS_EXITEM&gt;-KPEIN.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LS_ITEM-KBETR&nbsp;=&nbsp;LV_KBETR.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;CONVERSION_CURR&nbsp;USING&nbsp;&lt;LS_EXITEM&gt;-KWERT&nbsp;&lt;LS_EXITEM&gt;-WAERK<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;&lt;LS_EXITEM&gt;-KWERT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LS_ITEM-KWERT&nbsp;=&nbsp;&lt;LS_EXITEM&gt;-KWERT.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;IT_QTY&nbsp;INTO&nbsp;DATA(LS_QTY)&nbsp;WITH&nbsp;KEY&nbsp;KUNNR&nbsp;=&nbsp;&lt;LS_EXITEM&gt;-KUNNR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VBELN&nbsp;=&nbsp;&lt;LS_EXITEM&gt;-VGBEL<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;POSNR&nbsp;=&nbsp;&lt;LS_EXITEM&gt;-VGPOS.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;SY-SUBRC&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;CONVERSION_UNIT&nbsp;USING&nbsp;LS_QTY-QTY&nbsp;&lt;LS_EXITEM&gt;-VRKME.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_ITEM-FKIMG&nbsp;=&nbsp;LS_QTY-QTY.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_ITEM-VRKME&nbsp;=&nbsp;&lt;LS_EXITEM&gt;-VRKME.&nbsp;"&nbsp;UNIT<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;CONVERSION_UNIT&nbsp;USING&nbsp;&lt;LS_EXITEM&gt;-FKIMG&nbsp;&lt;LS_EXITEM&gt;-VRKME.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_ITEM-FKIMG&nbsp;=&nbsp;&lt;LS_EXITEM&gt;-FKIMG.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_ITEM-VRKME&nbsp;=&nbsp;&lt;LS_EXITEM&gt;-VRKME.&nbsp;"&nbsp;UNIT<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"sum&nbsp;구하기<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;LV_KUNNR&nbsp;=&nbsp;ABAP_TRUE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"50번&nbsp;프로그램&nbsp;유지보수뷰에&nbsp;존재하는&nbsp;고객코드일&nbsp;경우엔&nbsp;해당&nbsp;가격&nbsp;안구함(일반&nbsp;대금청구문서가&nbsp;아님)<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_SHIP_SUM&nbsp;+=&nbsp;&lt;LS_EXITEM&gt;-KWERT_SHIP.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_PACK_SUM&nbsp;+=&nbsp;&lt;LS_EXITEM&gt;-KWERT_PACK.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_MISC_SUM&nbsp;+=&nbsp;&lt;LS_EXITEM&gt;-KWERT_MISC.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_MATR_SUM&nbsp;+=&nbsp;&lt;LS_EXITEM&gt;-KWERT_MATR.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"일반&nbsp;대금청구문서일&nbsp;경우<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"ZFE6&nbsp;CONDITION&nbsp;존재하는경우에만&nbsp;출력&nbsp;&lt;&lt;&nbsp;20250926&nbsp;추가<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;&lt;LS_EXITEM&gt;-KWERT_SURC&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_FKIMG_SUM&nbsp;+=&nbsp;&lt;LS_EXITEM&gt;-FKIMG.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_SURC_SUM&nbsp;+=&nbsp;&lt;LS_EXITEM&gt;-KWERT_SURC.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LV_SHIP2_SUM&nbsp;+=&nbsp;&lt;LS_EXITEM&gt;-KWERT_SHIP2.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LV_SUM&nbsp;=&nbsp;&lt;LS_EXITEM&gt;-KZWI2&nbsp;+&nbsp;&lt;LS_EXITEM&gt;-KZWI3&nbsp;+&nbsp;&lt;LS_EXITEM&gt;-KZWI4.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LV_SALES_TOTAL&nbsp;=&nbsp;LV_SALES_TOTAL&nbsp;+&nbsp;LV_SUM.<br />
+<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;LS_ITEM&nbsp;TO&nbsp;GT_EXCEL_SALE_ITEM.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;LS_ITEM.<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;LV_KUNNR&nbsp;=&nbsp;ABAP_TRUE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;CONVERSION_CURR&nbsp;USING&nbsp;LV_SHIP_SUM&nbsp;&lt;LS_EXITEM&gt;-WAERK_SHIP<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;LV_SHIP_SUM.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;CONVERSION_CURR&nbsp;USING&nbsp;LV_PACK_SUM&nbsp;&lt;LS_EXITEM&gt;-WAERK_PACK<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;LV_PACK_SUM.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;CONVERSION_CURR&nbsp;USING&nbsp;LV_MISC_SUM&nbsp;&lt;LS_EXITEM&gt;-WAERK_MISC<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;LV_MISC_SUM.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;CONVERSION_CURR&nbsp;USING&nbsp;LV_MATR_SUM&nbsp;&lt;LS_EXITEM&gt;-WAERK_MATR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;LV_MATR_SUM.<br />
+&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;CONVERSION_CURR&nbsp;USING&nbsp;LV_SURC_SUM&nbsp;&lt;LS_EXITEM&gt;-WAERK_SURC<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;LV_SURC_SUM.<br />
+&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;PERFORM&nbsp;CONVERSION_CURR&nbsp;USING&nbsp;LV_SHIP2_SUM&nbsp;&lt;LS_EXITEM&gt;-WAERK_SHIP2<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;LV_SHIP2_SUM.<br />
+&nbsp;&nbsp;"&nbsp;음수&nbsp;부호&nbsp;앞으로&nbsp;옮기기<br />
+&nbsp;&nbsp;IF&nbsp;LV_SHIP2_SUM&nbsp;&lt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'CLOI_PUT_SIGN_IN_FRONT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VALUE&nbsp;=&nbsp;LV_SHIP2_SUM.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;LV_SALES_TOTAL&nbsp;&lt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'CLOI_PUT_SIGN_IN_FRONT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VALUE&nbsp;=&nbsp;LV_SALES_TOTAL.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_21&nbsp;=&nbsp;LV_SHIP_SUM.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_22&nbsp;=&nbsp;LV_PACK_SUM.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_23&nbsp;=&nbsp;LV_MISC_SUM.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_24&nbsp;=&nbsp;LV_MATR_SUM.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_25&nbsp;=&nbsp;LV_SHIP2_SUM.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_26&nbsp;=&nbsp;LV_SALES_TOTAL.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_33&nbsp;=&nbsp;|Shipping&nbsp;Cost&nbsp;Adjust|.<br />
+&nbsp;&nbsp;"&nbsp;SURCHARGE&nbsp;20250926추가<br />
+&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;LT_EXITEM&nbsp;INTO&nbsp;DATA(LS_EXITEM)&nbsp;INDEX&nbsp;1.<br />
+&nbsp;&nbsp;PERFORM&nbsp;CONVERSION_UNIT&nbsp;USING&nbsp;LS_EXITEM-KBETR_SURC&nbsp;&lt;LS_EXITEM&gt;-VRKME.<br />
+&nbsp;&nbsp;PERFORM&nbsp;CONVERSION_CURR&nbsp;USING&nbsp;LV_SURC_SUM&nbsp;&lt;LS_EXITEM&gt;-WAERK_SURC<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;LV_SURC_SUM.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_28&nbsp;=&nbsp;LV_FKIMG_SUM.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_29&nbsp;=&nbsp;&lt;LS_EXITEM&gt;-VRKME.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_30&nbsp;=&nbsp;LS_EXITEM-KBETR_SURC.&nbsp;&nbsp;"KNUMV,&nbsp;PONSR&nbsp;기준으로&nbsp;처음거&nbsp;가져와야됨<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_31&nbsp;=&nbsp;LV_SURC_SUM.<br />
+&nbsp;&nbsp;LS_HEAD-HEAD_32&nbsp;=&nbsp;|Surcharge|.<br />
+&nbsp;&nbsp;CONDENSE&nbsp;:&nbsp;LS_HEAD-HEAD_21,&nbsp;LS_HEAD-HEAD_22,&nbsp;LS_HEAD-HEAD_23,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_HEAD-HEAD_24,&nbsp;LS_HEAD-HEAD_25,&nbsp;LS_HEAD-HEAD_26,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_HEAD-HEAD_28,&nbsp;LS_HEAD-HEAD_29,&nbsp;LS_HEAD-HEAD_30,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_HEAD-HEAD_31,&nbsp;LS_HEAD-HEAD_32.<br />
+<br />
+&nbsp;&nbsp;MOVE&nbsp;LS_HEAD&nbsp;TO&nbsp;GS_EXCEL_HEAD.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;LV_KUNNR&nbsp;=&nbsp;ABAP_TRUE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;EXCEL_DOWN&nbsp;USING&nbsp;'ZUSSDR0040'&nbsp;LV_TXT<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;LV_SUBRC.<br />
+&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;EXCEL_DOWN&nbsp;USING&nbsp;'ZUSSDR0040_2'&nbsp;LV_TXT<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;LV_SUBRC.<br />
+&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;IF&nbsp;LV_SUBRC&nbsp;EQ&nbsp;0.<br />
+   </div>
+   <div class="codeComment">
+**&nbsp;저장된&nbsp;엑셀&nbsp;OPEN<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR:G_EXCEL,&nbsp;G_MAPL,&nbsp;G_MAPL,&nbsp;G_SHEET.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;G_EXCEL-HEADER&nbsp;=&nbsp;SPACE&nbsp;OR&nbsp;G_EXCEL-HANDLE&nbsp;=&nbsp;-1.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CREATE&nbsp;OBJECT&nbsp;G_EXCEL&nbsp;'Excel.Application'.<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;ERR_HDL.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+**&nbsp;엑셀&nbsp;불러오기<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;METHOD&nbsp;OF&nbsp;G_EXCEL&nbsp;'Workbooks'&nbsp;=&nbsp;G_MAPL.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;ERR_HDL.<br />
+<br />
+*__엑셀&nbsp;화면&nbsp;출력&nbsp;visible&nbsp;처리<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;SET&nbsp;PROPERTY&nbsp;OF&nbsp;G_EXCEL&nbsp;'Visible'&nbsp;=&nbsp;1.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"0-숨김,&nbsp;1-보이기<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;METHOD&nbsp;OF&nbsp;G_MAPL&nbsp;'OPEN'&nbsp;"=&nbsp;G_MAP<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#1&nbsp;=&nbsp;GV_FILENAME.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"저장된&nbsp;엑셀&nbsp;파일명<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;GET&nbsp;PROPERTY&nbsp;OF&nbsp;G_EXCEL&nbsp;'ACTIVESHEET'&nbsp;=&nbsp;G_SHEET.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;METHOD&nbsp;OF&nbsp;G_EXCEL&nbsp;'Worksheets'&nbsp;=&nbsp;G_AWORK<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#1&nbsp;=&nbsp;1.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;METHOD&nbsp;OF&nbsp;G_SHEET&nbsp;'Activate'.<br />
+<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;FILL_OC_SPREADSHEET_CELL&nbsp;USING&nbsp;LV_KUNNR.&nbsp;"&nbsp;Order&nbsp;Confirmation<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"PDF&nbsp;변환<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;:&nbsp;GV_FILENAME2.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;GV_FILENAME2&nbsp;=&nbsp;GV_FILENAME&nbsp;&&&nbsp;'.PDF'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;METHOD&nbsp;OF&nbsp;G_SHEET&nbsp;'ExportAsfixedFormat'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#1&nbsp;=&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"파일&nbsp;형식:&nbsp;PDF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#2&nbsp;=&nbsp;GV_FILENAME2.&nbsp;"&nbsp;저장&nbsp;경로,파일명.<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;#3&nbsp;=&nbsp;0.<br />
+<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;FREE&nbsp;OBJECT&nbsp;G_SHEET.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;FREE&nbsp;OBJECT&nbsp;G_MAPL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;FREE&nbsp;OBJECT&nbsp;G_EXCEL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;FREE&nbsp;OBJECT&nbsp;G_AWORK.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-TYPE&nbsp;=&nbsp;'S'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-MESSAGE&nbsp;=&nbsp;TEXT-S07.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-EV_FILENAME_EXCL&nbsp;=&nbsp;GV_FILENAME.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-EV_FILENAME_PDF&nbsp;=&nbsp;GV_FILENAME2.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-VKORG&nbsp;=&nbsp;LS_EXDATA-VKORG.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-FKART&nbsp;=&nbsp;LS_EXDATA-FKART.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-FKDAT&nbsp;=&nbsp;LS_EXDATA-FKDAT.<br />
+&nbsp;&nbsp;ELSE.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-TYPE&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;'E'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-MESSAGE&nbsp;=&nbsp;'Sales&nbsp;Invoice&nbsp;Print&nbsp;Fail'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;CLEAR&nbsp;:&nbsp;LT_EXITEM.<br />
+ENDFUNCTION.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*Text&nbsp;elements<br />
+*----------------------------------------------------------<br />
+*&nbsp;998&nbsp;'Delivery&nbsp;Order'&nbsp;creation&nbsp;has&nbsp;been&nbsp;cancelled&nbsp;because&nbsp;it&nbsp;could&nbsp;not&nbsp;be&nbsp;created&nbsp;with&nbsp;one.<br />
+*&nbsp;999&nbsp;Tax&nbsp;I/V<br />
+*&nbsp;E01&nbsp;Please&nbsp;input&nbsp;an&nbsp;order&nbsp;number.<br />
+*&nbsp;E02&nbsp;Please&nbsp;input&nbsp;a&nbsp;change/delete&nbsp;flag.<br />
+*&nbsp;E03&nbsp;Please&nbsp;input&nbsp;a&nbsp;valid&nbsp;flag.<br />
+*&nbsp;E04&nbsp;Delivery&nbsp;document&nbsp;creation&nbsp;failed.<br />
+*&nbsp;E05&nbsp;Please&nbsp;input&nbsp;a&nbsp;delivery&nbsp;document&nbsp;number.<br />
+*&nbsp;E06&nbsp;No&nbsp;input&nbsp;data&nbsp;available.<br />
+*&nbsp;E07&nbsp;Dispatch&nbsp;processing&nbsp;failed.<br />
+*&nbsp;E08&nbsp;Dispatch&nbsp;processing&nbsp;failed.<br />
+*&nbsp;E09&nbsp;Billing&nbsp;document&nbsp;creation&nbsp;failed!<br />
+*&nbsp;E10&nbsp;Billing&nbsp;document&nbsp;cancellation&nbsp;failed!<br />
+*&nbsp;E11&nbsp;No&nbsp;input&nbsp;data&nbsp;available.<br />
+*&nbsp;E12&nbsp;Billing&nbsp;already&nbsp;completed&nbsp;for&nbsp;this&nbsp;item.<br />
+*&nbsp;E13&nbsp;No&nbsp;matching&nbsp;sales&nbsp;order&nbsp;found.<br />
+*&nbsp;E14&nbsp;Delivery&nbsp;document&nbsp;modification&nbsp;failed.<br />
+*&nbsp;E15&nbsp;BP&nbsp;Saving&nbsp;is&nbsp;failed.<br />
+*&nbsp;F01&nbsp;Supplier<br />
+*&nbsp;F02&nbsp;Supplier&nbsp;Name<br />
+*&nbsp;F03&nbsp;Issue.&nbsp;Date<br />
+*&nbsp;F04&nbsp;Approval&nbsp;Number<br />
+*&nbsp;F05&nbsp;Tax&nbsp;Type<br />
+*&nbsp;F06&nbsp;Tax&nbsp;Basic&nbsp;Amount<br />
+*&nbsp;F07&nbsp;Tax&nbsp;Amount<br />
+*&nbsp;F08&nbsp;Total&nbsp;Amount<br />
+*&nbsp;M01&nbsp;Change<br />
+*&nbsp;M02&nbsp;Delete<br />
+*&nbsp;M03&nbsp;To&nbsp;add&nbsp;item<br />
+*&nbsp;M04&nbsp;Sales&nbsp;Document<br />
+*&nbsp;M05&nbsp;Success<br />
+*&nbsp;M06&nbsp;Delivery<br />
+*&nbsp;M07&nbsp;Create<br />
+*&nbsp;M08&nbsp;To&nbsp;cancel<br />
+*&nbsp;M09&nbsp;Not&nbsp;entered.<br />
+*&nbsp;M10&nbsp;This&nbsp;doc&nbsp;type&nbsp;doesn't&nbsp;need&nbsp;billing.<br />
+*&nbsp;M11&nbsp;Order&nbsp;was&nbsp;already&nbsp;Created.<br />
+*&nbsp;S01&nbsp;Delivery&nbsp;document&nbsp;has&nbsp;been&nbsp;created.<br />
+*&nbsp;S02&nbsp;Dispatch&nbsp;processing&nbsp;completed.<br />
+*&nbsp;S03&nbsp;Dispatch&nbsp;document&nbsp;has&nbsp;been&nbsp;canceled.<br />
+*&nbsp;S04&nbsp;Billing&nbsp;document&nbsp;creation&nbsp;completed!<br />
+*&nbsp;S05&nbsp;Billing&nbsp;document&nbsp;cancellation&nbsp;completed!<br />
+*&nbsp;S06&nbsp;Billing&nbsp;completed.<br />
+*&nbsp;S07&nbsp;Delivery&nbsp;document&nbsp;modification&nbsp;completed.<br />
+*&nbsp;S08&nbsp;Inventory&nbsp;transfer&nbsp;completed.<br />
+*&nbsp;S09&nbsp;BP&nbsp;is&nbsp;successfully&nbsp;saved.<br />
+*&nbsp;S10&nbsp;Aleady&nbsp;created.<br />
+*&nbsp;S11&nbsp;Sales&nbsp;order&nbsp;was&nbsp;already&nbsp;cancelled.<br />
+<br />
+<br />
+*Messages<br />
+*----------------------------------------------------------<br />
+*<br />
+*&nbsp;Message&nbsp;class:&nbsp;Hard&nbsp;coded<br />
+*&nbsp;&nbsp;&nbsp;Error&nbsp;sending&nbsp;email<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.4.3 - E.G.Mellodew. 1998-2025. Sap Release 758</td>
+   </tr>
+</table>
+</body>
+</html>

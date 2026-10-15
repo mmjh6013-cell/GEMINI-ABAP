@@ -1,0 +1,726 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http ://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http ://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>/SCWM/TO_CONF_INV_RF</title>
+<style type="text/css">
+.code{ font-family :"Courier New", Courier, monospace; color :#000; font-size :14px; background-color :#F2F4F7 }
+  .codeComment {font-family :"Courier New", Courier, monospace; color :#0000F0; font-size :14px; background-color :#F2F4F7 }
+  .normalBold{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; font-weight :800 }
+  .normalBoldLarge{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+</style>
+<style type="text/css">
+  .normal{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px }
+  .footer{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; text-align : center }
+  h2{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+  h3{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :14px; font-weight :800 }
+  .outerTable{
+   background-color :#E0E7ED;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-right-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+  .innerTable{
+   background-color :#F2F4F7;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-bottom-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function /SCWM/TO_CONF_INV_RF</h2>
+<h3> Description : Physical Inventory for WT Confirmation - Check for RF</h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION /scwm/to_conf_inv_rf.<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local Interface:<br />
+*"  IMPORTING<br />
+*"     VALUE(IV_LGNUM) TYPE  /SCWM/LGNUM<br />
+*"     VALUE(IV_TANUM) TYPE  /SCWM/TANUM<br />
+*"     VALUE(IV_NLPLA) TYPE  /SCWM/LTAP_NLPLA OPTIONAL<br />
+*"     VALUE(IV_VSOLA) TYPE  /SCWM/LTAP_VSOLA OPTIONAL<br />
+*"     VALUE(IV_NDIFA) TYPE  /SCWM/LTAP_NDIFA OPTIONAL<br />
+*"     VALUE(IV_DIFTY) TYPE  /SCWM/DE_DIFTY OPTIONAL<br />
+*"     VALUE(IV_ALTME) TYPE  /SCWM/DE_AUNIT OPTIONAL<br />
+*"     REFERENCE(IT_COMB_TANUM) TYPE  /SCWM/TT_RF_COMB_TANUM OPTIONAL<br />
+*"  EXPORTING<br />
+*"     VALUE(EV_PLACE_INV) TYPE  /SCWM/DE_PLACE_INV<br />
+*"     VALUE(EV_LOWCHK_INV) TYPE  /SCWM/DE_LOWCHK_INV<br />
+*"  RAISING<br />
+*"      /SCWM/CX_CORE<br />
+*"----------------------------------------------------------------------<br />
+<br />
+
+<div class="codeComment">*       <a href ="global-_scwm_to_conf_inv_rf.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;DATA:&nbsp;lv_quan_limit&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/de_quantity.<br />
+&nbsp;&nbsp;DATA:&nbsp;lv_quan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/de_quantity.<br />
+&nbsp;&nbsp;DATA:&nbsp;lv_nsolm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/de_quantity.<br />
+&nbsp;&nbsp;DATA:&nbsp;lv_ndifm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/de_quantity.<br />
+&nbsp;&nbsp;DATA:&nbsp;lv_counter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;sytabix.<br />
+&nbsp;&nbsp;DATA:&nbsp;lv_guid_parent&nbsp;&nbsp;TYPE&nbsp;/scwm/guid_hu.<br />
+&nbsp;&nbsp;DATA:&nbsp;lv_severity&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;bapi_mtype.<br />
+&nbsp;&nbsp;DATA:&nbsp;lv_first&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;c.&nbsp;"&nbsp;abap_bool.<br />
+&nbsp;&nbsp;DATA:&nbsp;lv_quantity_lim&nbsp;TYPE&nbsp;/scwm/de_quantity.<br />
+&nbsp;&nbsp;DATA:&nbsp;lv_nlpla&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/ltap_nlpla.<br />
+&nbsp;&nbsp;DATA:&nbsp;lv_stock_sav&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/lime/guid_stock.<br />
+&nbsp;&nbsp;DATA:&nbsp;lv_parent_sav&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/lime/guid_parent,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_altme&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/de_aunit.<br />
+<br />
+&nbsp;&nbsp;DATA:&nbsp;ls_lagps&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/s_lagps_area.<br />
+&nbsp;&nbsp;DATA:&nbsp;ls_pi_act&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/pi_area_activities.<br />
+&nbsp;&nbsp;DATA:&nbsp;ls_loc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/lime/query_loc_global.<br />
+&nbsp;&nbsp;DATA:&nbsp;ls_quan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/lime/query_quan.<br />
+&nbsp;&nbsp;DATA:&nbsp;ls_stock_diff&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/s_stock_diff.<br />
+&nbsp;&nbsp;DATA:&nbsp;ls_ordim&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/ordim_o.<br />
+&nbsp;&nbsp;DATA:&nbsp;ls_lagp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/s_lagp_int.<br />
+&nbsp;&nbsp;DATA:&nbsp;ls_t331&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/t331,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_huitm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/s_stock_select,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_guid_lgpla&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/s_guid_loc.<br />
+<br />
+&nbsp;&nbsp;DATA:&nbsp;lt_lagps&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_lagps_area.<br />
+&nbsp;&nbsp;DATA:&nbsp;lt_ordim_o&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_ordim_o.<br />
+&nbsp;&nbsp;DATA:&nbsp;lt_stock&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/lime/t_query_stock.<br />
+&nbsp;&nbsp;DATA:&nbsp;lt_quan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/lime/t_query_quan.<br />
+&nbsp;&nbsp;DATA:&nbsp;lt_list&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/lime/t_query_list.<br />
+&nbsp;&nbsp;DATA:&nbsp;lt_stock_diff&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_stock_diff,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_guid_lgpla&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_guid_loc,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_huitm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_stock_select.<br />
+<br />
+&nbsp;&nbsp;DATA:&nbsp;ls_create&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/pi_s_create.<br />
+&nbsp;&nbsp;DATA:&nbsp;ls_pi_quan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/lime/pi_count_quan.<br />
+<br />
+&nbsp;&nbsp;DATA:&nbsp;lt_pi_create&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/pi_t_create.<br />
+&nbsp;&nbsp;STATICS&nbsp;so_pi_cust&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;REF&nbsp;TO&nbsp;/scwm/if_pi_cust.<br />
+<br />
+&nbsp;&nbsp;CONSTANTS&nbsp;lc_difty_account&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/de_difty&nbsp;&nbsp;VALUE&nbsp;'2'.<br />
+&nbsp;&nbsp;FIELD-SYMBOLS&nbsp;&lt;ls_comb_tanum&gt;&nbsp;TYPE&nbsp;/scwm/s_rf_comb_tanum.<br />
+<br />
+&nbsp;&nbsp;CLEAR:&nbsp;ev_place_inv,&nbsp;ev_lowchk_inv.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;so_pi_cust&nbsp;IS&nbsp;NOT&nbsp;BOUND.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/GET_PI_CUST_INSTANCE'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eo_pi_cust&nbsp;=&nbsp;so_pi_cust.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* read TO<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/TO_READ_SINGLE'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;&nbsp;=&nbsp;iv_lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_tanum&nbsp;&nbsp;&nbsp;=&nbsp;iv_tanum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_flglock&nbsp;=&nbsp;'&nbsp;'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_ordim_o&nbsp;=&nbsp;ls_ordim<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OTHERS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;5.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;&lt;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;ls_ordim-flghuto&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+<br />
+   </div>
+   <div class="codeComment">
+* check inventory during stock placement<br />
+* preference: no bin change during placement inventory<br />
+*             bin is empty<br />
+<br />
+* /SCWM/PI_CHECK_BIN_FIRST_INV<br />
+<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;DO.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR:&nbsp;ls_loc,&nbsp;lt_list,&nbsp;lt_stock,&nbsp;lt_quan,&nbsp;lv_counter,&nbsp;ls_pi_act.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;iv_nlpla&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+   </div>
+   <div class="codeComment">
+*     changed destination bin during placement inventory<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_nlpla&nbsp;=&nbsp;iv_nlpla.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSEIF&nbsp;ls_ordim-nlpla&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_nlpla&nbsp;=&nbsp;ls_ordim-nlpla.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_nlpla&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*   check if placement inventory check is activ in customizing<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;TRY.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;METHOD&nbsp;so_pi_cust-&gt;check_activ_inv<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;=&nbsp;iv_lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgpla&nbsp;&nbsp;=&nbsp;lv_nlpla<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RECEIVING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_pi_act&nbsp;=&nbsp;ls_pi_act.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CATCH&nbsp;/scwm/cx_pi_app&nbsp;.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDTRY.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;ls_pi_act-place_inv&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/PI_CHECK_BIN_FIRST_INV'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i_lgnum&nbsp;=&nbsp;iv_lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i_lgpla&nbsp;=&nbsp;lv_nlpla<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;e_first&nbsp;=&nbsp;lv_first.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_first&nbsp;&lt;&gt;&nbsp;'X'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*   read storage bin for guid<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/LAGP_READ_SINGLE'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;iv_lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgpla&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lv_nlpla<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_lagp_int&nbsp;=&nbsp;ls_lagp<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OTHERS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;3.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;&lt;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*   No Placement Inventory for Storage Type Role "No capa update"<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/T331_READ_SINGLE'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;=&nbsp;ls_lagp-lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgtyp&nbsp;=&nbsp;ls_lagp-lgtyp<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_t331&nbsp;&nbsp;=&nbsp;ls_t331<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OTHERS&nbsp;&nbsp;&nbsp;=&nbsp;2.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;&lt;&gt;&nbsp;0&nbsp;OR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_t331-nocapaupd&nbsp;=&nbsp;'X'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;ls_lagp-flgcreate_sub&nbsp;IS&nbsp;NOT&nbsp;INITIAL&nbsp;OR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_lagp-flgcreate_dyn&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+   </div>
+   <div class="codeComment">
+*     No stock placement inventory, in case of storage bin is not<br />
+*     yet created on DB; otherwise Error in LIME during inv. posting<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_loc-idx&nbsp;=&nbsp;wmegc_idx_lgpla.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_lagp-guid_loc&nbsp;TO&nbsp;ls_loc-t_guid.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*   check no other material on the storage bin<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/LIME/QUERY_CONTENT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_loc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_loc<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i_max_levels&nbsp;&nbsp;=&nbsp;0<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_list&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_list<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_stock&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_stock<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_quan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_quan<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;e_rc_severity&nbsp;=&nbsp;lv_severity.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_severity&nbsp;CA&nbsp;'EA'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;lt_quan&nbsp;INTO&nbsp;ls_quan.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;ls_quan-vsi&nbsp;IS&nbsp;INITIAL&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_quan-quan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;&gt;&nbsp;0.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_counter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lv_counter&nbsp;+&nbsp;1.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_counter&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_place_inv&nbsp;=&nbsp;wmegc_place_inv_yes.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;ENDDO.<br />
+<br />
+<br />
+&nbsp;&nbsp;DO.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR:&nbsp;ls_loc,&nbsp;lt_list,&nbsp;lt_stock,&nbsp;lt_quan,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_counter,&nbsp;ls_pi_act,&nbsp;lv_stock_sav,&nbsp;lv_parent_sav.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;TRY.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;METHOD&nbsp;so_pi_cust-&gt;check_activ_inv<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;=&nbsp;iv_lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgpla&nbsp;&nbsp;=&nbsp;ls_ordim-vlpla<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RECEIVING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_pi_act&nbsp;=&nbsp;ls_pi_act.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CATCH&nbsp;/scwm/cx_pi_app&nbsp;.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDTRY.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;ls_pi_act-lowchk_inv&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/PI_CHECK_BIN_FIRST_INV'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i_lgnum&nbsp;=&nbsp;iv_lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i_lgpla&nbsp;=&nbsp;ls_ordim-vlpla<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;e_first&nbsp;=&nbsp;lv_first.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_first&nbsp;&lt;&gt;&nbsp;'X'&nbsp;AND&nbsp;ls_pi_act-lowcheck&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;ls_pi_act-lowchk_inv&nbsp;IS&nbsp;INITIAL&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_pi_act-lowcheck&nbsp;&nbsp;&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*     read storage bin for guid<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/LAGP_READ_SINGLE'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;iv_lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgpla&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_ordim-vlpla<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_lagp_int&nbsp;=&nbsp;ls_lagp<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OTHERS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;3.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;&lt;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*   No Low stock Inventory for Storage Type Role "No capa update"<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/T331_READ_SINGLE'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;=&nbsp;ls_lagp-lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgtyp&nbsp;=&nbsp;ls_lagp-lgtyp<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_t331&nbsp;&nbsp;=&nbsp;ls_t331<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OTHERS&nbsp;&nbsp;&nbsp;=&nbsp;2.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;&lt;&gt;&nbsp;0&nbsp;OR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_t331-nocapaupd&nbsp;=&nbsp;'X'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*   If another product WT exist on the same bin, the WT conf fails with LSC result empty bin.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/TO_READ_SRC'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;iv_lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgpla&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_ordim-vlpla<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lock&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;'&nbsp;'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_ordim_o&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_ordim_o<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;wrong_input&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;1<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;not_found&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;2<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;foreign_lock&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;3<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;others&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;4<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;SY-SUBRC&nbsp;&lt;&gt;&nbsp;0.<br />
+   </div>
+   <div class="codeComment">
+*     Implement suitable error handling here<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;lt_ordim_o&nbsp;WHERE&nbsp;flghuto&nbsp;IS&nbsp;NOT&nbsp;INITIAL.&nbsp;"HU&nbsp;WT&nbsp;is&nbsp;not&nbsp;a&nbsp;problem<br />
+<br />
+   </div>
+   <div class="codeComment">
+*   Exclude WTs from combined picking<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;it_comb_tanum&nbsp;ASSIGNING&nbsp;&lt;ls_comb_tanum&gt;&nbsp;where&nbsp;comb_tanum&nbsp;&lt;&gt;&nbsp;iv_tanum.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;lt_ordim_o&nbsp;WHERE&nbsp;tanum&nbsp;=&nbsp;&lt;ls_comb_tanum&gt;-comb_tanum.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*   If there are multiple WTs exist for the bin, we can make LSC if negative qty is allowed on the bin.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;LINES(&nbsp;lt_ordim_o&nbsp;)&nbsp;&gt;&nbsp;1&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_t331-negat&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_guid_lgpla-guid_loc&nbsp;=&nbsp;ls_lagp-guid_loc.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_guid_lgpla&nbsp;TO&nbsp;lt_guid_lgpla.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/SELECT_STOCK'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;iv_lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;it_guid_lgpla&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_guid_lgpla<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_huitm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_huitm<br />
+   </div>
+   <div class="codeComment">
+*       ET_HUHDR               =<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;error&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;1<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;others&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;2<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;SY-SUBRC&nbsp;&lt;&gt;&nbsp;0.<br />
+   </div>
+   <div class="codeComment">
+*     Implement suitable error handling here<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;lt_huitm&nbsp;INTO&nbsp;ls_huitm&nbsp;WHERE&nbsp;vsi&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_counter&nbsp;=&nbsp;lv_counter&nbsp;+&nbsp;1.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_quan&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lv_quan&nbsp;+&nbsp;ls_huitm-quan.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_counter&nbsp;&gt;&nbsp;1.<br />
+   </div>
+   <div class="codeComment">
+*     no mixed bin - only one quant - no nested HUs<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*   On RFUI we might change the ALTME, so we must use that value, not the ALTME from the WT.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;iv_altme&nbsp;IS&nbsp;SUPPLIED&nbsp;AND&nbsp;iv_altme&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_altme&nbsp;=&nbsp;iv_altme.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_altme&nbsp;=&nbsp;ls_ordim-altme.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*     check remaining quantity<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;ls_ordim-meins&nbsp;=&nbsp;lv_altme&nbsp;AND&nbsp;iv_vsola&nbsp;=&nbsp;ls_ordim-vsolm.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_quan&nbsp;=&nbsp;lv_quan&nbsp;-&nbsp;ls_ordim-vsolm.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TRY.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/MATERIAL_QUAN_CONVERT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_matid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_ordim-matid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_quan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;iv_vsola<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_unit_from&nbsp;=&nbsp;lv_altme<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_unit_to&nbsp;&nbsp;&nbsp;=&nbsp;ls_ordim-meins<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_batchid&nbsp;&nbsp;&nbsp;=&nbsp;ls_ordim-batchid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_quan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lv_nsolm.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CATCH&nbsp;/scwm/cx_md.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;METHOD&nbsp;go_prot-&gt;add_message(&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RAISE&nbsp;EXCEPTION&nbsp;TYPE&nbsp;/scwm/cx_core.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDTRY.<br />
+<br />
+<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TRY.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/MATERIAL_QUAN_CONVERT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_matid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_ordim-matid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_quan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;iv_ndifa<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_unit_from&nbsp;=&nbsp;lv_altme<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_unit_to&nbsp;&nbsp;&nbsp;=&nbsp;ls_ordim-meins<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_batchid&nbsp;&nbsp;&nbsp;=&nbsp;ls_ordim-batchid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_quan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lv_ndifm.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CATCH&nbsp;/scwm/cx_md.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;METHOD&nbsp;go_prot-&gt;add_message(&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RAISE&nbsp;EXCEPTION&nbsp;TYPE&nbsp;/scwm/cx_core.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDTRY.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*   If there is a diff on bin, then it is not a real difference, we just use the<br />
+*   new actual qty from the screen to decrease the stock<br />
+*   in case of difference on diff account we have 2 options:<br />
+*   1. shortage reported<br />
+*     -&gt; the actual qty + diff qty used to decrease the qty on bin<br />
+*   2. overpicking reported<br />
+*     -&gt; the stock will be decreased with the actual qty.<br />
+*   It means only in case of #1 we use the NDIFA to adjust the stock qty.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;lv_quan&nbsp;=&nbsp;lv_quan&nbsp;-&nbsp;lv_nsolm.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;iv_difty&nbsp;=&nbsp;lc_difty_account&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_ndifm&nbsp;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_quan&nbsp;=&nbsp;lv_quan&nbsp;-&nbsp;lv_ndifm.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lv_quantity_lim&nbsp;=&nbsp;ls_pi_act-quantity_limit.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;TRY.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/MATERIAL_QUAN_CONVERT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_matid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_ordim-matid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_quan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lv_quantity_lim<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_unit_from&nbsp;=&nbsp;lv_altme<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_unit_to&nbsp;&nbsp;&nbsp;=&nbsp;ls_ordim-meins<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_batchid&nbsp;&nbsp;&nbsp;=&nbsp;ls_ordim-batchid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_quan&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lv_quan_limit.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CATCH&nbsp;/scwm/cx_md.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;METHOD&nbsp;go_prot-&gt;add_message(&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RAISE&nbsp;EXCEPTION&nbsp;TYPE&nbsp;/scwm/cx_core.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDTRY.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_quan&nbsp;&lt;=&nbsp;lv_quan_limit&nbsp;AND&nbsp;lv_quan&nbsp;&gt;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_lowchk_inv&nbsp;=&nbsp;wmegc_lowchk_yes_inv.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;ENDDO.<br />
+<br />
+ENDFUNCTION.<br />
+<br />
+<br />
+   </div>
+   <div class="codeComment">
+*Messages<br />
+*----------------------------------------------------------<br />
+*<br />
+* Message class : /SCWM/CORE<br />
+*376   No packing instruction/packaging spec. found for delivery order item &1<br />
+*<br />
+* Message class : /SCWM/CROSS_DOCKING<br />
+*014   HU &1 or at least one lower-level HU is relevant for TCD<br />
+*016   An open HU WT already exists for HU &1<br />
+*<br />
+* Message class : /SCWM/DLV_SERIAL<br />
+*218   Quantity &1 does not correspond with the number of SNs and UIIs entered<br />
+*324   Enter valid serial numbers. Provisional serial numbers are not supported<br />
+*<br />
+* Message class : /SCWM/ERPINTEGRATION<br />
+*011   Application log &1: Could not convert queue &2<br />
+*<br />
+* Message class : /SCWM/FL_CD<br />
+*016   Process-oriented storage control skipped for WT with reference to FL CD<br />
+*027   HU &1 can큧 be nested as it contains items relevant for quality insp.<br />
+*<br />
+* Message class : /SCWM/GM<br />
+*102   You can't automatically post stock with type &1 to own stock<br />
+*782   GR correction not possible in this process<br />
+*<br />
+* Message class : /SCWM/GOODS_MOVEMENT<br />
+*049   HU &1 has no exact valuation quantity<br />
+*<br />
+* Message class : /SCWM/HUFUNCTIONS<br />
+*005   System data cannot be changed<br />
+*<br />
+* Message class : /SCWM/L1<br />
+*007   Storage bin & does not exist<br />
+*<br />
+* Message class : /SCWM/L3<br />
+*001   Warehouse process type &1 is not allowed (check your entry)<br />
+*005   Enter a warehouse process type<br />
+*022   Whse task & does not exist in whse no. & or is already conf. or canceled<br />
+*027   You should only confirm differences with the appropriate exception code<br />
+*046   Whse process control must not be deactivated acc. to whse proc. cat. &1<br />
+*051   You do not have authorization for warehouse number &1<br />
+*053   You do not have authorization for activity area &1 &2<br />
+*060   No bin sectioning defined for storage bin &<br />
+*062   Product WT creation for HU &1 failed<br />
+*080   Warehouse number & does not exist (new selection required)<br />
+*094   HU WT creation for HU &1 failed<br />
+*113   Low stock check not supported for warehouse task &1<br />
+*126   HU &1 is intended for process oriented storage control for int. movement<br />
+*130   Warehouse tasks created internally for HU &1 will be deleted<br />
+*133   Low stock check not supported for WT &1 - another open PI doc. exists<br />
+*134   Low stock check not supported for WT &1 - bin &2 can not be locked<br />
+*135   Low stock check not supported for WT &1 - open putaway WT exists<br />
+*136   Low stock check not supported for WT &1 - another open picking WT exists<br />
+*137   Low stock Phys.Inv. not supported for WT &1 - PI completed in fiscal year<br />
+*138   Low stock check not supported for WT &1 - not exactly one quant on bin &2<br />
+*141   An error occurred during blocking<br />
+*142   Error locking tRFC &1 by user &2<br />
+*204   HU type & does not exist in warehouse number &2 (check your entry)<br />
+*216   Enter a handling unit<br />
+*223   Handling unit &1 is in a warehouse task that has not been confirmed<br />
+*337   Storage section &2 does not exist in storage type &1 (check your entry)<br />
+*370   Warehouse task &1 must be canceled before proceeding<br />
+*375   Check your transfer parameters<br />
+*431   Low Stock Check is not supported when unit of measure was changed<br />
+*450   Storage control active for HU &1 with storage process &2<br />
+*451   ***** Putaway Warehouse Task Creation for HU &1 - Start<br />
+*452   ***** Putaway Warehouse Task Creation for HU &1 - End<br />
+*453   'Deconsolidate' is not required for HU &1<br />
+*454   Storage process step &1 determined for HU &2<br />
+*455   Warehouse process type set to &1 due to storage control<br />
+*456   Destination data set to &1 &2 &3 &4 due to storage control<br />
+*459   No HU WT required for HU &1 and storage process step &2<br />
+*460   Additional HU WT required for storage process step &1<br />
+*461   Storage control active: Specifying the destination HU is not supported<br />
+*522   &1 warehouse tasks created<br />
+*701   Default values are not defined for warehouse number &<br />
+*714   A documentary batch must be entered for warehouse task &1<br />
+*715   No documentary batch can be entered for warehouse task &1<br />
+*790   You don't have authorization to make changes in warehouse &1<br />
+*803   HU &1: Status prohibits HU change<br />
+*830   Error occurred while reading HU data for HU &1<br />
+*863   Destination data already determined; HU destination data ignored<br />
+*864   Dest. data already determined; sub-HU dest. data in top HU &1 ignored<br />
+*865   Destination bin &1 in handling unit &2 determined<br />
+*866   Multiple destination bins determined in sub-HUs of highest-level HU &1<br />
+*883   You cannot change HU&1 because Shipping Readiness is set to Ready<br />
+*886   The seg. strategy assigns stk seg. &1 to req. seg. &2 in sequence &3.<br />
+*887   *****   Segmentation Strategy    *****<br />
+*889   You can't change HU &1 because its status is 'Packed for Shipping'.<br />
+*891   Batch related to the item has already been maintained.<br />
+*<br />
+* Message class : /SCWM/L3A<br />
+*006   Total of quantities in split items does not result in target qty &1 &2 &3<br />
+*010   Confirm with target = actual for warehouse task &1<br />
+*011   Deactivation of WT &1 not possible for split items<br />
+*<br />
+* Message class : /SCWM/LC1<br />
+*022   Error creating storage bin<br />
+*<br />
+* Message class : /SCWM/LT<br />
+*037   Only propose immediate confirmation if you also allow it<br />
+*<br />
+* Message class : /SCWM/MD<br />
+*002   Product does not exist<br />
+*<br />
+* Message class : /SCWM/MEDI<br />
+*077   HU &1 or at least one lower-level HU is relevant to merchand. distrib.<br />
+*<br />
+* Message class : /SCWM/PUT_BIN_DET<br />
+*055   HU type &1 is not permitted for storage bin type &2<br />
+*<br />
+* Message class : /SCWM/RF_EN<br />
+*393   No goods movement posting possible; product &1 batch &2 'not released'<br />
+*<br />
+* Message class : /SCWM/S2C_HU<br />
+*003   Handling unit &1 is relevant for JIS calls (Supply to Customer)<br />
+*004   HU &1 already staged in JIS call; WT created as immediately confirmed<br />
+*<br />
+* Message class : /SCWM/SERIAL<br />
+*004   Serial number &1 already exists<br />
+*011   Quantities with decimal places not allowed for serial numbers<br />
+*012   Number of serial numbers does not correspond with quantity in item<br />
+*013   Serial number &1 is not on source HU<br />
+*014   Combination of product number and serial number must be unique<br />
+*015   Serial numbers of type SNBP or SNLN are not allowed w/out delivery ref.<br />
+*019   Specification of serial numbers is only allowed for serialized products<br />
+*021   Stock-managed serial numbers not allowed for negative differences<br />
+*022   Could not determine all serial numbers<br />
+*028   Serial number specification for difference quantity is not allowed<br />
+*029   Provisional and non-provisional serial numbers not allowed on source HU<br />
+*030   Input of provisional serial numbers is not allowed<br />
+*031   Serial number specification is obligatory for final putaway<br />
+*032   Not possible to replace provisional serial numbers<br />
+*036   Serial number specification is not allowed<br />
+*037   Serial number specification is obligatory<br />
+*064   Warehouse task conf. is only possible with the specified serial numbers<br />
+*102   Serial number &1 has already been reserved by warehouse task &2<br />
+*105   Unique item identifier &1 already exists<br />
+*110   Unique item identifier has been entered more than once<br />
+*130   Warehouse task confirmaton is only possible with the specified UII<br />
+*132   Automatic assignment of serialnumbers to Sub-HUs is not possible.<br />
+*<br />
+* Message class : /SCWM/STOCK_UPLOAD<br />
+*056   Valuation unit of measure &1 is not maintained for product &2<br />
+*060   Product &1: Log. unit of measure &2 entered is valuation unit of measure<br />
+*<br />
+* Message class : /SCWM/TW_WT<br />
+*009   Process-oriented stor.ctrl must be deactive in WPT &1 for transit HU &2<br />
+*<br />
+* Message class : /SCWM/UI_PACKING<br />
+*111   HU is not yet in warehouse and therefore cannot be processed<br />
+*144   No destination storage type exists for work center determination<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2026. Sap Release 816</td>
+   </tr>
+</table>
+</body>
+</html>

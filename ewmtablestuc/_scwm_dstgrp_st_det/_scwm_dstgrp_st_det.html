@@ -1,0 +1,266 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http ://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http ://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>/SCWM/DSTGRP_ST_DET</title>
+<style type="text/css">
+.code{ font-family :"Courier New", Courier, monospace; color :#000; font-size :14px; background-color :#F2F4F7 }
+  .codeComment {font-family :"Courier New", Courier, monospace; color :#0000F0; font-size :14px; background-color :#F2F4F7 }
+  .normalBold{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; font-weight :800 }
+  .normalBoldLarge{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+</style>
+<style type="text/css">
+  .normal{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px }
+  .footer{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; text-align : center }
+  h2{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+  h3{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :14px; font-weight :800 }
+  .outerTable{
+   background-color :#E0E7ED;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-right-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+  .innerTable{
+   background-color :#F2F4F7;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-bottom-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function /SCWM/DSTGRP_ST_DET</h2>
+<h3> Description : Determination of Consolidation Group for Stock Transfer - WMR</h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION /scwm/dstgrp_st_det.<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local Interface:<br />
+*"  IMPORTING<br />
+*"     REFERENCE(IS_PARAM) TYPE  /SCWM/S_DSTGRP_IMPORT_ST<br />
+*"  EXPORTING<br />
+*"     REFERENCE(EV_DSTGRP) TYPE  /SCWM/DE_DSTGRP<br />
+*"  RAISING<br />
+*"      /SCWM/CX_CORE<br />
+*"----------------------------------------------------------------------<br />
+
+<div class="codeComment">*       <a href ="global-_scwm_dstgrp_st_det.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;DATA:&nbsp;lt_string&nbsp;&nbsp;TYPE&nbsp;yt_string,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_string&nbsp;&nbsp;TYPE&nbsp;string,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_dstgrp&nbsp;&nbsp;TYPE&nbsp;/scwm/dstgrp_st,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_dstgrp1&nbsp;TYPE&nbsp;/scwm/dstgrp_st.<br />
+<br />
+&nbsp;&nbsp;CLEAR&nbsp;ev_dstgrp.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;go_st_doc&nbsp;IS&nbsp;NOT&nbsp;BOUND.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;go_st_doc&nbsp;=&nbsp;NEW&nbsp;lcl_st_doc(&nbsp;&nbsp;).<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;is_param-lgnum&nbsp;&lt;&gt;&nbsp;gs_tgrp_st-lgnum.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;gs_tgrp_st&nbsp;=&nbsp;go_st_doc-&gt;read_customizing(&nbsp;iv_lgnum&nbsp;=&nbsp;is_param-lgnum&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;gs_tgrp_st&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gs_tgrp_st-lgnum&nbsp;=&nbsp;is_param-lgnum.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;is_param-lgnum&nbsp;&lt;&gt;&nbsp;gs_numberrange_st-lgnum.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;gs_numberrange_st&nbsp;=&nbsp;go_st_doc-&gt;read_numberrange_settings(<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;=&nbsp;is_param-lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_type&nbsp;&nbsp;=&nbsp;gc_stock_transfer<br />
+&nbsp;&nbsp;&nbsp;&nbsp;).<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*.. if nothing is maintained - call badi and leave program<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;IF&nbsp;gs_tgrp_st-flgprio&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IS&nbsp;INITIAL&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gs_tgrp_st-flgproctype&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;go_st_doc-&gt;prepare_badi(&nbsp;iv_lgnum&nbsp;=&nbsp;is_param-lgnum&nbsp;).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;go_st_doc-&gt;call_badi(<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_param&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_param<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_tdstgrp_st&nbsp;=&nbsp;gs_tgrp_st<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_tdstgrpno&nbsp;&nbsp;=&nbsp;gs_numberrange_st<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cv_dstgrp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ev_dstgrp<br />
+&nbsp;&nbsp;&nbsp;&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*.. check if consolidation grp is already created in this LUW<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;IF&nbsp;NOT&nbsp;gt_dstgrp_st_ins&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;gt_dstgrp_st_ins&nbsp;INTO&nbsp;ls_dstgrp.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;NOT&nbsp;gs_tgrp_st-flgprio&nbsp;IS&nbsp;INITIAL&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_dstgrp-priority&nbsp;&lt;&gt;&nbsp;is_param-priority.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CONTINUE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;NOT&nbsp;gs_tgrp_st-flgproctype&nbsp;IS&nbsp;INITIAL&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_dstgrp-procty&nbsp;&lt;&gt;&nbsp;is_param-procty.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CONTINUE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_dstgrp&nbsp;=&nbsp;ls_dstgrp-dstgrp.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDLOOP.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;NOT&nbsp;ev_dstgrp&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;go_st_doc-&gt;prepare_badi(&nbsp;iv_lgnum&nbsp;=&nbsp;is_param-lgnum&nbsp;).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;go_st_doc-&gt;call_badi(<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_param&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_param<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_tdstgrp_st&nbsp;=&nbsp;gs_tgrp_st<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_tdstgrpno&nbsp;&nbsp;=&nbsp;gs_numberrange_st<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cv_dstgrp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ev_dstgrp<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*.. select from database - generate select statement<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;lv_string&nbsp;=&nbsp;'LGNUM&nbsp;=&nbsp;IS_PARAM-LGNUM'.<br />
+&nbsp;&nbsp;APPEND&nbsp;lv_string&nbsp;TO&nbsp;lt_string.<br />
+&nbsp;&nbsp;ls_dstgrp1-lgnum&nbsp;=&nbsp;is_param-lgnum.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;NOT&nbsp;gs_tgrp_st-flgprio&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lv_string&nbsp;=&nbsp;'AND&nbsp;PRIORITY&nbsp;=&nbsp;IS_PARAM-PRIORITY'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;lv_string&nbsp;TO&nbsp;lt_string.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_dstgrp1-priority&nbsp;=&nbsp;is_param-priority.<br />
+&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;IF&nbsp;NOT&nbsp;gs_tgrp_st-flgproctype&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lv_string&nbsp;=&nbsp;'AND&nbsp;PROCTY&nbsp;=&nbsp;IS_PARAM-PROCTY'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;lv_string&nbsp;TO&nbsp;lt_string.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_dstgrp1-procty&nbsp;=&nbsp;is_param-procty.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;CLEAR&nbsp;ls_dstgrp.<br />
+&nbsp;&nbsp;ls_dstgrp&nbsp;=&nbsp;go_st_doc-&gt;select_dstgrp(<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;it_where&nbsp;&nbsp;=&nbsp;lt_string<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_param&nbsp;&nbsp;=&nbsp;is_param<br />
+&nbsp;&nbsp;).<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;ls_dstgrp&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ev_dstgrp&nbsp;=&nbsp;ls_dstgrp-dstgrp.<br />
+&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;Nothing&nbsp;found,&nbsp;enqueue&nbsp;and&nbsp;read&nbsp;again,&nbsp;then&nbsp;insert&nbsp;if&nbsp;nothing&nbsp;found<br />
+&nbsp;&nbsp;&nbsp;&nbsp;go_st_doc-&gt;enqueue_dstgrp(<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_dstgrp1-lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_priority&nbsp;=&nbsp;ls_dstgrp1-priority<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_procty&nbsp;&nbsp;&nbsp;=&nbsp;ls_dstgrp1-procty<br />
+&nbsp;&nbsp;&nbsp;&nbsp;).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;If&nbsp;the&nbsp;enqueue&nbsp;was&nbsp;not&nbsp;possible,&nbsp;an&nbsp;exception&nbsp;was&nbsp;raised.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;Now&nbsp;we&nbsp;have&nbsp;the&nbsp;enqueue,&nbsp;read&nbsp;again<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_dstgrp&nbsp;=&nbsp;go_st_doc-&gt;select_dstgrp(<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;it_where&nbsp;&nbsp;=&nbsp;lt_string<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_param&nbsp;&nbsp;=&nbsp;is_param<br />
+&nbsp;&nbsp;&nbsp;&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;ls_dstgrp&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_dstgrp&nbsp;=&nbsp;ls_dstgrp-dstgrp.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;gs_numberrange_st-nr_int&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;Number&nbsp;range&nbsp;not&nbsp;maintained,&nbsp;cannot&nbsp;provide&nbsp;a&nbsp;number<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;create&nbsp;new&nbsp;consolidation&nbsp;group<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_dstgrp&nbsp;=&nbsp;go_st_doc-&gt;get_next_number(&nbsp;iv_lgnum&nbsp;=&nbsp;is_param-lgnum&nbsp;iv_nr_interval&nbsp;=&nbsp;gs_numberrange_st-nr_int&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;ev_dstgrp&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_dstgrp-mandt&nbsp;&nbsp;=&nbsp;sy-mandt.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_dstgrp-lgnum&nbsp;&nbsp;=&nbsp;is_param-lgnum.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_dstgrp-dstgrp&nbsp;=&nbsp;ev_dstgrp.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;NOT&nbsp;gs_tgrp_st-flgprio&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_dstgrp-priority&nbsp;=&nbsp;is_param-priority.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;NOT&nbsp;gs_tgrp_st-flgproctype&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_dstgrp-procty&nbsp;=&nbsp;is_param-procty.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;gt_dstgrp_st_ins&nbsp;TRANSPORTING&nbsp;NO&nbsp;FIELDS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WITH&nbsp;KEY&nbsp;lgnum&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_dstgrp-lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;priority&nbsp;=&nbsp;ls_dstgrp-priority<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;procty&nbsp;&nbsp;&nbsp;=&nbsp;ls_dstgrp-procty.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;&lt;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_dstgrp&nbsp;TO&nbsp;gt_dstgrp_st_ins.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;go_st_doc-&gt;insert_dstgrp_on_commit(&nbsp;&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;go_st_doc-&gt;prepare_badi(&nbsp;iv_lgnum&nbsp;=&nbsp;is_param-lgnum&nbsp;).<br />
+&nbsp;&nbsp;go_st_doc-&gt;call_badi(<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_param&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_param<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_tdstgrp_st&nbsp;=&nbsp;gs_tgrp_st<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_tdstgrpno&nbsp;&nbsp;=&nbsp;gs_numberrange_st<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CHANGING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cv_dstgrp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ev_dstgrp<br />
+&nbsp;&nbsp;).<br />
+ENDFUNCTION.<br />
+<br />
+<br />
+   </div>
+   <div class="codeComment">
+*Messages<br />
+*----------------------------------------------------------<br />
+*<br />
+* Message class : /SCWM/CORE<br />
+*352   Assign number range interval for stock transf. cons. group in customizing<br />
+*353   Maintain number range interval &1 for consolidation groups in customizing<br />
+*<br />
+* Message class : /SCWM/LT<br />
+*336   &1 does not fall within the assigned interval (Customizing)<br />
+*337   &1 not within the maintained interval, and is not known internally<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2026. Sap Release 816</td>
+   </tr>
+</table>
+</body>
+</html>

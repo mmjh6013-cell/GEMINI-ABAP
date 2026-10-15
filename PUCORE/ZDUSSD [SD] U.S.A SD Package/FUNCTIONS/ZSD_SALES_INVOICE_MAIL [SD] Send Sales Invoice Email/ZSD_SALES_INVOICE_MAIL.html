@@ -1,0 +1,410 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=euc-kr" />
+<title>ZSD_SALES_INVOICE_MAIL</title>
+<style type="text/css">
+.code{ font-family:"Courier New", Courier, monospace; color:#000; font-size:14px; background-color:#F2F4F7 }
+  .codeComment {font-family:"Courier New", Courier, monospace; color:#0000F0; font-size:14px; background-color:#F2F4F7 }
+  .normalBold{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; font-weight:800 }
+  .normalBoldLarge{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+</style>
+<style type="text/css">
+  .normal{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px }
+  .footer{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; text-align: center }
+  h2{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+  h3{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:14px; font-weight:800 }
+  .outerTable{
+   background-color:#E0E7ED;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-right-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+  .innerTable{
+   background-color:#F2F4F7;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-bottom-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function ZSD_SALES_INVOICE_MAIL</h2>
+<h3> Description: [SD] Send Sales Invoice Email</h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION&nbsp;ZSD_SALES_INVOICE_MAIL.<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local&nbsp;Interface:<br />
+*"&nbsp;&nbsp;IMPORTING<br />
+*"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;REFERENCE(IV_VBELN)&nbsp;TYPE&nbsp;&nbsp;VBELN_VF<br />
+*"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;REFERENCE(IV_PATH)&nbsp;TYPE&nbsp;&nbsp;STRING<br />
+*"&nbsp;&nbsp;EXPORTING<br />
+*"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;REFERENCE(ES_RETURN)&nbsp;TYPE&nbsp;&nbsp;ZDSDS0270<br />
+*"&nbsp;&nbsp;TABLES<br />
+*"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IT_MAIL&nbsp;STRUCTURE&nbsp;&nbsp;ZDSDS0290&nbsp;OPTIONAL<br />
+*"----------------------------------------------------------------------<br />
+*<br />
+
+<div class="codeComment">*       <a href ="global-zsd_sales_invoice_mail.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;DATA:&nbsp;LV_FILEPATH_PDF&nbsp;&nbsp;TYPE&nbsp;STRING,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_FILEPATH_EXCL&nbsp;TYPE&nbsp;STRING,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LT_FILE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;FILETABLE,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_RC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;I.<br />
+&nbsp;&nbsp;DATA:&nbsp;LT_RECIPIENTS&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;TABLE&nbsp;OF&nbsp;BCSY_SMTPA,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_RECIPIENT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;BCSY_SMTPA,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LO_SEND_REQUEST&nbsp;&nbsp;TYPE&nbsp;REF&nbsp;TO&nbsp;CL_BCS,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LO_DOCUMENT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;REF&nbsp;TO&nbsp;CL_DOCUMENT_BCS,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_SUBJECT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;SO_OBJ_DES,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_SENT_TO_ALL&nbsp;&nbsp;&nbsp;TYPE&nbsp;OS_BOOLEAN,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_FILENAME_EXCL&nbsp;TYPE&nbsp;SOOD-OBJDES,&nbsp;"string.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_FILENAME_PDF&nbsp;&nbsp;TYPE&nbsp;SOOD-OBJDES.&nbsp;"string.<br />
+&nbsp;&nbsp;DATA:&nbsp;LT_PDF_DATA&nbsp;&nbsp;&nbsp;TYPE&nbsp;SOLIX_TAB,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LT_EXCL_DATA&nbsp;&nbsp;TYPE&nbsp;SOLIX_TAB,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_FILE_SIZE&nbsp;&nbsp;TYPE&nbsp;I,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_FILE_SIZE2&nbsp;TYPE&nbsp;I.<br />
+&nbsp;&nbsp;DATA:&nbsp;LS_SDT0130&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;<a href ="../../../ZDUSSD [SD] U.S.A SD Package/DICTIONARY/zdsdt0130 [SD] Email send log table/dictionary-zdsdt0130.html">ZDSDT0130</a>,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_RETURN_EXCEL&nbsp;TYPE&nbsp;<a href ="../../../ZDUSSD [SD] U.S.A SD Package/DICTIONARY/zdsds0210 [SD] Structure Sales Invoice Result (US)/dictionary-zdsds0210.html">ZDSDS0210</a>.<br />
+&nbsp;&nbsp;DATA:&nbsp;LV_VBELN&nbsp;TYPE&nbsp;VBRK-VBELN,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_PATH&nbsp;&nbsp;TYPE&nbsp;STRING.<br />
+<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;LT_EMAIL&nbsp;LIKE&nbsp;TABLE&nbsp;OF&nbsp;<a href ="../../../ZDUSSD [SD] U.S.A SD Package/DICTIONARY/zdsds0290 [SD] Structure Sales Invoice Mail Table/dictionary-zdsds0290.html">ZDSDS0290</a>.<br />
+<br />
+&nbsp;&nbsp;LV_VBELN&nbsp;=&nbsp;IV_VBELN.<br />
+&nbsp;&nbsp;LV_PATH&nbsp;=&nbsp;IV_PATH.<br />
+&nbsp;&nbsp;LT_EMAIL[]&nbsp;=&nbsp;IT_MAIL[].<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;LV_VBELN&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;Sales&nbsp;Invoice&nbsp;엑셀,&nbsp;PDF출력물<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;<a href ="../../../ZDUSSD [SD] U.S.A SD Package/FUNCTIONS/zsd_sales_invoice_excel  [SD] Sales Invoice Excel/zsd_sales_invoice_excel .html">'ZSD_SALES_INVOICE_EXCEL '</a> <br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IV_VBELN&nbsp;&nbsp;=&nbsp;LV_VBELN<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IV_PATH&nbsp;&nbsp;&nbsp;=&nbsp;LV_PATH<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN&nbsp;=&nbsp;LS_RETURN_EXCEL.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;LS_RETURN_EXCEL-TYPE&nbsp;=&nbsp;'S'.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-MESSAGE&nbsp;=&nbsp;LS_RETURN_EXCEL-MESSAGE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LV_FILEPATH_EXCL&nbsp;=&nbsp;LS_RETURN_EXCEL-EV_FILENAME_EXCL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LV_FILEPATH_PDF&nbsp;=&nbsp;LS_RETURN_EXCEL-EV_FILENAME_PDF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"파일&nbsp;첨부<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;METHOD&nbsp;CL_GUI_FRONTEND_SERVICES=&gt;GUI_UPLOAD<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FILENAME&nbsp;&nbsp;&nbsp;=&nbsp;LV_FILEPATH_EXCL<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FILETYPE&nbsp;&nbsp;&nbsp;=&nbsp;'BIN'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FILELENGTH&nbsp;=&nbsp;LV_FILE_SIZE<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DATA_TAB&nbsp;&nbsp;&nbsp;=&nbsp;LT_EXCL_DATA<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OTHERS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;1.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;METHOD&nbsp;CL_GUI_FRONTEND_SERVICES=&gt;GUI_UPLOAD<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FILENAME&nbsp;&nbsp;&nbsp;=&nbsp;LV_FILEPATH_PDF<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FILETYPE&nbsp;&nbsp;&nbsp;=&nbsp;'BIN'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FILELENGTH&nbsp;=&nbsp;LV_FILE_SIZE2<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DATA_TAB&nbsp;&nbsp;&nbsp;=&nbsp;LT_PDF_DATA<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OTHERS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;1.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"파일명&nbsp;추출<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'SO_SPLIT_FILE_AND_PATH'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FULL_NAME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;LV_FILEPATH_EXCL<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STRIPPED_NAME&nbsp;=&nbsp;LV_FILENAME_EXCL<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;X_ERROR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;1<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OTHERS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;2.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;SY-SUBRC&nbsp;&lt;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_FILENAME_EXCL&nbsp;=&nbsp;'document.excl'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'SO_SPLIT_FILE_AND_PATH'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FULL_NAME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;LV_FILEPATH_PDF<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;STRIPPED_NAME&nbsp;=&nbsp;LV_FILENAME_PDF<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;X_ERROR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;1<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OTHERS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;2.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;SY-SUBRC&nbsp;&lt;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LV_FILENAME_PDF&nbsp;=&nbsp;'document.pdf'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LO_SEND_REQUEST&nbsp;=&nbsp;CL_BCS=&gt;CREATE_PERSISTENT(&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DATA:&nbsp;BODY&nbsp;TYPE&nbsp;STRING.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DATA&nbsp;:&nbsp;LT_MESSAGE_BODY&nbsp;TYPE&nbsp;BCSY_TEXT.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;BODY&nbsp;=&nbsp;|Dear&nbsp;Customer,|&nbsp;&&&nbsp;"메일&nbsp;내용<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|{&nbsp;CL_ABAP_CHAR_UTILITIES=&gt;NEWLINE&nbsp;}{&nbsp;CL_ABAP_CHAR_UTILITIES=&gt;NEWLINE&nbsp;}|&nbsp;&&<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|Please&nbsp;find&nbsp;the&nbsp;attached&nbsp;invoice&nbsp;for&nbsp;your&nbsp;reference.&nbsp;|&nbsp;&&<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|{&nbsp;CL_ABAP_CHAR_UTILITIES=&gt;NEWLINE&nbsp;}All&nbsp;necessary&nbsp;details&nbsp;are&nbsp;included&nbsp;within&nbsp;the&nbsp;document.|&nbsp;&&<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|{&nbsp;CL_ABAP_CHAR_UTILITIES=&gt;NEWLINE&nbsp;}{&nbsp;CL_ABAP_CHAR_UTILITIES=&gt;NEWLINE&nbsp;}|&nbsp;&&<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|Thank&nbsp;you&nbsp;for&nbsp;your&nbsp;cooperation.|.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;BODY&nbsp;TO&nbsp;LT_MESSAGE_BODY.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LO_DOCUMENT&nbsp;=&nbsp;CL_DOCUMENT_BCS=&gt;CREATE_DOCUMENT(<br />
+&nbsp;&nbsp;&nbsp;&nbsp;I_TYPE&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;'RAW'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;I_SUBJECT&nbsp;=&nbsp;|SO&nbsp;Invoice&nbsp;{&nbsp;LV_VBELN&nbsp;}|&nbsp;&nbsp;&nbsp;"&nbsp;이메일&nbsp;제목<br />
+&nbsp;&nbsp;&nbsp;&nbsp;I_TEXT&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;LT_MESSAGE_BODY&nbsp;&nbsp;"&nbsp;본문&nbsp;텍스트<br />
+&nbsp;&nbsp;).<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;"EXCEL&nbsp;첨부파일&nbsp;넣기<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;LO_DOCUMENT-&gt;ADD_ATTACHMENT(<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;I_ATTACHMENT_TYPE&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;'XLS'<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;I_ATTACHMENT_SUBJECT&nbsp;=&nbsp;LV_FILENAME_EXCL<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;I_ATT_CONTENT_HEX&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;LT_PDF_DATA&nbsp;)&nbsp;.<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;LO_SEND_REQUEST-&gt;SET_DOCUMENT(&nbsp;LO_DOCUMENT&nbsp;).<br />
+<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PDF&nbsp;첨부파일&nbsp;넣기<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;LO_DOCUMENT-&gt;ADD_ATTACHMENT(<br />
+&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;I_ATTACHMENT_TYPE&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;'PDF'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;I_ATTACHMENT_SUBJECT&nbsp;=&nbsp;LV_FILENAME_PDF<br />
+&nbsp;&nbsp;&nbsp;&nbsp;I_ATT_CONTENT_HEX&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;LT_PDF_DATA&nbsp;)&nbsp;.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LO_SEND_REQUEST-&gt;SET_DOCUMENT(&nbsp;LO_DOCUMENT&nbsp;).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;""""""""""""""""""""""""""""메일&nbsp;가면&nbsp;안되니까&nbsp;주석""""""""""""""""<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;DATA(LT_MAIL)&nbsp;=&nbsp;GT_MAIL.<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;LT_MAIL&nbsp;WHERE&nbsp;ADDRNUMBER&nbsp;NE&nbsp;LS_DATA-ADDRNUMBER.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;""""""""""""""""""""""""""""메일&nbsp;테스트&nbsp;할&nbsp;땐&nbsp;이거&nbsp;""""""""""""""""<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;DATA&nbsp;:&nbsp;LT_MAIL&nbsp;LIKE&nbsp;GT_MAIL.<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;LT_MAIL[]&nbsp;=&nbsp;VALUE&nbsp;#(&nbsp;(&nbsp;SMTP_ADDR&nbsp;=&nbsp;'kmcsmsc24091@pucoreco.com'&nbsp;)<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;SMTP_ADDR&nbsp;=&nbsp;'kokolyy97@naver.com'&nbsp;)&nbsp;).<br />
+<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;LS_RECIPIENT-AD_SMTPADR&nbsp;=&nbsp;'kmcsmsc24091@pucoreco.com'.<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;LS_RECIPIENT&nbsp;TO&nbsp;LT_RECIPIENTS.<br />
+<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;LT_EMAIL&nbsp;INTO&nbsp;DATA(LS_EMAIL).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LO_SEND_REQUEST-&gt;ADD_RECIPIENT(<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;I_RECIPIENT&nbsp;=&nbsp;CL_CAM_ADDRESS_BCS=&gt;CREATE_INTERNET_ADDRESS(&nbsp;LS_EMAIL-SMTP_ADDR&nbsp;)<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;I_EXPRESS&nbsp;&nbsp;&nbsp;=&nbsp;ABAP_TRUE<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;4.&nbsp;즉시&nbsp;전송&nbsp;설정&nbsp;(옵션)<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LO_SEND_REQUEST-&gt;SET_SEND_IMMEDIATELY(&nbsp;ABAP_TRUE&nbsp;).<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;5.&nbsp;이메일&nbsp;전송<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;METHOD&nbsp;LO_SEND_REQUEST-&gt;SEND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;I_WITH_ERROR_SCREEN&nbsp;=&nbsp;ABAP_TRUE<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RECEIVING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RESULT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;LV_SENT_TO_ALL.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'BAPI_TRANSACTION_COMMIT'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WAIT&nbsp;=&nbsp;'X'.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;LV_SENT_TO_ALL&nbsp;=&nbsp;ABAP_TRUE.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WAIT&nbsp;UP&nbsp;TO&nbsp;1&nbsp;SECONDS.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;***&nbsp;여기에서&nbsp;메일&nbsp;전송&nbsp;번호(SOST&nbsp;OBJID)&nbsp;추출&nbsp;***<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;lo_send_request&nbsp;객체의&nbsp;send_request&nbsp;속성을&nbsp;통해&nbsp;doc_wrapper_id&nbsp;메소드&nbsp;호출<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DATA&nbsp;:&nbsp;LS_SOODK&nbsp;TYPE&nbsp;SOODK,&nbsp;"&nbsp;SOOD&nbsp;Key&nbsp;Structure<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_SOST&nbsp;&nbsp;TYPE&nbsp;SOST.&nbsp;&nbsp;&nbsp;"&nbsp;SOST&nbsp;table&nbsp;structure<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_SOODK&nbsp;=&nbsp;LO_SEND_REQUEST-&gt;SEND_REQUEST-&gt;DOC_WRAPPER_ID(&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;SOST&nbsp;테이블에서&nbsp;ls_soodk&nbsp;(SOOD&nbsp;Object&nbsp;ID)를&nbsp;사용하여&nbsp;전송&nbsp;번호&nbsp;조회<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;SINGLE&nbsp;*&nbsp;FROM&nbsp;SOST&nbsp;INTO&nbsp;LS_SOST<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;OBJTP&nbsp;=&nbsp;LS_SOODK-OBJTP<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;OBJYR&nbsp;=&nbsp;LS_SOODK-OBJYR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;OBJNO&nbsp;=&nbsp;LS_SOODK-OBJNO.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;SY-SUBRC&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Mail&nbsp;Log&nbsp;테이블에&nbsp;저장<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_SDT0130&nbsp;=&nbsp;VALUE&nbsp;#(&nbsp;BUKRS&nbsp;=&nbsp;LS_RETURN_EXCEL-VKORG<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FKART&nbsp;=&nbsp;LS_RETURN_EXCEL-FKART<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FKDAT&nbsp;=&nbsp;LS_RETURN_EXCEL-FKDAT<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VBELN&nbsp;=&nbsp;LV_VBELN<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OBJTP&nbsp;=&nbsp;LS_SOST-OBJTP<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OBJYR&nbsp;=&nbsp;LS_SOST-OBJYR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OBJNO&nbsp;=&nbsp;LS_SOST-OBJNO<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ERDAT&nbsp;=&nbsp;SY-DATUM<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ERZET&nbsp;=&nbsp;SY-UZEIT<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ERNAM&nbsp;=&nbsp;SY-UNAME&nbsp;).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MODIFY&nbsp;ZDSDT0130&nbsp;FROM&nbsp;LS_SDT0130.<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_DATA-ICON_ST&nbsp;=&nbsp;ICON_LED_GREEN.<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_DATA-OBJNO&nbsp;=&nbsp;LS_SOODK-OBJNO.<br />
+*<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;'Email&nbsp;sent&nbsp;successfully!'&nbsp;TYPE&nbsp;'S'.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-TYPE&nbsp;=&nbsp;'S'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-MESSAGE&nbsp;=&nbsp;'Email&nbsp;sent&nbsp;successfully'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-OBJNO&nbsp;=&nbsp;LS_SOST-OBJNO.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-TYPE&nbsp;=&nbsp;'S'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-MESSAGE&nbsp;=&nbsp;'Mail&nbsp;sent,&nbsp;but&nbsp;SOST&nbsp;entry&nbsp;not&nbsp;found&nbsp;immediately'.<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;'Mail&nbsp;sent,&nbsp;but&nbsp;SOST&nbsp;entry&nbsp;not&nbsp;found&nbsp;immediately.'&nbsp;TYPE&nbsp;'S'.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LS_DATA-ICON_ST&nbsp;=&nbsp;ICON_LED_RED.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-TYPE&nbsp;=&nbsp;'E'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-MESSAGE&nbsp;=&nbsp;'Error&nbsp;sending&nbsp;email'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ROLLBACK&nbsp;WORK.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;'Error&nbsp;sending&nbsp;email'&nbsp;TYPE&nbsp;'S'&nbsp;DISPLAY&nbsp;LIKE&nbsp;'E'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-TYPE&nbsp;=&nbsp;'E'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ES_RETURN-MESSAGE&nbsp;=&nbsp;'Sales&nbsp;Invoice&nbsp;does&nbsp;not&nbsp;exists'.<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;'Sales&nbsp;Invoice&nbsp;does&nbsp;not&nbsp;exists'&nbsp;TYPE&nbsp;'S'&nbsp;DISPLAY&nbsp;LIKE&nbsp;'E'.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;ENDIF.<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;&nbsp;MODIFY&nbsp;GT_DATA&nbsp;FROM&nbsp;LS_DATA&nbsp;TRANSPORTING&nbsp;ICON_ST&nbsp;OBJNO&nbsp;WHERE&nbsp;VBELN_VF&nbsp;=&nbsp;LS_DATA-VBELN_VF.<br />
+<br />
+<br />
+<br />
+<br />
+   </div>
+   <div class="code">
+ENDFUNCTION.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*Text&nbsp;elements<br />
+*----------------------------------------------------------<br />
+*&nbsp;998&nbsp;'Delivery&nbsp;Order'&nbsp;creation&nbsp;has&nbsp;been&nbsp;cancelled&nbsp;because&nbsp;it&nbsp;could&nbsp;not&nbsp;be&nbsp;created&nbsp;with&nbsp;one.<br />
+*&nbsp;999&nbsp;Tax&nbsp;I/V<br />
+*&nbsp;E01&nbsp;Please&nbsp;input&nbsp;an&nbsp;order&nbsp;number.<br />
+*&nbsp;E02&nbsp;Please&nbsp;input&nbsp;a&nbsp;change/delete&nbsp;flag.<br />
+*&nbsp;E03&nbsp;Please&nbsp;input&nbsp;a&nbsp;valid&nbsp;flag.<br />
+*&nbsp;E04&nbsp;Delivery&nbsp;document&nbsp;creation&nbsp;failed.<br />
+*&nbsp;E05&nbsp;Please&nbsp;input&nbsp;a&nbsp;delivery&nbsp;document&nbsp;number.<br />
+*&nbsp;E06&nbsp;No&nbsp;input&nbsp;data&nbsp;available.<br />
+*&nbsp;E07&nbsp;Dispatch&nbsp;processing&nbsp;failed.<br />
+*&nbsp;E08&nbsp;Dispatch&nbsp;processing&nbsp;failed.<br />
+*&nbsp;E09&nbsp;Billing&nbsp;document&nbsp;creation&nbsp;failed!<br />
+*&nbsp;E10&nbsp;Billing&nbsp;document&nbsp;cancellation&nbsp;failed!<br />
+*&nbsp;E11&nbsp;No&nbsp;input&nbsp;data&nbsp;available.<br />
+*&nbsp;E12&nbsp;Billing&nbsp;already&nbsp;completed&nbsp;for&nbsp;this&nbsp;item.<br />
+*&nbsp;E13&nbsp;No&nbsp;matching&nbsp;sales&nbsp;order&nbsp;found.<br />
+*&nbsp;E14&nbsp;Delivery&nbsp;document&nbsp;modification&nbsp;failed.<br />
+*&nbsp;E15&nbsp;BP&nbsp;Saving&nbsp;is&nbsp;failed.<br />
+*&nbsp;F01&nbsp;Supplier<br />
+*&nbsp;F02&nbsp;Supplier&nbsp;Name<br />
+*&nbsp;F03&nbsp;Issue.&nbsp;Date<br />
+*&nbsp;F04&nbsp;Approval&nbsp;Number<br />
+*&nbsp;F05&nbsp;Tax&nbsp;Type<br />
+*&nbsp;F06&nbsp;Tax&nbsp;Basic&nbsp;Amount<br />
+*&nbsp;F07&nbsp;Tax&nbsp;Amount<br />
+*&nbsp;F08&nbsp;Total&nbsp;Amount<br />
+*&nbsp;M01&nbsp;Change<br />
+*&nbsp;M02&nbsp;Delete<br />
+*&nbsp;M03&nbsp;To&nbsp;add&nbsp;item<br />
+*&nbsp;M04&nbsp;Sales&nbsp;Document<br />
+*&nbsp;M05&nbsp;Success<br />
+*&nbsp;M06&nbsp;Delivery<br />
+*&nbsp;M07&nbsp;Create<br />
+*&nbsp;M08&nbsp;To&nbsp;cancel<br />
+*&nbsp;M09&nbsp;Not&nbsp;entered.<br />
+*&nbsp;M10&nbsp;This&nbsp;doc&nbsp;type&nbsp;doesn't&nbsp;need&nbsp;billing.<br />
+*&nbsp;M11&nbsp;Order&nbsp;was&nbsp;already&nbsp;Created.<br />
+*&nbsp;S01&nbsp;Delivery&nbsp;document&nbsp;has&nbsp;been&nbsp;created.<br />
+*&nbsp;S02&nbsp;Dispatch&nbsp;processing&nbsp;completed.<br />
+*&nbsp;S03&nbsp;Dispatch&nbsp;document&nbsp;has&nbsp;been&nbsp;canceled.<br />
+*&nbsp;S04&nbsp;Billing&nbsp;document&nbsp;creation&nbsp;completed!<br />
+*&nbsp;S05&nbsp;Billing&nbsp;document&nbsp;cancellation&nbsp;completed!<br />
+*&nbsp;S06&nbsp;Billing&nbsp;completed.<br />
+*&nbsp;S07&nbsp;Delivery&nbsp;document&nbsp;modification&nbsp;completed.<br />
+*&nbsp;S08&nbsp;Inventory&nbsp;transfer&nbsp;completed.<br />
+*&nbsp;S09&nbsp;BP&nbsp;is&nbsp;successfully&nbsp;saved.<br />
+*&nbsp;S10&nbsp;Aleady&nbsp;created.<br />
+*&nbsp;S11&nbsp;Sales&nbsp;order&nbsp;was&nbsp;already&nbsp;cancelled.<br />
+<br />
+<br />
+*Messages<br />
+*----------------------------------------------------------<br />
+*<br />
+*&nbsp;Message&nbsp;class:&nbsp;Hard&nbsp;coded<br />
+*&nbsp;&nbsp;&nbsp;Error&nbsp;sending&nbsp;email<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.4.3 - E.G.Mellodew. 1998-2025. Sap Release 758</td>
+   </tr>
+</table>
+</body>
+</html>

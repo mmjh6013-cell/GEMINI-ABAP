@@ -1,0 +1,273 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http ://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http ://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>/SCWM/TO_JIT_UPD_MULTIFIT_QRFC</title>
+<style type="text/css">
+.code{ font-family :"Courier New", Courier, monospace; color :#000; font-size :14px; background-color :#F2F4F7 }
+  .codeComment {font-family :"Courier New", Courier, monospace; color :#0000F0; font-size :14px; background-color :#F2F4F7 }
+  .normalBold{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; font-weight :800 }
+  .normalBoldLarge{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+</style>
+<style type="text/css">
+  .normal{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px }
+  .footer{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; text-align : center }
+  h2{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+  h3{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :14px; font-weight :800 }
+  .outerTable{
+   background-color :#E0E7ED;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-right-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+  .innerTable{
+   background-color :#F2F4F7;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-bottom-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function /SCWM/TO_JIT_UPD_MULTIFIT_QRFC</h2>
+<h3> Description : LOCAL: Trigger async. JIT Call update for HUs with nJIT update relevance</h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION /scwm/to_jit_upd_multifit_qrfc ##RFC_PERFORMANCE_OK.<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local Interface:<br />
+*"  IMPORTING<br />
+*"     VALUE(IT_JIT_UPDATE_ASYNC) TYPE  /SCWM/TT_JIT_UPDATE_ASYNC<br />
+*"     VALUE(IS_TECHNICAL_CONTROL) TYPE  /SCWM/S_JIT_TECH_CTRL<br />
+*"----------------------------------------------------------------------<br />
+
+<div class="codeComment">*       <a href ="global-_scwm_to_jit_upd_multifit_qrfc.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;DATA&nbsp;lt_njit_details&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/if_jit_callback=&gt;yt_njit_details.<br />
+&nbsp;&nbsp;DATA&nbsp;ls_njit_details&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/if_jit_callback=&gt;ys_njit_details.<br />
+&nbsp;&nbsp;DATA&nbsp;lt_jit_compst_key&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_jit_compst_key.<br />
+&nbsp;&nbsp;DATA&nbsp;lt_jit_compst_key_checked&nbsp;TYPE&nbsp;/scwm/tt_jit_compst_key.<br />
+&nbsp;&nbsp;DATA&nbsp;lv_extnumber&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;balnrext.<br />
+&nbsp;&nbsp;DATA&nbsp;lv_log_handle&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;balloghndl.<br />
+&nbsp;&nbsp;DATA&nbsp;lv_lognr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;balognr.<br />
+&nbsp;&nbsp;DATA&nbsp;lt_log_messages&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;yt_jit_update_message.<br />
+<br />
+<br />
+   </div>
+   <div class="codeComment">
+* This RFC might be used from external system. This is not supported!<br />
+* The function is only allowed to be called with the same system and not remotely!<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;ASSERT&nbsp;CONDITION&nbsp;CAST&nbsp;/scwm/if_tm_ctrl(&nbsp;/scwm/cl_tm_factory=&gt;get_service(&nbsp;/scwm/cl_tm_factory=&gt;sc_control&nbsp;)&nbsp;)-&gt;is_external_rfc_call(&nbsp;)&nbsp;=&nbsp;abap_false.<br />
+<br />
+&nbsp;&nbsp;BREAK-POINT&nbsp;ID&nbsp;/scwm/hu_dest.<br />
+<br />
+&nbsp;&nbsp;"This&nbsp;function&nbsp;module&nbsp;is&nbsp;called&nbsp;after&nbsp;the&nbsp;synchronous&nbsp;call&nbsp;of&nbsp;JIT&nbsp;update&nbsp;but&nbsp;also<br />
+&nbsp;&nbsp;"&nbsp;&nbsp;if&nbsp;the&nbsp;first&nbsp;asynchronous&nbsp;call&nbsp;gets&nbsp;locks&nbsp;from&nbsp;the&nbsp;JIT&nbsp;update.<br />
+&nbsp;&nbsp;"&nbsp;It&nbsp;requires&nbsp;that&nbsp;a&nbsp;JIT&nbsp;call&nbsp;with&nbsp;one&nbsp;or&nbsp;more&nbsp;than&nbsp;one&nbsp;item,&nbsp;can&nbsp;be&nbsp;repeated&nbsp;for&nbsp;the&nbsp;complete&nbsp;JIT&nbsp;call.<br />
+&nbsp;&nbsp;"&nbsp;&nbsp;The&nbsp;JIT&nbsp;call&nbsp;update&nbsp;must&nbsp;not&nbsp;allow&nbsp;to&nbsp;update&nbsp;one&nbsp;item&nbsp;successful&nbsp;but&nbsp;return&nbsp;second&nbsp;item&nbsp;with&nbsp;error&nbsp;or&nbsp;lock.<br />
+&nbsp;&nbsp;"&nbsp;&nbsp;The&nbsp;JIT&nbsp;call&nbsp;must&nbsp;act&nbsp;as&nbsp;"all&nbsp;or&nbsp;nothing",&nbsp;otherwise&nbsp;the&nbsp;second&nbsp;ascynchronous&nbsp;call&nbsp;might&nbsp;contain&nbsp;JIT&nbsp;call&nbsp;items&nbsp;which&nbsp;are&nbsp;already&nbsp;updated<br />
+&nbsp;&nbsp;CHECK&nbsp;it_jit_update_async&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+<br />
+&nbsp;&nbsp;"Get&nbsp;unique&nbsp;JIT&nbsp;call&nbsp;for&nbsp;this&nbsp;qRFC<br />
+&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;it_jit_update_async&nbsp;ASSIGNING&nbsp;FIELD-SYMBOL(&lt;ls_jit_call&gt;)&nbsp;INDEX&nbsp;1.<br />
+&nbsp;&nbsp;DATA(lv_jit_call)&nbsp;=&nbsp;&lt;ls_jit_call&gt;-jit_call_num.<br />
+<br />
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;it_jit_update_async&nbsp;ASSIGNING&nbsp;FIELD-SYMBOL(&lt;ls_jit_update_async&gt;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;&lt;ls_jit_update_async&gt;-jit_call_num&nbsp;=&nbsp;lv_jit_call.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_njit_details-int_call_num&nbsp;=&nbsp;&lt;ls_jit_update_async&gt;-jit_call_num.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_njit_details-item_number&nbsp;&nbsp;=&nbsp;&lt;ls_jit_update_async&gt;-jit_call_item_num.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_njit_details-guid_hu_ext&nbsp;&nbsp;=&nbsp;&lt;ls_jit_update_async&gt;-guid_hu_ext.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;&lt;ls_jit_update_async&gt;-stock_doccat&nbsp;=&nbsp;wmegc_stock_doccat_s2p.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_njit_details-predecessor_doctype&nbsp;=&nbsp;if_sd_doc_category=&gt;jit_supply_to_production.&nbsp;"Original&nbsp;S2P&nbsp;stock&nbsp;in&nbsp;the&nbsp;HU&nbsp;-&nbsp;'JITP'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_njit_details-predecessor_doctype&nbsp;=&nbsp;if_sd_doc_category=&gt;purchase_order.&nbsp;"MM-based&nbsp;integration&nbsp;-&nbsp;'V'&nbsp;purchase&nbsp;order&nbsp;is&nbsp;predecessor<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_njit_details&nbsp;TO&nbsp;lt_njit_details.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+   </div>
+   <div class="codeComment">
+*      "Should not happen - multiple JIT Calls must not be processed in this single processing qRFC<br />
+**      APPEND INITIAL LINE TO lt_log_messages ASSIGNING &lt;ls_log_message&gt;.<br />
+*      PERFORM create_application_log USING lv_qname<br />
+*                               CHANGING lt_log_messages lv_log_handle.<br />
+*<br />
+*      PERFORM save_application_log USING lv_log_handle lv_qname<br />
+*                                   CHANGING lv_lognr.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+&nbsp;&nbsp;"Call&nbsp;nJIT&nbsp;update&nbsp;asynchronously<br />
+&nbsp;&nbsp;IF&nbsp;lt_njit_details&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DATA(lo_jit_callback)&nbsp;=&nbsp;CAST&nbsp;/scwm/if_jit_callback(&nbsp;/scdl/cl_af_management=&gt;get_instance(<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)-&gt;get_service(&nbsp;/scwm/if_jit_callback=&gt;sc_me_as_service&nbsp;)&nbsp;).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"Start&nbsp;JIT&nbsp;Call&nbsp;update<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lo_jit_callback-&gt;complete_njit_async(&nbsp;EXPORTING&nbsp;it_jit_details&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_njit_details<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING&nbsp;et_jit_update_details&nbsp;=&nbsp;DATA(lt_jit_update_details)<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_failed_update&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;DATA(lt_failed_update)<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_messages&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;DATA(lt_jit_messages)&nbsp;).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"Case&nbsp;2&nbsp;&&nbsp;3:&nbsp;JIT&nbsp;Call&nbsp;update&nbsp;was&nbsp;not&nbsp;successful&nbsp;-&gt;&nbsp;Check&nbsp;type&nbsp;of&nbsp;error<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;&nbsp;LT_FAILED_UPDATE&nbsp;contains&nbsp;a)&nbsp;JIT&nbsp;calls&nbsp;which&nbsp;couldn't&nbsp;be&nbsp;updated&nbsp;and&nbsp;need&nbsp;retry&nbsp;processing&nbsp;-&gt;&nbsp;Set&nbsp;RFC&nbsp;queue&nbsp;to&nbsp;RETRY<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;or&nbsp;b)&nbsp;real&nbsp;errors&nbsp;but&nbsp;no&nbsp;locking&nbsp;issues&nbsp;-&gt;&nbsp;End&nbsp;Processing&nbsp;and&nbsp;RFC&nbsp;queue&nbsp;is&nbsp;on&nbsp;error<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;&nbsp;&nbsp;&nbsp;FAILURE_REASON&nbsp;contains&nbsp;information&nbsp;about&nbsp;RFC&nbsp;queue&nbsp;handling&nbsp;-&gt;&nbsp;Must&nbsp;be&nbsp;initial&nbsp;for&nbsp;the&nbsp;successful&nbsp;updates<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;e.g.&nbsp;RETRY&nbsp;(for&nbsp;locking&nbsp;issues)&nbsp;or&nbsp;SYSFAIL&nbsp;(for&nbsp;error&nbsp;messages)<br />
+&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;lt_failed_update&nbsp;ASSIGNING&nbsp;FIELD-SYMBOL(&lt;ls_failed_update&gt;)&nbsp;INDEX&nbsp;1.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;line_exists(&nbsp;lt_failed_update[&nbsp;failure_reason&nbsp;=&nbsp;'SYSFAIL'&nbsp;]&nbsp;).&nbsp;"if&nbsp;one&nbsp;item&nbsp;was&nbsp;updated&nbsp;with&nbsp;error&nbsp;-&nbsp;the&nbsp;queue&nbsp;fails&nbsp;for&nbsp;all&nbsp;of&nbsp;them<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"An&nbsp;error&nbsp;happended&nbsp;during&nbsp;update&nbsp;of&nbsp;the&nbsp;JIT&nbsp;Call&nbsp;-&nbsp;Write&nbsp;application&nbsp;log&nbsp;&&nbsp;stop&nbsp;queue&nbsp;with&nbsp;a&nbsp;relevant&nbsp;error&nbsp;message<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;lt_jit_messages&nbsp;ASSIGNING&nbsp;FIELD-SYMBOL(&lt;ls_jit_message&gt;)&nbsp;WHERE&nbsp;int_call_num&nbsp;=&nbsp;lv_jit_call.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;&nbsp;&lt;ls_jit_message&gt;-messages&nbsp;ASSIGNING&nbsp;FIELD-SYMBOL(&lt;ls_jit_error&gt;)&nbsp;WHERE&nbsp;msgty&nbsp;=&nbsp;'E'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OR&nbsp;msgty&nbsp;=&nbsp;'A'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;INITIAL&nbsp;LINE&nbsp;TO&nbsp;lt_log_messages&nbsp;ASSIGNING&nbsp;FIELD-SYMBOL(&lt;ls_jit_log_message&gt;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;ls_jit_log_message&gt;-s_key-jit_call_num&nbsp;=&nbsp;&lt;ls_failed_update&gt;-int_call_num.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;ls_jit_log_message&gt;-s_key-jit_call_item_num&nbsp;=&nbsp;&lt;ls_failed_update&gt;-item_number.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;ls_jit_log_message&gt;-s_key-guid_hu_ext&nbsp;=&nbsp;&lt;ls_failed_update&gt;-guid_hu_ext.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;ls_jit_log_message&gt;-ref_t100&nbsp;=&nbsp;&lt;ls_jit_error&gt;.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDLOOP.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Error&nbsp;exists<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/scwm/cl_tm=&gt;cleanup(&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ROLLBACK&nbsp;WORK.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Create&nbsp;and&nbsp;save&nbsp;application&nbsp;log<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;create_application_log&nbsp;USING&nbsp;lv_jit_call<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;lv_extnumber&nbsp;lt_log_messages&nbsp;lv_log_handle.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;save_application_log&nbsp;USING&nbsp;lv_log_handle&nbsp;lv_extnumber<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;lv_lognr.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Issue&nbsp;error&nbsp;message&nbsp;with&nbsp;log&nbsp;number<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;e011(/scwm/erpintegration)&nbsp;WITH&nbsp;lv_lognr&nbsp;lv_extnumber.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ELSEIF&nbsp;line_exists(&nbsp;lt_failed_update[&nbsp;failure_reason&nbsp;=&nbsp;'RETRY'&nbsp;]&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"The&nbsp;JIT&nbsp;Call&nbsp;is&nbsp;currently&nbsp;locked&nbsp;-&nbsp;a&nbsp;retry&nbsp;should&nbsp;solve&nbsp;the&nbsp;problem<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Set&nbsp;queue&nbsp;to&nbsp;retry&nbsp;with&nbsp;the&nbsp;same&nbsp;JIT&nbsp;Call&nbsp;information&nbsp;for&nbsp;all&nbsp;JIT&nbsp;call&nbsp;items<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/scwm/cl_tm=&gt;cleanup(&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ROLLBACK&nbsp;WORK.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'RESTART_OF_BACKGROUNDTASK'.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"An&nbsp;unexpected&nbsp;error&nbsp;happened&nbsp;-&nbsp;stop&nbsp;queue&nbsp;with&nbsp;the&nbsp;relevant&nbsp;error&nbsp;message,&nbsp;see&nbsp;above<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/scwm/cl_tm=&gt;cleanup(&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ROLLBACK&nbsp;WORK.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;ID&nbsp;sy-msgid&nbsp;TYPE&nbsp;'E'&nbsp;NUMBER&nbsp;sy-msgno&nbsp;WITH&nbsp;sy-msgv1&nbsp;sy-msgv2&nbsp;sy-msgv3&nbsp;sy-msgv4.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.&nbsp;"LT_FAILED_JIT_CALLS&nbsp;is&nbsp;initial&nbsp;-&nbsp;check&nbsp;for&nbsp;successful&nbsp;updates<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Case&nbsp;1:&nbsp;JIT&nbsp;Call&nbsp;successfully&nbsp;updated&nbsp;-&gt;&nbsp;Check&nbsp;for&nbsp;Compensation&nbsp;table&nbsp;entry,&nbsp;remove,&nbsp;save<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;&nbsp;LT_JIT_UPDATE_DETAILS&nbsp;returns&nbsp;several&nbsp;information<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;&nbsp;&nbsp;&nbsp;ASYNC_UPDATE&nbsp;=&nbsp;&nbsp;-&gt;&nbsp;Not&nbsp;relevant&nbsp;if&nbsp;we&nbsp;are&nbsp;already&nbsp;in&nbsp;the&nbsp;asynchronous&nbsp;call<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;&nbsp;&nbsp;&nbsp;COMP_TABLE_UPDATE&nbsp;=&nbsp;&nbsp;-&gt;&nbsp;Not&nbsp;relevant&nbsp;as&nbsp;we&nbsp;will&nbsp;not&nbsp;write&nbsp;new&nbsp;compensation&nbsp;table&nbsp;entries&nbsp;during&nbsp;the&nbsp;asynchronous&nbsp;call<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;&nbsp;&nbsp;&nbsp;FAILURE_REASON&nbsp;contains&nbsp;information&nbsp;about&nbsp;RFC&nbsp;queue&nbsp;handling&nbsp;-&gt;&nbsp;Must&nbsp;be&nbsp;initial&nbsp;for&nbsp;the&nbsp;successful&nbsp;updates<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;get_compst_entries_for_del&nbsp;&nbsp;&nbsp;&nbsp;USING&nbsp;lt_jit_update_details<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;it_jit_update_async<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;lt_jit_compst_key.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lt_jit_compst_key&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TRY.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Check&nbsp;if&nbsp;DB&nbsp;entries&nbsp;exist&nbsp;for&nbsp;the&nbsp;JIT&nbsp;Calls<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DATA(lo_db_access)&nbsp;=&nbsp;/scwm/cl_jit_compensation_db=&gt;get_instance(&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DATA(lt_jit_compst_checked)&nbsp;=&nbsp;lo_db_access-&gt;get(&nbsp;it_jit_compst_key&nbsp;=&nbsp;lt_jit_compst_key&nbsp;).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_jit_compst_key_checked&nbsp;=&nbsp;CORRESPONDING&nbsp;#(&nbsp;lt_jit_compst_checked&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CATCH&nbsp;/scwm/cx_core.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"No&nbsp;entries&nbsp;exist&nbsp;-&nbsp;no&nbsp;further&nbsp;compensation&nbsp;table&nbsp;checks&nbsp;required<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;lt_jit_compst_checked.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDTRY.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lt_jit_compst_checked&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TRY.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lo_db_access-&gt;delete(&nbsp;it_jit_compst_key&nbsp;=&nbsp;lt_jit_compst_key_checked&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CATCH&nbsp;/scwm/cx_core.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Error&nbsp;with&nbsp;deleting&nbsp;existing&nbsp;compensation&nbsp;table&nbsp;entries<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/scwm/cl_tm=&gt;cleanup(&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ROLLBACK&nbsp;WORK.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;ID&nbsp;sy-msgid&nbsp;TYPE&nbsp;'E'&nbsp;NUMBER&nbsp;sy-msgno&nbsp;WITH&nbsp;sy-msgv1&nbsp;sy-msgv2&nbsp;sy-msgv3&nbsp;sy-msgv4.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDTRY.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"Call&nbsp;SAVE&nbsp;method&nbsp;to&nbsp;trigger&nbsp;update<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lo_jit_callback-&gt;save_njit_for_async(&nbsp;IMPORTING&nbsp;et_messages&nbsp;=&nbsp;DATA(lt_jit_save_messages)&nbsp;).<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;line_exists(&nbsp;lt_jit_save_messages[&nbsp;msgty&nbsp;=&nbsp;'E'&nbsp;]&nbsp;)&nbsp;OR<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;line_exists(&nbsp;lt_jit_save_messages[&nbsp;msgty&nbsp;=&nbsp;'A'&nbsp;]&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MOVE-CORRESPONDING&nbsp;lt_jit_save_messages&nbsp;TO&nbsp;lt_log_messages.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/scwm/cl_tm=&gt;cleanup(&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ROLLBACK&nbsp;WORK.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Create&nbsp;and&nbsp;save&nbsp;application&nbsp;log<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;create_application_log&nbsp;USING&nbsp;lv_jit_call<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;lv_extnumber&nbsp;lt_log_messages&nbsp;lv_log_handle.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PERFORM&nbsp;save_application_log&nbsp;&nbsp;&nbsp;USING&nbsp;lv_log_handle&nbsp;lv_extnumber<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CHANGING&nbsp;lv_lognr.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"Issue&nbsp;error&nbsp;message&nbsp;with&nbsp;log&nbsp;number<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;e011(/scwm/erpintegration)&nbsp;WITH&nbsp;lv_lognr&nbsp;lv_extnumber.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"No&nbsp;error&nbsp;messages&nbsp;exist<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;COMMIT&nbsp;WORK.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+ENDFUNCTION.<br />
+<br />
+<br />
+   </div>
+   <div class="codeComment">
+*Messages<br />
+*----------------------------------------------------------<br />
+*<br />
+* Message class : /SCWM/ERPINTEGRATION<br />
+*011   Application log &1: Could not convert queue &2<br />
+*<br />
+* Message class : /SCWM/HUGENERAL<br />
+*011   HU &1 could not be found<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2026. Sap Release 816</td>
+   </tr>
+</table>
+</body>
+</html>

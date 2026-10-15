@@ -1,0 +1,286 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http ://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http ://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>/SCWM/DIFFERENCE_POST_RFC</title>
+<style type="text/css">
+.code{ font-family :"Courier New", Courier, monospace; color :#000; font-size :14px; background-color :#F2F4F7 }
+  .codeComment {font-family :"Courier New", Courier, monospace; color :#0000F0; font-size :14px; background-color :#F2F4F7 }
+  .normalBold{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; font-weight :800 }
+  .normalBoldLarge{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+</style>
+<style type="text/css">
+  .normal{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px }
+  .footer{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; text-align : center }
+  h2{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+  h3{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :14px; font-weight :800 }
+  .outerTable{
+   background-color :#E0E7ED;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-right-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+  .innerTable{
+   background-color :#F2F4F7;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-bottom-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function /SCWM/DIFFERENCE_POST_RFC</h2>
+<h3> Description : LOCAL: Post Physical Inventory Differences - RFC enabled</h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION /scwm/difference_post_rfc.<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local interface:<br />
+*"  IMPORTING<br />
+*"     VALUE(IV_LGNUM) TYPE  /SCWM/LGNUM<br />
+*"     VALUE(IT_STOCK_DIFF) TYPE  /SCWM/TT_STOCK_DIFF OPTIONAL<br />
+*"     VALUE(IT_HU_DIFF) TYPE  /SCWM/TT_HU_DIFF OPTIONAL<br />
+*"     VALUE(IS_RFC_QUEUE) TYPE  /SCWM/S_RFC_QUEUE OPTIONAL<br />
+*"  EXCEPTIONS<br />
+*"      DIFFERENCE_POSTING_FAILED<br />
+*"----------------------------------------------------------------------<br />
+<br />
+
+<div class="codeComment">*       <a href ="global-_scwm_difference_post_rfc.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;DATA:<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_huhdr&nbsp;TYPE&nbsp;&nbsp;/scwm/s_huhdr_int,<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lt_bapiret&nbsp;&nbsp;TYPE&nbsp;&nbsp;bapirettab,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_bapiret&nbsp;LIKE&nbsp;LINE&nbsp;OF&nbsp;lt_bapiret,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lv_severity&nbsp;TYPE&nbsp;&nbsp;bapi_mtype.<br />
+<br />
+&nbsp;&nbsp;FIELD-SYMBOLS:<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&lt;ls_hu_diff&gt;&nbsp;LIKE&nbsp;LINE&nbsp;OF&nbsp;it_hu_diff.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* This RFC is used from external system. This is not supported!<br />
+* The function is only allowed to be called with the same system and not remotely!<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;ASSERT&nbsp;CONDITION&nbsp;CAST&nbsp;/scwm/if_tm_ctrl(&nbsp;/scwm/cl_tm_factory=&gt;get_service(&nbsp;/scwm/cl_tm_factory=&gt;sc_control&nbsp;)&nbsp;)-&gt;is_external_rfc_call(&nbsp;)&nbsp;=&nbsp;abap_false.<br />
+<br />
+&nbsp;&nbsp;"this&nbsp;call&nbsp;is&nbsp;required&nbsp;to&nbsp;set&nbsp;the&nbsp;context&nbsp;for&nbsp;the&nbsp;function<br />
+&nbsp;&nbsp;/scwm/cl_tm=&gt;set_lgnum(&nbsp;iv_lgnum&nbsp;).<br />
+<br />
+&nbsp;&nbsp;"Lock&nbsp;queue&nbsp;to&nbsp;ensure&nbsp;the&nbsp;next&nbsp;queue&nbsp;entry&nbsp;will&nbsp;not&nbsp;start&nbsp;before<br />
+&nbsp;&nbsp;"end&nbsp;of&nbsp;update&nbsp;task<br />
+&nbsp;&nbsp;IF&nbsp;is_rfc_queue-queue&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'ENQUEUE_/SCWM/ERFC_QUEUE'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mode_/scwm/s_rfc_queue&nbsp;=&nbsp;'E'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mandt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;sy-mandt<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;queue&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_rfc_queue-queue<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;guid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_rfc_queue-guid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_wait&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;'X'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;foreign_lock&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;1<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;system_failure&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;2<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OTHERS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;3.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CASE&nbsp;sy-subrc.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHEN&nbsp;1.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'RESTART_OF_BACKGROUNDTASK'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHEN&nbsp;2.<br />
+   </div>
+   <div class="codeComment">
+*       An error occurred during locking<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;e141(/scwm/l3).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDCASE.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+<br />
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;it_hu_diff&nbsp;ASSIGNING&nbsp;&lt;ls_hu_diff&gt;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;huident&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"check&nbsp;the&nbsp;HU<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/HU_READ'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;&nbsp;=&nbsp;iv_lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_huident&nbsp;=&nbsp;&lt;ls_hu_diff&gt;-huident<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_huhdr&nbsp;&nbsp;&nbsp;=&nbsp;ls_huhdr<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;deleted&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;1<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;not_found&nbsp;&nbsp;=&nbsp;2<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;error&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;3<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OTHERS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;4.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;&lt;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;ID&nbsp;sy-msgid&nbsp;TYPE&nbsp;'E'&nbsp;NUMBER&nbsp;sy-msgno<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WITH&nbsp;sy-msgv1&nbsp;sy-msgv2&nbsp;sy-msgv3&nbsp;sy-msgv4<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RAISING&nbsp;difference_posting_failed.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&lt;ls_hu_diff&gt;-guid_hu&nbsp;=&nbsp;ls_huhdr-guid_hu.<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+<br />
+&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/SCWM/DIFFERENCE_POST'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;iv_lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;it_hu_diff&nbsp;&nbsp;=&nbsp;it_hu_diff<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;it_stock_diff&nbsp;=&nbsp;it_stock_diff<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_bapiret&nbsp;&nbsp;=&nbsp;lt_bapiret<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ev_severity&nbsp;=&nbsp;lv_severity.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;lv_severity&nbsp;CA&nbsp;'AE'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;lt_bapiret&nbsp;INTO&nbsp;ls_bapiret<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;type&nbsp;=&nbsp;'E'&nbsp;OR&nbsp;type&nbsp;=&nbsp;'A'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;ID&nbsp;ls_bapiret-id&nbsp;TYPE&nbsp;ls_bapiret-type&nbsp;NUMBER&nbsp;ls_bapiret-number<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WITH&nbsp;ls_bapiret-message_v1&nbsp;ls_bapiret-message_v2&nbsp;ls_bapiret-message_v3&nbsp;ls_bapiret-message_v4<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RAISING&nbsp;difference_posting_failed.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDLOOP.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;is_rfc_queue&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;COMMIT&nbsp;WORK&nbsp;AND&nbsp;WAIT.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;&lt;&gt;&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;e756.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;/scwm/cl_tm=&gt;cleanup(&nbsp;iv_lgnum&nbsp;=&nbsp;iv_lgnum&nbsp;).<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+ENDFUNCTION.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*Text elements<br />
+*----------------------------------------------------------<br />
+* 001 Create Material Index<br />
+<br />
+<br />
+*Messages<br />
+*----------------------------------------------------------<br />
+*<br />
+* Message class : /SCWM/BATCH<br />
+*045   Product &1, batch &2 has the status 'not released'<br />
+*<br />
+* Message class : /SCWM/FL_CD<br />
+*004   Inbound delivery &1 has items relevant for FL CD, which must be packed<br />
+*<br />
+* Message class : /SCWM/GM<br />
+*037   Product &1 is blocked. No posting possible<br />
+*039   Product &1 is not subject to batch management. You cannot enter a batch<br />
+*041   Product &1 requires batch management. Enter a batch<br />
+*045   Quantity was not serialized completely<br />
+*046   Serial numbers not allowed in non-serialized product (&1)<br />
+*048   Serial number &1 does not exist<br />
+*058   Unit of measure &1 is not a base unit of measure<br />
+*061   Warehouse material document &1 item &2 has already been canceled<br />
+*062   &1 is not a warehouse document. You cannot cancel warehouse tasks<br />
+*065   Cancellation due to internal data inconsistency not possible<br />
+*066   Storage bin &1 has system error (GUID_HU is missing)<br />
+*069   HU content was changed - GR cancellation not possible<br />
+*071   Stock is in inspection - Posting not allowed<br />
+*072   Stock in inspection - Cannot change party entitled to dispose<br />
+*073   Stock is in inspection - Cannot change owner<br />
+*074   Stock is in inspection - Cannot change availability group<br />
+*075   Stock is in inspection - Cannot change stock category<br />
+*076   Target stock is in quality inspection - Posting not possible<br />
+*077   Stock is in quality inspection - Issue posting not possible<br />
+*078   Stock inspection document cannot be read - Posting not possible<br />
+*079   Inspection document cannot be read due to authorization problem<br />
+*080   Quantity increase of inspected stock is not allowed<br />
+*081   Transfer postings of inspected stock are not allowed<br />
+*083   Inspection document not released due to customs blocked stock<br />
+*086   Existing HU &1 in stock - GI cancellation not possible<br />
+*095   Open warehouse tasks exist for HU &1; goods issue not possible<br />
+*104   Serial Number &1 is already assigned to a Handling Unit Header<br />
+*114   GI with negative catch weight quantity not possible for HU &1<br />
+*778   Posting between serialized and non-serialized Products not allowed<br />
+*788   Posting change failed due to resulting change in serial number usage ind.<br />
+*<br />
+* Message class : /SCWM/HUGENERAL<br />
+*099   Requested function cannot be executed - Contact your system administrator<br />
+*<br />
+* Message class : /SCWM/L1<br />
+*010   Warehouse number &1 is not allowed<br />
+*170   Storage bin & is already blocked<br />
+*<br />
+* Message class : /SCWM/L3<br />
+*050   You do not have authorization for warehouse process type &1 &2<br />
+*083   Entering valuation quantity for difference for inb. delivery not allowed<br />
+*100   An internal error has occurred<br />
+*129   Exception &1 not allowed for tasks containing a component group material<br />
+*141   An error occurred during blocking<br />
+*662   Error creating fixed bins: update of storage bin failed<br />
+*682   Available quantity for prod. &1 is not sufficient<br />
+*761   Difference to your own benefit is not possible for inbound delivery stock<br />
+*790   You don't have authorization to make changes in warehouse &1<br />
+*803   HU &1: Status prohibits HU change<br />
+*868   Exception code &1 not allowed for WIP-relevant warehouse tasks<br />
+*<br />
+* Message class : /SCWM/MESINTEGRATION<br />
+*027   Goods movement triggered by MES is not allowed due to inconsistent data.<br />
+*<br />
+* Message class : /SCWM/QINSP<br />
+*254   Quantity of serial numbers must match the quantity in the sample size<br />
+*270   You can't reverse the goods receipt; the quality inspection has started.<br />
+*<br />
+* Message class : /SCWM/RF_DE<br />
+*270   Product &1 is not assigned to party entitled to dispose &2<br />
+*<br />
+* Message class : /SCWM/RF_EN<br />
+*002   Value &1 outside value range<br />
+*<br />
+* Message class : /SCWM/SERIAL<br />
+*004   Serial number &1 already exists<br />
+*018   Serial number &1 is already assigned to HU &2<br />
+*069   Error during serial number re-assignment to destination product<br />
+*<br />
+* Message class : /SCWM/TO_WHR_UPD<br />
+*010   Internal error updating warehouse requests<br />
+*<br />
+* Message class : /SCWM/UI_CANCPICK<br />
+*011   HU &1 is loaded; Not possible to cancel picking<br />
+*<br />
+* Message class : /SCWM/UI_POST<br />
+*058   For WIP products, you can only change the stock type<br />
+*061   Can뭪 change products of 밪2P� or 밪2C� special reference stock<br />
+*062   Only stock types 'S2P' and 'S2C' can be changed to 'S2P' or 'S2C'<br />
+*<br />
+* Message class : /SCWM/WM_SEL<br />
+*001   Parameters not consistent<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2026. Sap Release 816</td>
+   </tr>
+</table>
+</body>
+</html>

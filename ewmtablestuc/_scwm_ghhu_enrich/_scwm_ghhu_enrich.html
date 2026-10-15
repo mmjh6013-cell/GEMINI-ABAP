@@ -1,0 +1,525 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http ://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http ://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>/SCWM/GHHU_ENRICH</title>
+<style type="text/css">
+.code{ font-family :"Courier New", Courier, monospace; color :#000; font-size :14px; background-color :#F2F4F7 }
+  .codeComment {font-family :"Courier New", Courier, monospace; color :#0000F0; font-size :14px; background-color :#F2F4F7 }
+  .normalBold{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; font-weight :800 }
+  .normalBoldLarge{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+</style>
+<style type="text/css">
+  .normal{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px }
+  .footer{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; text-align : center }
+  h2{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+  h3{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :14px; font-weight :800 }
+  .outerTable{
+   background-color :#E0E7ED;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-right-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+  .innerTable{
+   background-color :#F2F4F7;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-bottom-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function /SCWM/GHHU_ENRICH</h2>
+<h3> Description : Enrich HU Header and Item with readable IDs</h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION /scwm/ghhu_enrich.<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local Interface:<br />
+*"  IMPORTING<br />
+*"     REFERENCE(IT_HUHDR) TYPE  /SCWM/TT_GMHUHDR<br />
+*"     REFERENCE(IT_HUITM) TYPE  /SCWM/TT_GMHUITM<br />
+*"     REFERENCE(IT_HUHDRTW) TYPE  /SCWM/TT_GMHUHDRTW OPTIONAL<br />
+*"  EXPORTING<br />
+*"     REFERENCE(ET_HUHDR) TYPE  /SCWM/TT_GMHUHDR_ARC<br />
+*"     REFERENCE(ET_HUITM) TYPE  /SCWM/TT_GMHUITM_ARC<br />
+*"     REFERENCE(ET_HUHDRTW) TYPE  /SCWM/TT_GMHUHDRTW_ARC<br />
+*"----------------------------------------------------------------------<br />
+<br />
+
+<div class="codeComment">*       <a href ="global-_scwm_ghhu_enrich.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;DATA:&nbsp;lt_gmhuhdr&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_gmhuhdr,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_gmhuitm&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_gmhuitm,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_wh_count&nbsp;TYPE&nbsp;int4,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_huhdr&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/s_gmhuhdr_arc,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_huitm&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/s_gmhuitm_arc,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_lgnum&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/lgnum.<br />
+<br />
+&nbsp;&nbsp;DATA:&nbsp;lt_matid&nbsp;&nbsp;TYPE&nbsp;/scmb/mdl_matid_tab,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_matid&nbsp;&nbsp;TYPE&nbsp;/scmb/mdl_matid_str,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_matkey&nbsp;TYPE&nbsp;/scwm/tt_matid_extkey,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_matkey&nbsp;TYPE&nbsp;/scwm/s_matid_extkey,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_lqguid&nbsp;TYPE&nbsp;/lime/query_stock_global,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_stock&nbsp;&nbsp;TYPE&nbsp;/lime/t_query_stock,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_stock2&nbsp;TYPE&nbsp;/lime/t_query_stock.<br />
+<br />
+&nbsp;&nbsp;DATA:&nbsp;&nbsp;ls_stock_info&nbsp;TYPE&nbsp;ty_stock_info,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_stock_info&nbsp;TYPE&nbsp;STANDARD&nbsp;TABLE&nbsp;OF&nbsp;ty_stock_info,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_batchid&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/dlv_batchid_str,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_batchid&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/dlv_batchid_tab,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_chargeno&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/dlv_product_batch_str,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_chargeno&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/dlv_product_batch_tab.<br />
+<br />
+&nbsp;&nbsp;DATA:&nbsp;&nbsp;lt_qdocid&nbsp;TYPE&nbsp;/scwm/tt_qdocid,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_qdocid&nbsp;TYPE&nbsp;/scwm/s_qdocid,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_qdocno&nbsp;TYPE&nbsp;/scwm/tt_qdocid_qdocno,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_qdocno&nbsp;TYPE&nbsp;/scwm/s_qdocid_qdocno.<br />
+<br />
+&nbsp;&nbsp;DATA:&nbsp;&nbsp;ls_stock_docno_int&nbsp;TYPE&nbsp;/scwm/s_stock_docno_int,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_stock_docno_int&nbsp;TYPE&nbsp;/scwm/tt_stock_docno_int,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_stock_docno_ext&nbsp;TYPE&nbsp;/scwm/s_stock_docno_int_ext,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_stock_docno_ext&nbsp;TYPE&nbsp;/scwm/tt_stock_docno_int_ext.<br />
+<br />
+&nbsp;&nbsp;DATA:&nbsp;&nbsp;ls_docid_itemid&nbsp;TYPE&nbsp;/scwm/dlv_docid_item_str,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_docid_itemid&nbsp;TYPE&nbsp;/scwm/dlv_docid_item_tab,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_prd_item_map&nbsp;TYPE&nbsp;/scwm/dlv_prd_item_map_tab.<br />
+<br />
+&nbsp;&nbsp;FIELD-SYMBOLS:&nbsp;&lt;s_huhdr&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/gmhuhdr,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;s_huitm&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/gmhuitm,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;gmhuhdr_arc&gt;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/s_gmhuhdr_arc,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;&nbsp;TYPE&nbsp;/scwm/s_gmhuhdrtw_arc,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;gmhuitm_arc&gt;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/s_gmhuitm_arc,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;stock&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/lime/query_stock,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;stock_info&gt;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;ty_stock_info,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;prd_item_map&gt;&nbsp;&nbsp;LIKE&nbsp;LINE&nbsp;OF&nbsp;lt_prd_item_map.<br />
+<br />
+&nbsp;&nbsp;CHECK&nbsp;it_huhdr&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;IF&nbsp;gr_stock_fields&nbsp;&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CREATE&nbsp;OBJECT&nbsp;gr_stock_fields.<br />
+&nbsp;&nbsp;ENDIF.<br />
+   </div>
+   <div class="codeComment">
+* check number of warehouses<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;lt_gmhuhdr&nbsp;=&nbsp;it_huhdr.<br />
+&nbsp;&nbsp;SORT&nbsp;lt_gmhuhdr&nbsp;BY&nbsp;lgnum.<br />
+&nbsp;&nbsp;DELETE&nbsp;ADJACENT&nbsp;DUPLICATES&nbsp;FROM&nbsp;lt_gmhuhdr&nbsp;COMPARING&nbsp;lgnum.<br />
+&nbsp;&nbsp;DESCRIBE&nbsp;TABLE&nbsp;lt_gmhuhdr&nbsp;LINES&nbsp;lv_wh_count.<br />
+&nbsp;&nbsp;IF&nbsp;lv_wh_count&nbsp;&lt;&gt;&nbsp;1.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;s106(/scwm/hu_wm).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXIT.<br />
+&nbsp;&nbsp;ELSE.<br />
+   </div>
+   <div class="codeComment">
+* Prereqeiste for this archiving class is that the warehouse numer for all entries in table<br />
+* lt_gmhuhdr_arc have the same value ==&gt; Only one HU shall be archived during a call of /SCWM/HU_GET_DATA<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;lt_gmhuhdr&nbsp;ASSIGNING&nbsp;&lt;s_huhdr&gt;&nbsp;INDEX&nbsp;1.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lv_lgnum&nbsp;=&nbsp;&lt;s_huhdr&gt;-lgnum.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* Get Packaging material id<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;it_huhdr&nbsp;ASSIGNING&nbsp;&lt;s_huhdr&gt;.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;MOVE-CORRESPONDING&nbsp;&lt;s_huhdr&gt;&nbsp;TO&nbsp;ls_huhdr.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_huhdr&nbsp;TO&nbsp;et_huhdr.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_matid-matid&nbsp;&nbsp;=&nbsp;&lt;s_huhdr&gt;-pmat_guid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_matid&nbsp;TO&nbsp;lt_matid.<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+&nbsp;&nbsp;SORT&nbsp;lt_matid.<br />
+&nbsp;&nbsp;DELETE&nbsp;ADJACENT&nbsp;DUPLICATES&nbsp;FROM&nbsp;lt_matid.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* Get Package Material Number ans set material number in gmhuhdr<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;CALL&nbsp;METHOD&nbsp;gr_stock_fields-&gt;prefetch_matkey_by_id<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;it_matid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_matid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_bypassing_buffer&nbsp;=&nbsp;abap_false<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_matid_extkey&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_matkey.<br />
+&nbsp;&nbsp;SORT&nbsp;lt_matkey&nbsp;BY&nbsp;matid.<br />
+   </div>
+   <div class="codeComment">
+* Enrich with pack material<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;et_huhdr&nbsp;ASSIGNING&nbsp;&lt;gmhuhdr_arc&gt;.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;ls_matkey.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;lt_matkey&nbsp;INTO&nbsp;ls_matkey&nbsp;WITH&nbsp;KEY&nbsp;matid&nbsp;=&nbsp;&lt;gmhuhdr_arc&gt;-pmat_guid&nbsp;BINARY&nbsp;SEARCH.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;gmhuhdr_arc&gt;-pmatno&nbsp;=&nbsp;ls_matkey-matnr.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;it_huitm&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lt_gmhuitm&nbsp;=&nbsp;it_huitm.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SORT&nbsp;lt_gmhuitm&nbsp;BY&nbsp;idx_stock&nbsp;guid_stock0.<br />
+   </div>
+   <div class="codeComment">
+* determine buisness-key of stock from LIME<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;lt_gmhuitm&nbsp;ASSIGNING&nbsp;&lt;s_huitm&gt;.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;&lt;s_huitm&gt;-idx_stock&nbsp;&lt;&gt;&nbsp;ls_lqguid-idx&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NOT&nbsp;ls_lqguid-idx&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/LIME/QUERY_GUID'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_stock&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_lqguid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i_shadow_flag&nbsp;=&nbsp;abap_true<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_stock&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_stock2.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;LINES&nbsp;OF&nbsp;lt_stock2&nbsp;TO&nbsp;lt_stock.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CLEAR:&nbsp;ls_lqguid,&nbsp;lt_stock2.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;COLLECT&nbsp;&lt;s_huitm&gt;-guid_stock0&nbsp;INTO&nbsp;ls_lqguid-t_guid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_lqguid-idx&nbsp;=&nbsp;&lt;s_huitm&gt;-idx_stock.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*     Doc id and Item id table<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MOVE-CORRESPONDING&nbsp;&lt;s_huitm&gt;&nbsp;TO&nbsp;ls_qdocid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_qdocid&nbsp;TO&nbsp;lt_qdocid.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*     Append current huitm to result table<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MOVE-CORRESPONDING&nbsp;&lt;s_huitm&gt;&nbsp;TO&nbsp;ls_huitm.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_huitm&nbsp;TO&nbsp;et_huitm.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDLOOP.<br />
+   </div>
+   <div class="codeComment">
+** for last  ls_lqguid with the same idx<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;NOT&nbsp;ls_lqguid-t_guid&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'/LIME/QUERY_GUID'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_stock&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_lqguid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i_shadow_flag&nbsp;=&nbsp;abap_true<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_stock&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_stock2.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;LINES&nbsp;OF&nbsp;lt_stock2&nbsp;TO&nbsp;lt_stock.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* Using lt_stock to get material number and charge number<br />
+* Remove Packing Material numbers<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR:&nbsp;lt_matid,&nbsp;lt_matkey.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SORT&nbsp;lt_stock.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;ADJACENT&nbsp;DUPLICATES&nbsp;FROM&nbsp;lt_stock.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SORT&nbsp;lt_qdocid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;ADJACENT&nbsp;DUPLICATES&nbsp;FROM&nbsp;lt_qdocid.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* Mapping table lt_stock_info for stock guid_stock, index stock and batch id, matid<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;lt_stock&nbsp;ASSIGNING&nbsp;&lt;stock&gt;.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_stock_info-idx_stock	=&nbsp;&nbsp;&lt;stock&gt;-idx_stock.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_stock_info-guid_stock&nbsp;&nbsp;=&nbsp;&nbsp;&lt;stock&gt;-guid_stock.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_stock_info-matid	=&nbsp;&nbsp;&lt;stock&gt;-matid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_stock_info-batchid	=&nbsp;&nbsp;&lt;stock&gt;-batchid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_stock_info&nbsp;TO&nbsp;lt_stock_info.<br />
+   </div>
+   <div class="codeComment">
+* Table for Batch ID<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_batchid-batchid&nbsp;&nbsp;=&nbsp;&nbsp;&lt;stock&gt;-batchid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_batchid&nbsp;TO&nbsp;lt_batchid.<br />
+   </div>
+   <div class="codeComment">
+* Table for Mat ID<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_matid-matid&nbsp;=&nbsp;&lt;stock&gt;-matid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_matid&nbsp;TO&nbsp;lt_matid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SORT&nbsp;lt_stock_info&nbsp;BY&nbsp;&nbsp;idx_stock&nbsp;guid_stock.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;ADJACENT&nbsp;DUPLICATES&nbsp;FROM&nbsp;lt_stock_info.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SORT&nbsp;lt_batchid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;ADJACENT&nbsp;DUPLICATES&nbsp;FROM&nbsp;lt_batchid.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SORT&nbsp;lt_matid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;ADJACENT&nbsp;DUPLICATES&nbsp;FROM&nbsp;lt_matid.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* Using table lt_batchid, lt_matid, lt_qdocid and lt_stock_docno_int to get<br />
+* material number, charge number, stock document number, stock document item number<br />
+* and external document number<br />
+<br />
+* Get material number using MAT ID and copy the material number to the map table lt_batchid<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;METHOD&nbsp;gr_stock_fields-&gt;prefetch_matkey_by_id<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;it_matid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_matid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_bypassing_buffer&nbsp;=&nbsp;abap_false<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_matid_extkey&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_matkey.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* Get Charge number using Batch ID and copy the charge number to the map table lt_batchid<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;METHOD&nbsp;gr_stock_fields-&gt;prefetch_batchno_by_id<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;it_batchid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_batchid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_batchid_extkey&nbsp;=&nbsp;lt_chargeno.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SORT&nbsp;lt_matkey&nbsp;BY&nbsp;matid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;ADJACENT&nbsp;DUPLICATES&nbsp;FROM&nbsp;lt_matkey.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SORT&nbsp;lt_chargeno&nbsp;BY&nbsp;batchid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;ADJACENT&nbsp;DUPLICATES&nbsp;FROM&nbsp;lt_chargeno.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;lt_stock_info&nbsp;ASSIGNING&nbsp;&lt;stock_info&gt;.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;lt_matkey&nbsp;INTO&nbsp;ls_matkey&nbsp;WITH&nbsp;KEY&nbsp;matid&nbsp;=&nbsp;&lt;stock_info&gt;-matid&nbsp;BINARY&nbsp;SEARCH.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;stock_info&gt;-matno&nbsp;=&nbsp;ls_matkey-matnr.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;lt_chargeno&nbsp;INTO&nbsp;ls_chargeno&nbsp;WITH&nbsp;KEY&nbsp;batchid&nbsp;=&nbsp;&lt;stock_info&gt;-batchid&nbsp;BINARY&nbsp;SEARCH.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;stock_info&gt;-chargeno&nbsp;=&nbsp;ls_chargeno-batchno.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDLOOP.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*  Get Doc number,  item position number<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;METHOD&nbsp;gr_stock_fields-&gt;prefetch_qdocno_by_id<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_lgnum&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lv_lgnum<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;it_qdocid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_qdocid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_dlv_refresh_buffer&nbsp;=&nbsp;abap_true<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_qdocid_qdocno&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_qdocno.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SORT&nbsp;lt_qdocno&nbsp;BY&nbsp;qdoccat&nbsp;qdocid&nbsp;qitmid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;ADJACENT&nbsp;DUPLICATES&nbsp;FROM&nbsp;lt_qdocno.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*     Doc number table<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;lt_qdocno&nbsp;INTO&nbsp;ls_qdocno.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_stock_docno_int-stock_doccat&nbsp;=&nbsp;ls_qdocno-qdoccat.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_stock_docno_int-stock_docno&nbsp;=&nbsp;&nbsp;ls_qdocno-qdocno.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_stock_docno_int&nbsp;TO&nbsp;lt_stock_docno_int.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDLOOP.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SORT&nbsp;lt_stock_docno_int&nbsp;BY&nbsp;stock_doccat&nbsp;stock_docno.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;ADJACENT&nbsp;DUPLICATES&nbsp;FROM&nbsp;lt_stock_docno_int.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*  Get External Doc number using Doc number table<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;METHOD&nbsp;gr_stock_fields-&gt;prefetch_stock_docno_ext<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;it_stock_docno_int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_stock_docno_int<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RECEIVING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_stock_docno_int_ext&nbsp;=&nbsp;lt_stock_docno_ext.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SORT&nbsp;lt_stock_docno_ext&nbsp;BY&nbsp;stock_doccat&nbsp;stock_docno.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;ADJACENT&nbsp;DUPLICATES&nbsp;FROM&nbsp;lt_stock_docno_ext.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;et_huitm&nbsp;ASSIGNING&nbsp;&lt;gmhuitm_arc&gt;.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*   Set Material Number and charge number<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;lt_stock_info&nbsp;INTO&nbsp;ls_stock_info<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WITH&nbsp;KEY&nbsp;&nbsp;idx_stock	&nbsp;=&nbsp;&lt;gmhuitm_arc&gt;-idx_stock<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;guid_stock&nbsp;=&nbsp;&lt;gmhuitm_arc&gt;-guid_stock&nbsp;BINARY&nbsp;SEARCH.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;gmhuitm_arc&gt;-chargeno&nbsp;=&nbsp;ls_stock_info-chargeno.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;gmhuitm_arc&gt;-matno&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;ls_stock_info-matno.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+   </div>
+   <div class="codeComment">
+*   Set Doc number and item position number<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;lt_qdocno&nbsp;INTO&nbsp;ls_qdocno<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WITH&nbsp;KEY&nbsp;&nbsp;qdoccat&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&lt;gmhuitm_arc&gt;-qdoccat<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;qdocid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&lt;gmhuitm_arc&gt;-qdocid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;qitmid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&lt;gmhuitm_arc&gt;-qitmid&nbsp;BINARY&nbsp;SEARCH.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;gmhuitm_arc&gt;-qdocno&nbsp;&nbsp;&nbsp;=&nbsp;ls_qdocno-qdocno.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;gmhuitm_arc&gt;-qitemno&nbsp;&nbsp;=&nbsp;ls_qdocno-qitemno.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+   </div>
+   <div class="codeComment">
+*   Set Ext. Doc number<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;lt_stock_docno_ext&nbsp;INTO&nbsp;ls_stock_docno_ext<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WITH&nbsp;KEY&nbsp;&nbsp;stock_doccat&nbsp;&nbsp;&nbsp;=&nbsp;&lt;gmhuitm_arc&gt;-qdoccat<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;stock_docno&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&lt;gmhuitm_arc&gt;-qdocno&nbsp;BINARY&nbsp;SEARCH.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;gmhuitm_arc&gt;-docno_ext&nbsp;&nbsp;&nbsp;=&nbsp;ls_stock_docno_ext-ui_stock_docno.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDLOOP.<br />
+&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;IF&nbsp;it_huhdrtw&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR:&nbsp;et_huhdrtw.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;MOVE-CORRESPONDING&nbsp;it_huhdrtw&nbsp;TO&nbsp;et_huhdrtw.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;go_dlv_manager&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;go_dlv_manager&nbsp;=&nbsp;/scwm/cl_dlv_management_prd=&gt;get_instance(&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+* Get Original document number and Original document item number, or Reference document number and reference document item number<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;et_huhdrtw&nbsp;ASSIGNING&nbsp;&lt;gmhuhdrtw_arc&gt;.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;&lt;gmhuhdrtw_arc&gt;-original_doccat&nbsp;IS&nbsp;NOT&nbsp;INITIAL&nbsp;AND&nbsp;&lt;gmhuhdrtw_arc&gt;-original_docid&nbsp;IS&nbsp;NOT&nbsp;INITIAL&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;-original_itmid&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CLEAR:&nbsp;ls_docid_itemid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_docid_itemid-doccat&nbsp;&nbsp;=&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;-original_doccat.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_docid_itemid-docid&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;-original_docid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_docid_itemid-itemid&nbsp;&nbsp;=&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;-original_itmid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_docid_itemid&nbsp;TO&nbsp;lt_docid_itemid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;&lt;gmhuhdrtw_arc&gt;-ref_doccat&nbsp;IS&nbsp;NOT&nbsp;INITIAL&nbsp;AND&nbsp;&lt;gmhuhdrtw_arc&gt;-ref_docid&nbsp;IS&nbsp;NOT&nbsp;INITIAL&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;-ref_itmid&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CLEAR:&nbsp;ls_docid_itemid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_docid_itemid-doccat&nbsp;&nbsp;=&nbsp;&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;-ref_doccat.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_docid_itemid-docid&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;-ref_docid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_docid_itemid-itemid&nbsp;&nbsp;=&nbsp;&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;-ref_itmid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;APPEND&nbsp;ls_docid_itemid&nbsp;TO&nbsp;lt_docid_itemid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDLOOP.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;SORT&nbsp;lt_docid_itemid&nbsp;BY&nbsp;doccat&nbsp;docid&nbsp;itemid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CLEAR&nbsp;lt_prd_item_map.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;DELETE&nbsp;ADJACENT&nbsp;DUPLICATES&nbsp;FROM&nbsp;lt_docid_itemid&nbsp;COMPARING&nbsp;doccat&nbsp;docid&nbsp;itemid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;go_dlv_manager-&gt;map_itemid_to_itemno(<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;it_itemid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_docid_itemid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_itemmap&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_prd_item_map<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXCEPTIONS<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;itemid_not_unique&nbsp;=&nbsp;1<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;not_found&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;2<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OTHERS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;3&nbsp;).<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;&lt;&gt;&nbsp;0.<br />
+   </div>
+   <div class="codeComment">
+*     MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno<br />
+*                WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lt_prd_item_map&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SORT&nbsp;lt_prd_item_map&nbsp;BY&nbsp;doccat&nbsp;docid&nbsp;itemid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LOOP&nbsp;AT&nbsp;et_huhdrtw&nbsp;ASSIGNING&nbsp;&lt;gmhuhdrtw_arc&gt;.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;&lt;gmhuhdrtw_arc&gt;-original_doccat&nbsp;IS&nbsp;NOT&nbsp;INITIAL&nbsp;AND&nbsp;&lt;gmhuhdrtw_arc&gt;-original_docid&nbsp;IS&nbsp;NOT&nbsp;INITIAL&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;-original_itmid&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;lt_prd_item_map&nbsp;ASSIGNING&nbsp;&lt;prd_item_map&gt;&nbsp;WITH&nbsp;KEY<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;doccat&nbsp;&nbsp;=&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;-original_doccat<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;docid&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;-original_docid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;itemid&nbsp;&nbsp;=&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;-original_itmid&nbsp;BINARY&nbsp;SEARCH.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;-original_docno&nbsp;=&nbsp;&lt;prd_item_map&gt;-docno.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;-original_itmno&nbsp;=&nbsp;&lt;prd_item_map&gt;-itemno.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;&lt;gmhuhdrtw_arc&gt;-ref_doccat&nbsp;IS&nbsp;NOT&nbsp;INITIAL&nbsp;AND&nbsp;&lt;gmhuhdrtw_arc&gt;-ref_docid&nbsp;IS&nbsp;NOT&nbsp;INITIAL&nbsp;AND<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;-ref_itmid&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;lt_prd_item_map&nbsp;ASSIGNING&nbsp;&lt;prd_item_map&gt;&nbsp;WITH&nbsp;KEY<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;doccat&nbsp;&nbsp;=&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;-ref_doccat<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;docid&nbsp;&nbsp;&nbsp;=&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;-ref_docid<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;itemid&nbsp;&nbsp;=&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;-ref_itmid&nbsp;BINARY&nbsp;SEARCH.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;-ref_docno&nbsp;=&nbsp;&lt;prd_item_map&gt;-docno.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;gmhuhdrtw_arc&gt;-ref_itmno&nbsp;=&nbsp;&lt;prd_item_map&gt;-itemno.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDLOOP.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;SORT&nbsp;et_huhdr&nbsp;BY&nbsp;log&nbsp;guid_hu.<br />
+&nbsp;&nbsp;SORT&nbsp;et_huitm&nbsp;BY&nbsp;log&nbsp;guid_parent.<br />
+&nbsp;&nbsp;SORT&nbsp;et_huhdrtw&nbsp;BY&nbsp;log&nbsp;guid_hu.<br />
+ENDFUNCTION.<br />
+<br />
+<br />
+   </div>
+   <div class="codeComment">
+*Messages<br />
+*----------------------------------------------------------<br />
+*<br />
+* Message class : /SCWM/HU_WM<br />
+*106   Only HUs of same warehouse number allowed<br />
+*<br />
+* Message class : BA<br />
+*112   class &2 is not registered for handle &1<br />
+*113   Handle & is not intended for read access<br />
+*114   Archive handle 0 is not intended for write access<br />
+*115   Archive handle & is not intended for write access<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2026. Sap Release 816</td>
+   </tr>
+</table>
+</body>
+</html>

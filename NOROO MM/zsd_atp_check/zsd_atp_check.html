@@ -1,0 +1,479 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>ZSD_ATP_CHECK</title>
+<style type="text/css">
+.code{ font-family:"Courier New", Courier, monospace; color:#000; font-size:14px; background-color:#F2F4F7 }
+  .codeComment {font-family:"Courier New", Courier, monospace; color:#0000F0; font-size:14px; background-color:#F2F4F7 }
+  .normalBold{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; font-weight:800 }
+  .normalBoldLarge{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+</style>
+<style type="text/css">
+  .normal{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px }
+  .footer{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; text-align: center }
+  h2{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+  h3{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:14px; font-weight:800 }
+  .outerTable{
+   background-color:#E0E7ED;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-right-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+  .innerTable{
+   background-color:#F2F4F7;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-bottom-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function ZSD_ATP_CHECK</h2>
+<h3> Description: </h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION zsd_atp_check.<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local Interface:<br />
+*"  IMPORTING<br />
+*"     VALUE(IS_KORTAB) TYPE  ZSDS2024 OPTIONAL<br />
+*"     VALUE(I_ZZMODULE) TYPE  ZSDE_MODULE OPTIONAL<br />
+*"  EXPORTING<br />
+*"     VALUE(ES_RETURN) TYPE  ZSDS1001<br />
+*"     VALUE(E_KBMENG) TYPE  KBMENG<br />
+*"----------------------------------------------------------------------<br />
+************************************************************************<br />
+* Module      : SD<br />
+* Program ID  : ZSD_ATP_CHECK<br />
+* Title       : [SD] Rescheduling Sales Order for MTO Documents<br />
+* Created By  : DEV_SD1<br />
+* Created On  : 2024.12.30<br />
+* Description : [SD] Rescheduling Sales Order for MTO Documents<br />
+************************************************************************<br />
+*                         Modification History<br />
+*---------------------------------------------------------*<br />
+* No. ChangedBy ChangedOn  Description<br />
+*---------------------------------------------------------*<br />
+*<br />
+************************************************************************<br />
+
+<div class="codeComment">*       <a href ="global-zsd_atp_check.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lt_input&nbsp;&nbsp;TYPE&nbsp;TABLE&nbsp;OF&nbsp;mdvu&nbsp;WITH&nbsp;HEADER&nbsp;LINE,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_return&nbsp;TYPE&nbsp;TABLE&nbsp;OF&nbsp;bapiret2&nbsp;WITH&nbsp;HEADER&nbsp;LINE.<br />
+<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lt_wmdvsx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;TABLE&nbsp;OF&nbsp;bapiwmdvs,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_wmdvex&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;TABLE&nbsp;OF&nbsp;bapiwmdve,<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_lgort&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;bapicm61v-lgort,<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_matnr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;matnr18,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_umrez&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LIKE&nbsp;marm-umrez,<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_dlvqty_su&nbsp;&nbsp;TYPE&nbsp;vbep-dlvqty_su,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_kwmeng&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LIKE&nbsp;vbap-kwmeng,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_kbmeng&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LIKE&nbsp;vbap-kbmeng,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_qty&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LIKE&nbsp;vbap-kwmeng,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_qty_kbmeng&nbsp;LIKE&nbsp;vbap-kwmeng,&nbsp;"&nbsp;요청&nbsp;수량<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_qty_bapi&nbsp;&nbsp;&nbsp;LIKE&nbsp;vbap-kwmeng.&nbsp;&nbsp;"&nbsp;bapi&nbsp;에&nbsp;업데이트&nbsp;할&nbsp;수량<br />
+<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lv_in_qty&nbsp;&nbsp;TYPE&nbsp;ekpo-menge,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_out_qty&nbsp;TYPE&nbsp;ekpo-menge.<br />
+<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;ls_log&nbsp;TYPE&nbsp;zsdt0090.<br />
+<br />
+&nbsp;&nbsp;DATA&nbsp;:&nbsp;lv_e_return_gb&nbsp;&nbsp;&nbsp;TYPE&nbsp;c&nbsp;LENGTH&nbsp;1,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_e_err_message&nbsp;TYPE&nbsp;c&nbsp;LENGTH&nbsp;100,<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_stock_info&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;TABLE&nbsp;OF&nbsp;zsds2030,<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_com_qty&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;mng06.<br />
+<br />
+&nbsp;&nbsp;DEFINE&nbsp;__log_insert.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;i_zzmodule&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;SD_STAT&nbsp;=&nbsp;'C',&nbsp;'P'&nbsp;인&nbsp;경우만&nbsp;UPDATE<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;ls_log-zzresult&nbsp;&lt;&gt;&nbsp;gc_e.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;성공인&nbsp;경우만&nbsp;sd_stat&nbsp;업데이트<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CASE&nbsp;i_zzmodule.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;	WHEN&nbsp;'MM'.&nbsp;"&nbsp;ZMMT0350<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;UPDATE&nbsp;zmmt0350&nbsp;SET&nbsp;:&nbsp;sd_stat&nbsp;=&nbsp;ls_log-zzresult<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;vbeln&nbsp;=&nbsp;is_kortab-vbeln<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;posnr&nbsp;=&nbsp;is_kortab-posnr.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;COMMIT&nbsp;WORK.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;	WHEN&nbsp;'PP'.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;UPDATE&nbsp;zppt2010&nbsp;SET&nbsp;:&nbsp;sd_stat&nbsp;=&nbsp;ls_log-zzresult<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;vbeln&nbsp;=&nbsp;is_kortab-vbeln<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;posnr&nbsp;=&nbsp;is_kortab-posnr.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;COMMIT&nbsp;WORK.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDCASE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MODIFY&nbsp;zsdt0090&nbsp;FROM&nbsp;ls_log.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;COMMIT&nbsp;WORK.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;END-OF-DEFINITION.<br />
+<br />
+&nbsp;&nbsp;"&nbsp;필수값&nbsp;오류<br />
+&nbsp;&nbsp;IF&nbsp;is_kortab-vbeln&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;판매문서는&nbsp;필수값&nbsp;입니다.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-type&nbsp;=&nbsp;gc_e.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-msg&nbsp;&nbsp;=&nbsp;TEXT-e21.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;is_kortab-posnr&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;항목번호는&nbsp;필수값&nbsp;입니다.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-type&nbsp;=&nbsp;gc_e.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-msg&nbsp;&nbsp;=&nbsp;TEXT-e22.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;is_kortab-mbdat&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;입고/가용일은&nbsp;필수값&nbsp;입니다.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-type&nbsp;=&nbsp;gc_e.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-msg&nbsp;&nbsp;=&nbsp;TEXT-e23.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;is_kortab-werks&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;납품플랜트는&nbsp;필수값&nbsp;입니다.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-type&nbsp;=&nbsp;gc_e.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-msg&nbsp;&nbsp;=&nbsp;TEXT-e25.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;is_kortab-matnr&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;자재번호는&nbsp;필수값&nbsp;입니다.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-type&nbsp;=&nbsp;gc_e.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-msg&nbsp;&nbsp;=&nbsp;TEXT-e26.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;is_kortab-vtweg&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;유통경로는&nbsp;필수값&nbsp;입니다.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-type&nbsp;=&nbsp;gc_e.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-msg&nbsp;&nbsp;=&nbsp;TEXT-e27.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;is_kortab-vrkme&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;단위는&nbsp;필수값&nbsp;입니다.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-type&nbsp;=&nbsp;gc_e.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-msg&nbsp;&nbsp;=&nbsp;TEXT-e28.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;i_zzmodule&nbsp;IS&nbsp;NOT&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_log-vbeln&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_kortab-vbeln.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_log-posnr&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_kortab-posnr.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_log-zzmodule&nbsp;=&nbsp;i_zzmodule.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_log-zkey&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;|{&nbsp;sy-datlo&nbsp;}{&nbsp;sy-timlo&nbsp;}|.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_log-werks&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_kortab-werks.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_log-mantr&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_kortab-matnr.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_log-rcv_qty&nbsp;&nbsp;=&nbsp;is_kortab-vmeng.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_log-vrkme&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_kortab-vrkme.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_log-bo_date&nbsp;&nbsp;=&nbsp;sy-datlo.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_log-bo_time&nbsp;&nbsp;=&nbsp;sy-timlo.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_log-erdat&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;sy-datlo.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_log-erzet&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;sy-timlo.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_log-ernam&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;sy-uname.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;"&nbsp;주문&nbsp;수량과&nbsp;확정&nbsp;수량&nbsp;비고<br />
+&nbsp;&nbsp;SELECT&nbsp;SINGLE&nbsp;kwmeng,&nbsp;kbmeng<br />
+&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;vbap<br />
+&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;vbeln&nbsp;=&nbsp;@is_kortab-vbeln<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;posnr&nbsp;&nbsp;=&nbsp;@is_kortab-posnr<br />
+&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;(&nbsp;@lv_kwmeng,&nbsp;@lv_kbmeng&nbsp;).<br />
+&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"실행전&nbsp;수량&nbsp;확인<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_log-kwmeng&nbsp;&nbsp;&nbsp;=&nbsp;lv_kwmeng.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ls_log-kbmeng_a&nbsp;=&nbsp;lv_kbmeng.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;주문수량&nbsp;&gt;&nbsp;확정&nbsp;수량<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_kwmeng&nbsp;&gt;&nbsp;lv_kbmeng.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;주문수량&nbsp;-&nbsp;확정&nbsp;수량&nbsp;:&nbsp;추가&nbsp;확정이&nbsp;필요한&nbsp;수량<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_qty&nbsp;=&nbsp;lv_kwmeng&nbsp;-&nbsp;lv_kbmeng.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;납품수량&nbsp;확인<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;SUM(&nbsp;dlvqty_su&nbsp;)&nbsp;AS&nbsp;dlvqty_su<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;vbep<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;vbeln&nbsp;=&nbsp;@is_kortab-vbeln<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;posnr&nbsp;=&nbsp;@is_kortab-posnr<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;@lv_dlvqty_su.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;이미&nbsp;확정된&nbsp;수량&nbsp;+&nbsp;요청&nbsp;수량&nbsp;:&nbsp;최종&nbsp;요청&nbsp;수량<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_qty_bapi&nbsp;=&nbsp;lv_kbmeng&nbsp;+&nbsp;is_kortab-vmeng.<br />
+<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;최종&nbsp;요청&nbsp;수량이&nbsp;주문수량보다&nbsp;큰&nbsp;경우&nbsp;요청&nbsp;수량을&nbsp;주문수량으로&nbsp;고정<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lv_qty_kbmeng&nbsp;=&nbsp;is_kortab-vmeng.&nbsp;"&nbsp;요청&nbsp;수량&nbsp;저장<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_qty_bapi&nbsp;&gt;&nbsp;lv_kwmeng.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_kortab-vmeng&nbsp;=&nbsp;lv_kwmeng.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_kortab-vmeng&nbsp;=&nbsp;lv_qty_bapi.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+   </div>
+   <div class="codeComment">
+*      IF lv_qty &lt;&gt; is_kortab-vmeng.<br />
+*        " 오류 - 수량이 다릅니다. 입력 수량 { LV_QTY } 입력 수량 : { VMENG }<br />
+*        es_return-type = ls_log-zzresult =  gc_e.<br />
+*        MESSAGE s072(zmsg_sd) WITH lv_qty is_kortab-vmeng INTO ls_log-zzmessage.<br />
+*        es_return-msg  = ls_log-zzmessage.<br />
+*        __log_insert.<br />
+*        RETURN.<br />
+*      ENDIF.<br />
+<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;납품수량&nbsp;제외<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is_kortab-vmeng&nbsp;=&nbsp;is_kortab-vmeng&nbsp;-&nbsp;lv_dlvqty_su.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;이미&nbsp;주문&nbsp;수량이&nbsp;확정된&nbsp;품목입니다.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_return-type&nbsp;=&nbsp;gc_e.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_log-zzresult&nbsp;=&nbsp;&nbsp;gc_c.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_return-msg&nbsp;&nbsp;=&nbsp;ls_log-zzmessage&nbsp;=&nbsp;TEXT-e29.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__log_insert.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;판매문서가&nbsp;없습니다.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-type&nbsp;=&nbsp;gc_e.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-msg&nbsp;&nbsp;=&nbsp;TEXT-e30.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;is_kortab-vmeng&nbsp;IS&nbsp;INITIAL.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;입고수량은&nbsp;필수값&nbsp;입니다.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-type&nbsp;=&nbsp;gc_e.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-msg&nbsp;&nbsp;=&nbsp;TEXT-e24.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;lv_matnr&nbsp;=&nbsp;&nbsp;CONV&nbsp;#(&nbsp;&nbsp;is_kortab-matnr&nbsp;).<br />
+   </div>
+   <div class="codeComment">
+*  lt_wmdvsx = VALUE #( (  req_date = is_kortab-mbdat<br />
+*                          req_qty  = is_kortab-vmeng ) ).<br />
+<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;IF&nbsp;is_kortab-vtweg&nbsp;=&nbsp;'20'&nbsp;OR&nbsp;is_kortab-vtweg&nbsp;=&nbsp;'30'.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lv_lgort&nbsp;=&nbsp;'5120'.<br />
+&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lv_lgort&nbsp;=&nbsp;''.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;call&nbsp;function&nbsp;<a&nbsp;href&nbsp;="../zsd_available_stock_sales/zsd_available_stock_sales.html">'ZSD_AVAILABLE_STOCK_SALES'</a><br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i_plant&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_kortab-werks<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i_material&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lv_matnr<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i_unit&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_kortab-vrkme<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i_lgort&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lv_lgort<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i_check_rule&nbsp;&nbsp;=&nbsp;'A'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i_vkorg&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;''<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i_vtweg&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;is_kortab-vtweg<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;e_return_gb&nbsp;&nbsp;&nbsp;=&nbsp;lv_e_return_gb<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;e_err_message&nbsp;=&nbsp;lv_e_err_message<br />
+&nbsp;&nbsp;&nbsp;&nbsp;TABLES<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_stock_info&nbsp;=&nbsp;lt_stock_info.<br />
+<br />
+&nbsp;&nbsp;IF&nbsp;lv_e_return_gb&nbsp;=&nbsp;gc_s.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;lv_com_qty&nbsp;=&nbsp;VALUE&nbsp;#(&nbsp;lt_stock_info[&nbsp;1&nbsp;]-com_qty&nbsp;OPTIONAL&nbsp;).<br />
+   </div>
+   <div class="codeComment">
+*    IF lv_com_qty &gt;= is_kortab-vmeng.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;실제&nbsp;요청한&nbsp;수량만&nbsp;가용&nbsp;수량&nbsp;확인<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_com_qty&nbsp;&gt;=&nbsp;lv_qty_kbmeng.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;영업의&nbsp;가용&nbsp;수량이&nbsp;부족합니다.&nbsp;요청:{&nbsp;VBAP-KBMENG&nbsp;},&nbsp;재고:%{&nbsp;com_qty&nbsp;}<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_return-type&nbsp;=&nbsp;ls_log-zzresult&nbsp;=&nbsp;&nbsp;gc_e.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;MESSAGE&nbsp;s071(zmsg_sd)&nbsp;WITH&nbsp;lv_qty_kbmeng&nbsp;lv_com_qty&nbsp;INTO&nbsp;es_return-msg.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_log-zzmessage&nbsp;=&nbsp;es_return-msg.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__log_insert.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;가용성&nbsp;점검&nbsp;유류&nbsp;(&nbsp;ZSD_AVAILABLE_STOCK_SALES&nbsp;)<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-type&nbsp;=&nbsp;ls_log-zzresult&nbsp;=&nbsp;&nbsp;gc_e.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-msg&nbsp;&nbsp;=&nbsp;ls_log-zzmessage&nbsp;=&nbsp;lv_e_err_message.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;__log_insert.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+<br />
+&nbsp;&nbsp;MOVE-CORRESPONDING&nbsp;is_kortab&nbsp;TO&nbsp;lt_input.<br />
+   </div>
+   <div class="codeComment">
+*  lt_input-vmeng = lv_out_qty.<br />
+**    lt_input-vmeng = lv_umrez * is_kortab-vmeng.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;APPEND&nbsp;lt_input.&nbsp;CLEAR&nbsp;lt_input.<br />
+<br />
+&nbsp;&nbsp;"&nbsp;가용성&nbsp;재고&nbsp;UPDATE<br />
+&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'SD_BACKORDER_UPDATE'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;commit_external&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;'&nbsp;'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sd_read_and_save&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;'X'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fixmg_set&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;'&nbsp;'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;no_lock&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;space<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;p_call_activity&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;'V03R'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;iv_no_bopf_trans_mgr_calls&nbsp;=&nbsp;'&nbsp;'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;TABLES<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;kortab&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_input<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;et_return&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_return.<br />
+<br />
+&nbsp;&nbsp;READ&nbsp;TABLE&nbsp;lt_return&nbsp;WITH&nbsp;KEY&nbsp;type&nbsp;=&nbsp;gc_e.<br />
+&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;가용성&nbsp;업데이트&nbsp;오류<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-type&nbsp;=&nbsp;ls_log-zzresult&nbsp;=&nbsp;&nbsp;gc_e.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;CALL&nbsp;FUNCTION&nbsp;'MESSAGE_TEXT_BUILD'<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;EXPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;msgid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_return-id<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;msgnr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_return-number<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;msgv1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_return-message_v1<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;msgv2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_return-message_v2<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;msgv3&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_return-message_v3<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;msgv4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=&nbsp;lt_return-message_v4<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IMPORTING<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;message_text_output&nbsp;=&nbsp;ls_log-zzmessage.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-msg&nbsp;&nbsp;=&nbsp;ls_log-zzmessage.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;__log_insert.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;RETURN.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+&nbsp;&nbsp;"확정&nbsp;수량&nbsp;확인<br />
+&nbsp;&nbsp;CLEAR&nbsp;:&nbsp;lv_kwmeng,&nbsp;lv_kbmeng.<br />
+<br />
+&nbsp;&nbsp;SELECT&nbsp;SINGLE&nbsp;kwmeng,&nbsp;kbmeng<br />
+&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;(@lv_kwmeng,&nbsp;@lv_kbmeng)<br />
+&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;vbap<br />
+&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;vbeln&nbsp;=&nbsp;@is_kortab-vbeln<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;&nbsp;posnr&nbsp;=&nbsp;@is_kortab-posnr.<br />
+&nbsp;&nbsp;IF&nbsp;sy-subrc&nbsp;=&nbsp;0.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;e_kbmeng&nbsp;=&nbsp;&nbsp;ls_log-kbmeng_c&nbsp;=&nbsp;lv_kbmeng.<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;IF&nbsp;lv_kwmeng&nbsp;=&nbsp;lv_kbmeng.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_return-type&nbsp;=&nbsp;gc_s.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_log-zzresult&nbsp;=&nbsp;&nbsp;gc_c.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__log_insert.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSEIF&nbsp;lv_kwmeng&nbsp;&gt;&nbsp;lv_kbmeng.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_return-type&nbsp;=&nbsp;gc_s.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ls_log-zzresult&nbsp;=&nbsp;&nbsp;gc_p.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__log_insert.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;확정수량이&nbsp;더&nbsp;큰&nbsp;경우<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_return-type&nbsp;=&nbsp;ls_log-zzresult&nbsp;=&nbsp;&nbsp;gc_e.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;es_return-msg&nbsp;&nbsp;=&nbsp;ls_log-zzmessage&nbsp;=&nbsp;TEXT-e45.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__log_insert.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;ENDIF.<br />
+<br />
+   </div>
+   <div class="codeComment">
+***    " 최종요청수량 = vbap 업데이트된 확정 수량<br />
+***    IF lv_qty_bapi = lv_kbmeng.<br />
+***<br />
+***      es_return-type = gc_s.<br />
+***      ls_log-zzresult =  gc_c.<br />
+***      __log_insert.<br />
+***    ELSE.<br />
+***      " 가용성 점검 후 수량 업데이트 오류<br />
+***      es_return-type = ls_log-zzresult =  gc_e.<br />
+***      es_return-msg  = ls_log-zzmessage = TEXT-e32.<br />
+***      __log_insert.<br />
+***    ENDIF.<br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;ELSE.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;"&nbsp;(실행후)판매문서가&nbsp;없습니다.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-type&nbsp;=&nbsp;ls_log-zzresult&nbsp;=&nbsp;&nbsp;gc_e.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;es_return-msg&nbsp;&nbsp;=&nbsp;ls_log-zzmessage&nbsp;=&nbsp;TEXT-e33.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;__log_insert.<br />
+&nbsp;&nbsp;ENDIF.<br />
+<br />
+ENDFUNCTION.<br />
+<br />
+   </div>
+   <div class="codeComment">
+***  "기본 단위로 환산 후 가용재고 확인<br />
+***  SELECT SINGLE meins FROM mara WHERE matnr = @is_kortab-matnr INTO @DATA(lv_meins).<br />
+***<br />
+***  lv_in_qty =  is_kortab-vmeng.<br />
+***<br />
+***  CALL FUNCTION 'MD_CONVERT_MATERIAL_UNIT'<br />
+***    EXPORTING<br />
+***      i_matnr              = is_kortab-matnr<br />
+***      i_in_me              = is_kortab-vrkme<br />
+***      i_out_me             = lv_meins<br />
+***      i_menge              = lv_in_qty<br />
+***    IMPORTING<br />
+***      e_menge              = lv_out_qty<br />
+***    EXCEPTIONS<br />
+***      error_in_application = 1<br />
+***      error                = 2<br />
+***      OTHERS               = 3.<br />
+***  IF sy-subrc &lt;&gt; 0.<br />
+***    es_return = VALUE #( type = gc_e<br />
+****                                      msg = '[SD] 기본 단위 환산 불가'  ).<br />
+***                                    msg = TEXT-t06  ).<br />
+***  ENDIF.<br />
+***<br />
+***  CHECK es_return-type &lt;&gt; gc_e.<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2025. Sap Release 758</td>
+   </tr>
+</table>
+</body>
+</html>

@@ -1,0 +1,408 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http ://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http ://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>/SCWM/LL03ATOP</title>
+<style type="text/css">
+.code{ font-family :"Courier New", Courier, monospace; color :#000; font-size :14px; background-color :#F2F4F7 }
+  .codeComment {font-family :"Courier New", Courier, monospace; color :#0000F0; font-size :14px; background-color :#F2F4F7 }
+  .normalBold{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; font-weight :800 }
+  .normalBoldLarge{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+</style>
+<style type="text/css">
+  .normal{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px }
+  .footer{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; text-align : center }
+  h2{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+  h3{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :14px; font-weight :800 }
+  .outerTable{
+   background-color :#E0E7ED;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-right-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+  .innerTable{
+   background-color :#F2F4F7;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-bottom-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for : /SCWM/LL03ATOP</h2>
+<h3> Description : Read AQUA in Committed Level</h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION-POOL /scwm/l03a MESSAGE-ID /scwm/l3.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*-----------------------------------------------------------------------<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Types<br />
+*-----------------------------------------------------------------------<br />
+<br />
+   </div>
+   <div class="code">
+TYPES: BEGIN OF open_wts,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lgpla&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/lgpla,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rsrc&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/de_rsrc,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tu_num&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/de_tu_num,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;huident&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/de_huident,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;t_ordim_o&nbsp;TYPE&nbsp;/scwm/tt_ordim_o,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;guid_to&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/de_guid_to,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;END&nbsp;OF&nbsp;open_wts.<br />
+<br />
+TYPES:  BEGIN OF batch_charg.          " BATCHID - CHARG<br />
+TYPES:   batchid TYPE /scwm/de_batchid.<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INCLUDE&nbsp;STRUCTURE&nbsp;/scwm/s_ui_batch_filter.<br />
+TYPES:  END OF batch_charg.<br />
+<br />
+TYPES:  BEGIN OF tap_sc.<br />
+TYPES:  guid_to TYPE /scwm/de_guid_to.<br />
+TYPES:  t_gmitem TYPE /Scwm/tt_gmitem.<br />
+TYPES:  END OF tap_sc.<br />
+<br />
+TYPES:  BEGIN OF hu_lock.<br />
+TYPES:  guid_hu    TYPE /scwm/guid_hu.<br />
+TYPES:  huident    TYPE /scwm/de_huident.<br />
+TYPES:  lgnum      TYPE /scwm/lgnum.<br />
+TYPES:  db_lock(1) TYPE c.<br />
+TYPES:  guid_to    TYPE /scwm/de_guid_to.<br />
+TYPES:  END OF hu_lock.<br />
+<br />
+TYPES:  BEGIN OF bin_lock.<br />
+TYPES:  lgpla      type /scwm/de_lgpla.<br />
+TYPES:  enqueue(1) type c.<br />
+TYPES:  guid_to    TYPE /scwm/de_guid_to.<br />
+TYPES:  END OF bin_lock.<br />
+<br />
+TYPES: tt_hu_lock TYPE STANDARD TABLE OF hu_lock,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tt_bin_lock&nbsp;TYPE&nbsp;STANDARD&nbsp;TABLE&nbsp;OF&nbsp;bin_lock.<br />
+<br />
+TYPES:  BEGIN OF ty_buffer,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;guid_loc&nbsp;&nbsp;TYPE&nbsp;/scwm/guid_loc,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;matid&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/de_matid,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;batchid&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/de_batchid,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;t_guid_hu&nbsp;TYPE&nbsp;/scwm/tt_guid_hu,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;END&nbsp;OF&nbsp;ty_buffer.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Global&nbsp;Constants<br />
+   </div>
+   <div class="code">
+TYPE-POOLS: wmegc.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*-----------------------------------------------------------------------<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Tabellen<br />
+*-----------------------------------------------------------------------<br />
+<br />
+*-----------------------------------------------------------------------<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Datenfelder&nbsp;f�r&nbsp;den&nbsp;Modulpool&nbsp;SAPML03T&nbsp;und&nbsp;zugeh�rige<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Modulpools&nbsp;(INCLUDE)<br />
+*-----------------------------------------------------------------------<br />
+*<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Teil&nbsp;1&nbsp;:&nbsp;&nbsp;Tabellen&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;BEGIN&nbsp;OF&nbsp;...&nbsp;OCCURS&nbsp;)<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Teil&nbsp;2&nbsp;:&nbsp;&nbsp;Strukturen&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;BEGIN&nbsp;OF&nbsp;...&nbsp;)<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Teil&nbsp;3&nbsp;:&nbsp;&nbsp;Einzelfelder&nbsp;&nbsp;(&nbsp;variabel&nbsp;)<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Teil&nbsp;4&nbsp;:&nbsp;&nbsp;Konstanten<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Teil&nbsp;5&nbsp;:&nbsp;&nbsp;Field-Symbols<br />
+*<br />
+*-----------------------------------------------------------------------<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Teil&nbsp;1&nbsp;:&nbsp;&nbsp;Tabellen&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;BEGIN&nbsp;OF&nbsp;...&nbsp;OCCURS&nbsp;)<br />
+*----------------------------------------------------------------------<br />
+   </div>
+   <div class="code">
+DATA:  BEGIN OF qsperr OCCURS 50.      " Sperrtabelle f�r Quants<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INCLUDE&nbsp;STRUCTURE&nbsp;/scwm/aqua.<br />
+DATA:  END OF qsperr.<br />
+<br />
+DATA:  BEGIN OF qpla OCCURS 50.        " Aktuelle Quants pro Platz<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INCLUDE&nbsp;STRUCTURE&nbsp;/scwm/aqua.<br />
+DATA:  END OF qpla.<br />
+<br />
+DATA:  BEGIN OF tap   OCCURS 50.       " TA-Positionen<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INCLUDE&nbsp;STRUCTURE&nbsp;/scwm/ltap.<br />
+DATA:  END OF tap.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*-----------------------------------------------------------------------<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Teil&nbsp;2&nbsp;:&nbsp;&nbsp;Strukturen&nbsp;&nbsp;&nbsp;&nbsp;(&nbsp;BEGIN&nbsp;OF&nbsp;...&nbsp;)<br />
+*-----------------------------------------------------------------------<br />
+   </div>
+   <div class="code">
+DATA:  BEGIN OF vtyp.                  "Daten aus Tab 331 Von-Typ<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INCLUDE&nbsp;STRUCTURE&nbsp;/scwm/t331.<br />
+DATA:  END OF vtyp.<br />
+<br />
+DATA:  BEGIN OF ntyp.                  "Daten aus Tab 331 Nach-Typ<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INCLUDE&nbsp;STRUCTURE&nbsp;/scwm/t331.<br />
+DATA:  END OF ntyp.<br />
+<br />
+DATA:  BEGIN OF vtypb.                 "Daten aus Tab 331B Von-Typ<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INCLUDE&nbsp;STRUCTURE&nbsp;/scwm/t331b.<br />
+DATA:  END OF vtypb.<br />
+<br />
+DATA:  BEGIN OF npla.                  " Daten Nachplatz<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INCLUDE&nbsp;STRUCTURE&nbsp;/scwm/lagp.<br />
+DATA:  END OF npla.<br />
+<br />
+DATA: gs_t340d  TYPE /scwm/t340d.       "Warehouse Number Control<br />
+DATA: gs_vqua   TYPE /scwm/s_aqua_int.  " Data Source Quant<br />
+DATA: gs_nqua   TYPE /scwm/s_aqua_int.  " Data Destination Quant<br />
+DATA: gs_shuhdr TYPE /scwm/s_huhdr_int. " Data Source HU<br />
+DATA: gt_vquay  TYPE /scwm/tt_aquay.    " Data ENQUEUE Source Quant<br />
+DATA: gt_nquay  TYPE /scwm/tt_aquay.    " Data ENQUEUE Destination Quant<br />
+<br />
+DATA:  gt_aquay_int TYPE /scwm/tt_aquay_int. "AQUAY Enqueues for TO<br />
+<br />
+DATA: gt_huhdr_lock TYPE /scwm/tt_huhdr_int,  "HU Locks for WT Creation<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gt_hu_lock&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;tt_hu_lock.<br />
+<br />
+DATA: gt_lagpe      TYPE /scwm/tt_lagp_int,   "Bin Locks for WT Creation<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gt_bin_lock&nbsp;&nbsp;&nbsp;TYPE&nbsp;tt_bin_lock.<br />
+   </div>
+   <div class="codeComment">
+*-----------------------------------------------------------------------<br />
+*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Teil&nbsp;3&nbsp;:&nbsp;&nbsp;Einzelfelder<br />
+*-----------------------------------------------------------------------<br />
+   </div>
+   <div class="code">
+DATA: gv_gusr       TYPE eqeusrvb,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gv_gusrvb&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;eqeusrvb,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gv_gusr_ext&nbsp;&nbsp;&nbsp;TYPE&nbsp;eqeusrvb,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gv_gusrvb_ext&nbsp;TYPE&nbsp;eqeusrvb.<br />
+<br />
+DATA: gv_read_enqueue TYPE xfeld,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gt_aquax&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;STANDARD&nbsp;TABLE&nbsp;OF&nbsp;/scwm/aquax.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*........Flags..........................................................<br />
+   </div>
+   <div class="code">
+DATA: flg_change_bin         TYPE c.  "훞derung Nachplatz bei Quit.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*........SAVE-Felder....................................................<br />
+   </div>
+   <div class="code">
+DATA: sav_l2skr             LIKE /scwm/ltap-l2skr.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*........Transportrichtung..............................................<br />
+   </div>
+   <div class="code">
+CONSTANTS:<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;con_von&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;c&nbsp;&nbsp;&nbsp;VALUE&nbsp;'V',&nbsp;&nbsp;&nbsp;&nbsp;"Von-Bewegung<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;con_nach&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;c&nbsp;&nbsp;&nbsp;VALUE&nbsp;'N'.&nbsp;&nbsp;&nbsp;&nbsp;"Nach-Bewegung<br />
+<br />
+   </div>
+   <div class="codeComment">
+********************************************************************<br />
+***&nbsp;NEW<br />
+********************************************************************<br />
+*&nbsp;QMAT<br />
+   </div>
+   <div class="code">
+DATA: gt_qmat TYPE /scwm/tt_aqua_int.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Batches<br />
+   </div>
+   <div class="code">
+DATA: gt_batch     TYPE /scwm/tt_batch.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Internal&nbsp;Routing<br />
+   </div>
+   <div class="code">
+DATA: gt_routing_hu  TYPE /scwm/tt_to_crea_hu_int.<br />
+DATA: gt_pick_hu_to  TYPE /scwm/tt_pick_hu_to.<br />
+DATA: gv_wtcode      TYPE /scwm/de_wtcode.<br />
+DATA: gt_dummy_hu_to TYPE /scwm/tt_ltap_vb.<br />
+DATA: gt_routl_to    TYPE /scwm/tt_routl_to.<br />
+DATA: gt_routp_to    TYPE /scwm/tt_routp_to.<br />
+DATA: gt_route_lhu_to TYPE /scwm/tt_route_lhu_to.<br />
+DATA: gt_ordim_upd   TYPE /scwm/tt_ordim_o_int.<br />
+DATA: gt_ordim_upd_add TYPE /scwm/tt_ordim_o_int.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Change&nbsp;CAT&nbsp;of&nbsp;TAP&nbsp;during&nbsp;GR&nbsp;with&nbsp;QM<br />
+   </div>
+   <div class="code">
+DATA: gt_tap_changed TYPE /scwm/tt_ltap_vb.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Log<br />
+   </div>
+   <div class="code">
+DATA: go_prot     TYPE REF TO /scwm/cl_log.<br />
+DATA: gv_msgtext  TYPE bapi_msg.                            "#EC NEEDED<br />
+DATA  gv_prot_row TYPE bapi_line.<br />
+DATA: gv_prot_no  TYPE /scwm/de_tologno.<br />
+<br />
+DATA: gv_lgnum TYPE /scwm/lgnum.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;New&nbsp;Fix&nbsp;Bins<br />
+   </div>
+   <div class="code">
+DATA: gt_binmat TYPE /scwm/tt_binmat.<br />
+DATA: gt_bindst TYPE /scwm/tt_bindst.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Exceptions<br />
+   </div>
+   <div class="code">
+DATA: gt_exc     TYPE /scwm/tt_conf_exc_int.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Serial&nbsp;numbers<br />
+   </div>
+   <div class="code">
+DATA: gt_serid TYPE /scwm/tt_conf_serid.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Save&nbsp;Reference&nbsp;document<br />
+   </div>
+   <div class="code">
+DATA: gv_refdoc_save.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Packages&nbsp;for&nbsp;Parallel&nbsp;TO&nbsp;Creation&nbsp;Posting<br />
+   </div>
+   <div class="code">
+DATA: gt_package  TYPE /scwm/tt_to_package,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gt_taskname&nbsp;TYPE&nbsp;/scwm/tt_wave_release_taskname,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gt_huhdr_who&nbsp;TYPE&nbsp;/scwm/tt_huhdr_int,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gt_huident_who&nbsp;TYPE&nbsp;/scwm/tt_ident_int,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gt_husstat_who&nbsp;TYPE&nbsp;/scwm/tt_hustatus,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gt_hustobj_who&nbsp;TYPE&nbsp;/scwm/tt_hustobj,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gt_ltap_vb&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_ltap_vb,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"#EC&nbsp;NEEDED<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gt_ltap_err&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_ltap_vb,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"#EC&nbsp;NEEDED<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gt_pohdr_vb&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_cap_head,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gt_bapiret&nbsp;&nbsp;&nbsp;TYPE&nbsp;bapirettab.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"#EC&nbsp;NEEDED<br />
+<br />
+DATA: gv_running_arfc_wps TYPE i,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gv_wp_avail&nbsp;TYPE&nbsp;i.<br />
+<br />
+DATA: gt_open_wts TYPE TABLE OF open_wts.<br />
+<br />
+DATA: gt_xhuitm_cw TYPE /scwm/tt_huitm_int,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gt_yhuitm_cw&nbsp;TYPE&nbsp;/scwm/tt_huitm_int.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Confirmation&nbsp;triggered&nbsp;by&nbsp;RF<br />
+   </div>
+   <div class="code">
+DATA: gv_processor_det TYPE /scwm/de_confirm_rf.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Dlv&nbsp;Items&nbsp;for&nbsp;Immediate&nbsp;GI&nbsp;on&nbsp;PSA<br />
+   </div>
+   <div class="code">
+DATA: gt_dlv_item_psa TYPE STANDARD TABLE OF /scdl/s_sp_k_item.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Queue&nbsp;of&nbsp;confirmed&nbsp;WT,&nbsp;first&nbsp;win<br />
+   </div>
+   <div class="code">
+DATA: gv_queue TYPE /scwm/de_queue.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;if&nbsp;field&nbsp;is&nbsp;set,&nbsp;the&nbsp;delivery&nbsp;confirm&nbsp;should&nbsp;not&nbsp;be&nbsp;asynchron<br />
+*&nbsp;this&nbsp;is&nbsp;the&nbsp;case&nbsp;while&nbsp;confirmation&nbsp;WT&nbsp;during&nbsp;WT&nbsp;creation,&nbsp;or<br />
+*&nbsp;bin&nbsp;denial&nbsp;during&nbsp;WT&nbsp;confirmation<br />
+   </div>
+   <div class="code">
+DATA: gv_dlv_not_async TYPE xfeld.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Batch&nbsp;with&nbsp;Charg&nbsp;attributes&nbsp;for&nbsp;GM<br />
+   </div>
+   <div class="code">
+DATA: gt_batch_charg TYPE STANDARD TABLE OF batch_charg.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Warehouse&nbsp;Orders&nbsp;for&nbsp;Labor&nbsp;Management<br />
+   </div>
+   <div class="code">
+DATA: gt_who_lm    TYPE /scwm/tt_who_int.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Memory&nbsp;HU&nbsp;DB&nbsp;state&nbsp;for&nbsp;packing<br />
+   </div>
+   <div class="code">
+DATA: gt_huhdr TYPE /scwm/tt_huhdr_int.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Enqueue&nbsp;on&nbsp;Stor.&nbsp;Type&nbsp;Max.&nbsp;Quantity&nbsp;and&nbsp;Max.&nbsp;Num.&nbsp;of&nbsp;Bins<br />
+   </div>
+   <div class="code">
+DATA: gs_smaqy TYPE /scwm/s_smaq_maxbin_lock_s.<br />
+<br />
+DATA: gt_huitm_sav TYPE /scwm/tt_huitm_int.<br />
+<br />
+DATA: gt_mat_loc_hu TYPE STANDARD TABLE OF ty_buffer.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;QM<br />
+   </div>
+   <div class="code">
+data: go_qinsp TYPE REF TO /scwm/if_af_qinsp_int,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;go_stock_id&nbsp;&nbsp;TYPE&nbsp;REF&nbsp;TO&nbsp;/scwm/cl_stock_id.<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2026. Sap Release 816</td>
+   </tr>
+</table>
+</body>
+</html>

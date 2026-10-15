@@ -1,0 +1,163 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>ZPP_GI_RESB</title>
+<style type="text/css">
+.code{ font-family:"Courier New", Courier, monospace; color:#000; font-size:14px; background-color:#F2F4F7 }
+  .codeComment {font-family:"Courier New", Courier, monospace; color:#0000F0; font-size:14px; background-color:#F2F4F7 }
+  .normalBold{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; font-weight:800 }
+  .normalBoldLarge{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+</style>
+<style type="text/css">
+  .normal{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px }
+  .footer{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:12px; text-align: center }
+  h2{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:16px; font-weight:800 }
+  h3{ font-family:Arial, Helvetica, sans-serif; color:#000; font-size:14px; font-weight:800 }
+  .outerTable{
+   background-color:#E0E7ED;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-right-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+  .innerTable{
+   background-color:#F2F4F7;
+   width:100%;
+   border-top-width: thin;
+   border-right-width: thin;
+   border-bottom-width: thin;
+   border-left-width: thin;
+   border-top-style: solid;
+   border-right-style: solid;
+   border-bottom-style: solid;
+   border-left-style: solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for function ZPP_GI_RESB</h2>
+<h3> Description: </h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION zpp_gi_resb.<br />
+   </div>
+   <div class="codeComment">
+*"----------------------------------------------------------------------<br />
+*"*"Local Interface:<br />
+*"  TABLES<br />
+*"      IT_GI_RESB STRUCTURE  ZPPS_GI_RESB<br />
+*"      ET_GI_RESB STRUCTURE  ZPPS_GI_RESB<br />
+*"----------------------------------------------------------------------<br />
+<br />
+<br />
+*1. 작업지시 전송 이후<br />
+
+<div class="codeComment">*       <a href ="global-zpp_gi_resb.html">Global data declarations</a></div><br />
+   </div>
+   <div class="code">
+&nbsp;&nbsp;DATA:&nbsp;ls_gi_resb&nbsp;LIKE&nbsp;zpps_gi_resb,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_gi_resb&nbsp;LIKE&nbsp;TABLE&nbsp;OF&nbsp;ls_gi_resb,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;lt_all&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LIKE&nbsp;TABLE&nbsp;OF&nbsp;ls_gi_resb.<br />
+<br />
+&nbsp;&nbsp;DATA:&nbsp;lr_erdat&nbsp;TYPE&nbsp;RANGE&nbsp;OF&nbsp;sy-datum&nbsp;WITH&nbsp;HEADER&nbsp;LINE.<br />
+<br />
+&nbsp;&nbsp;MOVE-CORRESPONDING&nbsp;it_gi_resb[]&nbsp;TO&nbsp;lt_gi_resb.<br />
+<br />
+&nbsp;&nbsp;lr_erdat-low&nbsp;=&nbsp;sy-datum&nbsp;-&nbsp;90.<br />
+&nbsp;&nbsp;lr_erdat-high&nbsp;=&nbsp;sy-datum.<br />
+&nbsp;&nbsp;lr_erdat-option&nbsp;=&nbsp;'BT'.<br />
+&nbsp;&nbsp;lr_erdat-sign&nbsp;=&nbsp;'I'.<br />
+&nbsp;&nbsp;APPEND&nbsp;lr_erdat.<br />
+&nbsp;&nbsp;CLEAR:&nbsp;lr_erdat.<br />
+<br />
+<br />
+&nbsp;&nbsp;DATA:&nbsp;lv_where&nbsp;TYPE&nbsp;string.<br />
+<br />
+&nbsp;&nbsp;WITH&nbsp;+x&nbsp;AS&nbsp;(<br />
+&nbsp;&nbsp;(&nbsp;SELECT&nbsp;werks,&nbsp;matnr,&nbsp;aufnr,&nbsp;lgort&nbsp;&nbsp;FROM&nbsp;@lt_gi_resb&nbsp;AS&nbsp;a&nbsp;)&nbsp;##ITAB_KEY_IN_SELECT<br />
+&nbsp;&nbsp;)<br />
+<br />
+&nbsp;&nbsp;SELECT&nbsp;z2081~organization_id&nbsp;AS&nbsp;werks<br />
+&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;z2081~item_number&nbsp;AS&nbsp;matnr<br />
+&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;z2081~subinventory_code&nbsp;AS&nbsp;lgort<br />
+&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;z2081~wip_entity_id&nbsp;AS&nbsp;aufnr<br />
+&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;SUM(&nbsp;CASE&nbsp;WHEN&nbsp;fert_ea&nbsp;&gt;&nbsp;0&nbsp;THEN&nbsp;fert_ea<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ELSE&nbsp;required_quantity&nbsp;END&nbsp;)&nbsp;AS&nbsp;menge<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;zppt2081&nbsp;AS&nbsp;z2081<br />
+&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;(&nbsp;z2081~organization_id,&nbsp;z2081~item_number&nbsp;)&nbsp;IN&nbsp;(&nbsp;SELECT&nbsp;DISTINCT&nbsp;werks,&nbsp;matnr&nbsp;FROM&nbsp;+x&nbsp;AS&nbsp;a&nbsp;)&nbsp;##ITAB_KEY_IN_SELECT<br />
+&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;z2081~erdat&nbsp;IN&nbsp;@lr_erdat<br />
+&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;z2081~wip_entity_id&nbsp;NOT&nbsp;IN&nbsp;(&nbsp;SELECT&nbsp;wip_entity_id&nbsp;FROM&nbsp;zppt2120&nbsp;AS&nbsp;z2120&nbsp;WHERE&nbsp;z2120~erdat&nbsp;IN&nbsp;@lr_erdat&nbsp;)<br />
+&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;z2081~required_quantity&nbsp;&lt;&gt;&nbsp;0<br />
+&nbsp;&nbsp;&nbsp;&nbsp;GROUP&nbsp;BY&nbsp;z2081~organization_id<br />
+&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;z2081~item_number<br />
+&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;z2081~subinventory_code<br />
+&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;z2081~wip_entity_id<br />
+&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;TABLE&nbsp;@DATA(lt_z2081).<br />
+<br />
+<br />
+&nbsp;&nbsp;SELECT&nbsp;z2120~organization_id&nbsp;AS&nbsp;werks<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;z2120~item_number&nbsp;AS&nbsp;matnr<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;z2120~subinventory_code&nbsp;AS&nbsp;lgort<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;z2120~wip_entity_id&nbsp;AS&nbsp;aufnr<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;SUM(&nbsp;z2120~transaction_quantity&nbsp;)&nbsp;AS&nbsp;menge<br />
+&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;zppt2120&nbsp;AS&nbsp;z2120<br />
+&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;(&nbsp;z2120~organization_id,&nbsp;z2120~item_number&nbsp;)&nbsp;IN&nbsp;(&nbsp;SELECT&nbsp;werks,&nbsp;matnr&nbsp;FROM&nbsp;@lt_gi_resb&nbsp;AS&nbsp;a&nbsp;)&nbsp;##ITAB_KEY_IN_SELECT<br />
+&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;(&nbsp;wip_entity_id,&nbsp;op_code&nbsp;)&nbsp;IN&nbsp;(<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SELECT&nbsp;wip_entity_id,&nbsp;MAX(&nbsp;op_code&nbsp;)&nbsp;AS&nbsp;op_code<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;zppt2120<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;erdat&nbsp;IN&nbsp;@lr_erdat<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;conf_no&nbsp;=&nbsp;0<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GROUP&nbsp;BY&nbsp;organization_id,&nbsp;wip_entity_id<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;z2120~erdat&nbsp;IN&nbsp;@lr_erdat<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;z2120~conf_no&nbsp;=&nbsp;0<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AND&nbsp;z2120~transaction_quantity&nbsp;&lt;&gt;&nbsp;0<br />
+&nbsp;&nbsp;&nbsp;&nbsp;GROUP&nbsp;BY&nbsp;&nbsp;z2120~organization_id<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;z2120~item_number<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;z2120~subinventory_code<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;,&nbsp;z2120~wip_entity_id<br />
+&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;TABLE&nbsp;@DATA(lt_z2120).<br />
+<br />
+&nbsp;&nbsp;MOVE-CORRESPONDING&nbsp;lt_z2081&nbsp;TO&nbsp;lt_all.<br />
+&nbsp;&nbsp;MOVE-CORRESPONDING&nbsp;lt_z2120&nbsp;TO&nbsp;lt_all&nbsp;KEEPING&nbsp;TARGET&nbsp;LINES.<br />
+<br />
+&nbsp;&nbsp;SORT&nbsp;lt_all&nbsp;BY&nbsp;werks&nbsp;matnr&nbsp;lgort&nbsp;aufnr&nbsp;.<br />
+<br />
+&nbsp;&nbsp;SELECT&nbsp;*<br />
+&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;@lt_all&nbsp;AS&nbsp;a&nbsp;&nbsp;&nbsp;##ITAB_KEY_IN_SELECT<br />
+&nbsp;&nbsp;&nbsp;&nbsp;WHERE&nbsp;aufnr&nbsp;NOT&nbsp;IN&nbsp;(&nbsp;SELECT&nbsp;DISTINCT&nbsp;wip_entity_id<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FROM&nbsp;zppt2100&nbsp;)<br />
+&nbsp;&nbsp;&nbsp;&nbsp;INTO&nbsp;CORRESPONDING&nbsp;FIELDS&nbsp;OF&nbsp;TABLE&nbsp;@lt_all.<br />
+<br />
+&nbsp;&nbsp;MOVE-CORRESPONDING&nbsp;lt_all&nbsp;TO&nbsp;et_gi_resb[].<br />
+<br />
+<br />
+<br />
+<br />
+ENDFUNCTION.<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2025. Sap Release 758</td>
+   </tr>
+</table>
+</body>
+</html>

@@ -1,0 +1,264 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http ://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http ://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="application/xhtml+xml; charset=KSC5601" />
+<title>/SCWM/LPUT_BIN_DETTOP</title>
+<style type="text/css">
+.code{ font-family :"Courier New", Courier, monospace; color :#000; font-size :14px; background-color :#F2F4F7 }
+  .codeComment {font-family :"Courier New", Courier, monospace; color :#0000F0; font-size :14px; background-color :#F2F4F7 }
+  .normalBold{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; font-weight :800 }
+  .normalBoldLarge{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+</style>
+<style type="text/css">
+  .normal{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px }
+  .footer{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :12px; text-align : center }
+  h2{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :16px; font-weight :800 }
+  h3{ font-family :Arial, Helvetica, sans-serif; color :#000; font-size :14px; font-weight :800 }
+  .outerTable{
+   background-color :#E0E7ED;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-right-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+  .innerTable{
+   background-color :#F2F4F7;
+   width :100%;
+   border-top-width : thin;
+   border-right-width : thin;
+   border-bottom-width : thin;
+   border-left-width : thin;
+   border-top-style : solid;
+   border-right-style : solid;
+   border-bottom-style : solid;
+   border-left-style : solid;
+  }
+</style>
+</head>
+<body>
+<table class="outerTable">
+  <tr class="normalBoldLarge">
+     <td><h2>Code listing for : /SCWM/LPUT_BIN_DETTOP</h2>
+<h3> Description : Define Destination Storage Bin for Putaway Rule: Distribution Group</h3></td>
+   </tr>
+  <tr>
+     <td>
+     <table class="innerTable">
+       <tr>
+          <td>
+   <div class="code">
+FUNCTION-POOL /scwm/put_bin_det MESSAGE-ID /scwm/put_bin_det.<br />
+<br />
+   </div>
+   <div class="codeComment">
+************************************************************************<br />
+*&nbsp;&nbsp;&nbsp;Global&nbsp;Constants<br />
+************************************************************************<br />
+   </div>
+   <div class="code">
+TYPE-POOLS: wmegc.<br />
+<br />
+   </div>
+   <div class="codeComment">
+************************************************************************<br />
+*&nbsp;&nbsp;&nbsp;Global&nbsp;Variables<br />
+************************************************************************<br />
+*&nbsp;Protocol<br />
+   </div>
+   <div class="code">
+DATA: go_log            TYPE REF TO /scwm/cl_log.<br />
+DATA: gv_msgtext        TYPE bapi_msg.                      "#EC NEEDED<br />
+DATA  gv_prot_row       TYPE bapi_line.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Flags<br />
+   </div>
+   <div class="code">
+DATA: flg_change_bin    TYPE c.  "Change dest. bin at confirmation<br />
+DATA: gv_fixbin         TYPE /scwm/de_fixbin.<br />
+DATA: gv_maxbin         TYPE i.<br />
+DATA: gv_nofixbin       TYPE i.<br />
+DATA: gv_nodynbin       TYPE i.<br />
+DATA: gv_nofixbin_opt   TYPE i.<br />
+DATA: gv_last           TYPE xfeld.<br />
+DATA: gv_msgty          TYPE sy-msgty.<br />
+DATA: gv_nlpla_vorga    TYPE /scwm/lgpla.<br />
+DATA: gv_put_rule       TYPE /scwm/de_put_rule.<br />
+DATA: gv_kzler          TYPE xfeld.<br />
+DATA: gv_nlber_vorga    TYPE /scwm/lgber.<br />
+DATA: gv_lgtyp_err      TYPE xfeld,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gv_kapacheck_no&nbsp;&nbsp;&nbsp;TYPE&nbsp;abap_bool,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gv_bintype_sub&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/lgtyp,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gv_subbin_crea&nbsp;&nbsp;&nbsp;&nbsp;type&nbsp;abap_bool,<br />
+<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gs_available&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/s_capacity,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gs_penalty&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;type&nbsp;/SCWM/S_PENALTY_SRT.<br />
+DATA: gv_lock          TYPE /SCWM/DE_LOCK.<br />
+DATA: gv_lagp_lock     TYPE /SCWM/DE_LOCK.<br />
+DATA: gv_movehu         TYPE /scwm/de_movehu.<br />
+DATA: gv_stock_list     TYPE xfeld.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Split&nbsp;during&nbsp;Putaway<br />
+*&nbsp;Flag:&nbsp;Scenario&nbsp;"Split&nbsp;During&nbsp;Putaway"&nbsp;active<br />
+   </div>
+   <div class="code">
+DATA: gv_splitput      TYPE c.<br />
+DATA: gv_splitth       TYPE /scwm/de_splitth.<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Flag:&nbsp;Split&nbsp;of&nbsp;TO&nbsp;has&nbsp;been&nbsp;done&nbsp;("Split&nbsp;During&nbsp;Putaway")<br />
+   </div>
+   <div class="code">
+DATA: gv_split_done    TYPE xfeld.<br />
+DATA: gv_split_passed  TYPE xfeld.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Storage&nbsp;Type&nbsp;Maximum&nbsp;Quantity<br />
+*&nbsp;Flag:&nbsp;Check&nbsp;Storage&nbsp;Type&nbsp;Maximum&nbsp;Quantity<br />
+   </div>
+   <div class="code">
+DATA: gv_free_qty      TYPE /scwm/de_avlquan.<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;SMAQ&nbsp;passed&nbsp;=&gt;&nbsp;only&nbsp;putaway&nbsp;in&nbsp;"Split&nbsp;During&nbsp;Putaway"&nbsp;scenario<br />
+   </div>
+   <div class="code">
+DATA: gv_smaq_passed   TYPE xfeld.<br />
+<br />
+DATA: gt_smaqy         TYPE STANDARD TABLE OF /scwm/s_smaq_maxbin_lock_s.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Status&nbsp;Near&nbsp;Fix&nbsp;Bin<br />
+*&nbsp;Table&nbsp;of&nbsp;fix&nbsp;bins&nbsp;in&nbsp;fix&nbsp;bin&nbsp;storage&nbsp;type<br />
+   </div>
+   <div class="code">
+DATA: gv_kzfme           TYPE /scwm/t331c_kzfme.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;for&nbsp;HU&nbsp;WTs&nbsp;with&nbsp;mixed&nbsp;products&nbsp;or&nbsp;batches<br />
+   </div>
+   <div class="code">
+DATA: gv_entitled       TYPE /scwm/de_entitled.<br />
+DATA: gv_cat            TYPE /lime/stock_category.<br />
+DATA: gv_stock_doccat   TYPE /scwm/de_stock_doccat.<br />
+DATA: gv_stock_usage    TYPE /lime/stock_usage.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Buffer&nbsp;tables<br />
+*DATA:&nbsp;gt_ilagpl&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;STANDARD&nbsp;TABLE&nbsp;OF&nbsp;/scwm/lagpl.<br />
+   </div>
+   <div class="code">
+DATA: gt_lagpl_found     TYPE STANDARD TABLE OF /scwm/lagpl.<br />
+DATA: gt_bindst_sperr    TYPE /scwm/tt_bindst.<br />
+DATA: gt_reservebins     TYPE /scwm/tt_nearfixbin.<br />
+   </div>
+   <div class="codeComment">
+*DATA:&nbsp;gt_ilagpl_status&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_lagplstat.<br />
+   </div>
+   <div class="code">
+DATA: gt_bindst          TYPE /scwm/tt_bindst.<br />
+DATA: gt_qmat_lime       TYPE /scwm/tt_aqua_int.<br />
+DATA: gt_lagpe           TYPE /scwm/tt_lagp_int,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gt_bin_mxchk&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_lagp_real_key,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gt_fixbins_chkd&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_t301,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gt_tap&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;/scwm/tt_ltap_vb,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gv_tap_read&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;xfeld.<br />
+<br />
+DATA: gr_bintype_sub     TYPE rseloption.<br />
+<br />
+TYPES: BEGIN OF lgtyp_matid.<br />
+TYPES: lgtyp TYPE /scwm/de_lgtyp.<br />
+TYPES: matid TYPE /scwm/de_matid.<br />
+TYPES: lptyp TYPE /scwm/lgtyp.<br />
+TYPES: END OF lgtyp_matid.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*global&nbsp;buffer&nbsp;for&nbsp;empty&nbsp;bins&nbsp;according&nbsp;to&nbsp;the&nbsp;used<br />
+*selection&nbsp;parameters<br />
+   </div>
+   <div class="code">
+TYPES: BEGIN OF lgpla_empty_buffer.<br />
+TYPES: lgtyp TYPE /scwm/de_lgtyp.<br />
+TYPES: lgber TYPE /scwm/lgber.<br />
+TYPES: lptyp TYPE /scwm/lvs_lptyp.<br />
+TYPES: division TYPE /scwm/tt_rsdsselopt.<br />
+TYPES: lagp  type /scwm/tt_lagp.<br />
+TYPES: compl TYPE xfeld.<br />
+TYPES: END OF lgpla_empty_buffer.<br />
+<br />
+TYPES: BEGIN OF fixbin_buffer.<br />
+INCLUDE STRUCTURE /scwm/binmat.<br />
+TYPES: new_assigned TYPE xfeld.<br />
+TYPES: END OF fixbin_buffer.<br />
+<br />
+DATA: gt_fixbin_buffer            TYPE TABLE OF fixbin_buffer.<br />
+<br />
+DATA: gt_lgtyp_matid              TYPE TABLE OF lgtyp_matid,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gt_lgpla_empty_buffer&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;table&nbsp;of&nbsp;lgpla_empty_buffer.<br />
+<br />
+DATA: go_concore                  TYPE REF TO /scwm/cl_concepting_core.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Last&nbsp;Bin&nbsp;Locked&nbsp;Error<br />
+   </div>
+   <div class="code">
+DATA: gv_lgpla_lock_error        TYPE /scwm/de_lgpla,<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gv_abort&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TYPE&nbsp;xfeld.<br />
+<br />
+   </div>
+   <div class="codeComment">
+*&nbsp;Flexbin<br />
+   </div>
+   <div class="code">
+DATA: gt_dynbin_lgber            TYPE /scwm/tt_lagp_int.<br />
+<br />
+   </div>
+   <div class="codeComment">
+************************************************************************<br />
+*&nbsp;&nbsp;&nbsp;BAdI<br />
+************************************************************************<br />
+   </div>
+   <div class="code">
+DATA:  gi_badi_core_pts_verif    TYPE REF TO /scwm/ex_core_pts_verif.<br />
+DATA:  gi_badi_core_pts_typsq    TYPE REF TO /scwm/ex_core_pts_typsq.<br />
+DATA:  gi_badi_core_pts_filt_sort TYPE REF TO /scwm/ex_core_pts_filt_sort.<br />
+DATA:  gi_badi_core_pts_secsq    TYPE REF TO /scwm/ex_core_pts_secsq.<br />
+DATA:  gi_badi_core_pts_btsq     TYPE REF TO /scwm/ex_core_pts_btsq.<br />
+DATA:  gi_badi_core_pts_srtsq    TYPE REF TO /scwm/ex_core_pts_srtsq.<br />
+DATA:  gi_badi_core_pts_i_srtsq    TYPE REF TO /scwm/ex_core_pts_i_srtsq.<br />
+DATA:  gi_badi_core_pts_nbin_nrm TYPE REF TO /scwm/ex_core_pts_nbin_nrm.<br />
+DATA:  gi_badi_core_pts_nbin_pal TYPE REF TO /scwm/ex_core_pts_nbin_pal.<br />
+DATA:  gi_badi_core_pts_nbin_blk TYPE REF TO /scwm/ex_core_pts_nbin_blk.<br />
+DATA:  gi_badi_core_pts_det_prio TYPE REF TO /scwm/ex_core_pts_det_prio.<br />
+DATA:  gi_badi_core_pts_smaq     TYPE REF TO /scwm/ex_core_pts_smaq.<br />
+DATA:  gi_badi_core_pts_near_fb  TYPE REF TO /scwm/ex_core_pts_near_fb.<br />
+DATA:  gi_badi_core_pts_md_addbin TYPE REF TO /scwm/ex_core_pts_md_addbin.<br />
+DATA:  gi_badi_core_pts_empty_bin TYPE REF TO /scwm/ex_core_pts_empty_bin.<br />
+DATA:  gi_badi_core_pts_bingen    TYPE REF TO /scwm/ex_core_pts_bingen.<br />
+DATA:  gi_badi_core_pts_md_stsq   TYPE REF TO /scwm/ex_core_pts_md_stsq.<br />
+            </div>
+          </td>
+        </tr>
+      </table>
+      </td>
+      </tr>
+   <tr>
+<td class="footer">Extracted by Mass Download version 1.5.5 - E.G.Mellodew. 1998-2026. Sap Release 816</td>
+   </tr>
+</table>
+</body>
+</html>
