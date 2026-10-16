@@ -1,0 +1,810 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZZRVACHD_RV16ACHD</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZZRVACHD_RV16ACHD</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">************************************************************************</font>
+<font color ="#8C8C8C">* Program ID   : ZZRVACHD_RV16ACHD</font>
+<font color ="#8C8C8C">* Title        : [SD] Condition Change Document History</font>
+<font color ="#8C8C8C">* Create Date  : 2026.09.23</font>
+<font color ="#8C8C8C">* Developer    : ESTABSD</font>
+<font color ="#8C8C8C">* Reference    : SAP Standard Program RV16ACHD</font>
+<font color ="#8C8C8C">* Tech. Script :</font>
+<font color ="#8C8C8C">*   - Display condition record change history</font>
+<font color ="#8C8C8C">*   - Based on SAP Standard Program RV16ACHD</font>
+<font color ="#8C8C8C">*   - Sales Organization / Material selection added</font>
+<font color ="#8C8C8C">*   - Condition Key parsed from VAKEY using KOMG</font>
+<font color ="#8C8C8C">*   - Standard SD_CONDITION_CHANGE_DOCS_LOAD / DISPL logic reused</font>
+<font color ="#8C8C8C">*   - ##### * Note: Program naming convention exception applied.</font>
+<font color ="#8C8C8C">*                SD_CONDITION_CHANGE_DOCS_LOAD determines the</font>
+<font color ="#8C8C8C">*                change document object class using REPORT+4(1).</font>
+<font color ="#8C8C8C">*                Therefore, the 5th character must be 'A'</font>
+<font color ="#8C8C8C">*                to process condition object class COND_A.</font>
+<font color ="#8C8C8C">* SD_CONDITION_CHANGE_DOCS_LOAD## REPORT+4(1)# ####</font>
+<font color ="#8C8C8C">* Change Document Object Class(COND_A)# #####</font>
+<font color ="#8C8C8C">* ###### 5## ### 'A'# ###.</font>
+<font color ="#8C8C8C">************************************************************************</font>
+<font color ="#8C8C8C">* Change History</font>
+<font color ="#8C8C8C">************************************************************************</font>
+<font color ="#8C8C8C">* Mod.         | Date       | Developer | Description(Reason)</font>
+<font color ="#8C8C8C">************************************************************************</font>
+<font color ="#8C8C8C">* Initial      | 2026.09.23 | ESTABSD   | Copy from RV16ACHD</font>
+<font color ="#8C8C8C">*              |            |           | Add VKORG / MATNR selection</font>
+<font color ="#8C8C8C">************************************************************************</font>
+REPORT zzrvachd_rv16achd MESSAGE-ID cd NO STANDARD PAGE HEADING LINE-SIZE 159.
+<font color ="#8C8C8C">************************************************************************</font>
+<font color ="#8C8C8C">*  CHANGE DOCUMENT DISPLAY FOR CONDITION RECORDS                       *</font>
+<font color ="#8C8C8C">************************************************************************</font>
+<font color ="#8C8C8C">* GENERAL INFORMATION:                                                 *</font>
+<font color ="#8C8C8C">*    Please see the documentation (select GOTO --&gt DOCUMENTATION)      *</font>
+<font color ="#8C8C8C">*                                                                      *</font>
+<font color ="#8C8C8C">* MAIN EVENTS:                                                         *</font>
+<font color ="#8C8C8C">*    INITIALIZATION.                                                   *</font>
+<font color ="#8C8C8C">*         This event is executed before the select option screen is    *</font>
+<font color ="#8C8C8C">*         displayed.  Here an authority check is performed to insure   *</font>
+<font color ="#8C8C8C">*         the user has authorization for displaying change documents.  *</font>
+<font color ="#8C8C8C">*    SELECTION-SCREEN / SELECT-OPTIONS:                                *</font>
+<font color ="#8C8C8C">*         Display selection screen and receive user input.  This       *</font>
+<font color ="#8C8C8C">*         may or may not be used, depending upon how the report was    *</font>
+<font color ="#8C8C8C">*         called.                                                      *</font>
+<font color ="#8C8C8C">*    AT SELECTION-SCREEN ON BLOCK B1.                                  *</font>
+<font color ="#8C8C8C">*         Set flag if data was entered in block 1 and do edit checks.  *</font>
+<font color ="#8C8C8C">*    AT SELECTION-SCREEN ON BLOCK B2.                                  *</font>
+<font color ="#8C8C8C">*         Set flag if data was entered in block 1 and do edit checks.  *</font>
+<font color ="#8C8C8C">*    AT SELECTION-SCREEN.                                              *</font>
+<font color ="#8C8C8C">*         Edit checks and processing for entire selection screen.      *</font>
+<font color ="#8C8C8C">*    START-OF-SELECTION.                                               *</font>
+<font color ="#8C8C8C">*         This event is executed after the select options are received.*</font>
+<font color ="#8C8C8C">*         Here, the function SD_CONDITION_CHANGE_DOCS_LOAD is called   *</font>
+<font color ="#8C8C8C">*         to load 2 of the 3 internal tables used when displaying      *</font>
+<font color ="#8C8C8C">*         change documents.                                            *</font>
+<font color ="#8C8C8C">*    END-OF-SELECTION.                                                 *</font>
+<font color ="#8C8C8C">*         This event is executed after start-of-selection and here     *</font>
+<font color ="#8C8C8C">*         the PF status is set and the function module                 *</font>
+<font color ="#8C8C8C">*         SD_CONDITION_CHANGE_DOCS_DISPL is called to write change     *</font>
+<font color ="#8C8C8C">*         documents for the initial pass thru this program.            *</font>
+<font color ="#8C8C8C">*    AT USER-COMMAND.                                                  *</font>
+<font color ="#8C8C8C">*         This event is executed anytime the user chooses an FCODE     *</font>
+<font color ="#8C8C8C">*         other than PICK.  The function module                        *</font>
+<font color ="#8C8C8C">*         SD_CONDITION_CHANGE_DOCS_DISPL is called to process the      *</font>
+<font color ="#8C8C8C">*         FCODE and write change  documents.                           *</font>
+<font color ="#8C8C8C">*    AT LINE-SELECTION.                                                *</font>
+<font color ="#8C8C8C">*         This event is executed anytime the user chooses PICK (double *</font>
+<font color ="#8C8C8C">*         clicks on a report line).  The function module               *</font>
+<font color ="#8C8C8C">*         SD_CONDITION_CHANGE_DOCS_DISPL is called to process the      *</font>
+<font color ="#8C8C8C">*         FCODE and write change  documents.                           *</font>
+<font color ="#8C8C8C">*                                                                      *</font>
+<font color ="#8C8C8C">************************************************************************</font>
+
+<font color ="#8C8C8C">************************************************************************</font>
+<font color ="#8C8C8C">* D A T A   D E F I N I T I O N S                                      *</font>
+<font color ="#8C8C8C">************************************************************************</font>
+include <a href ="zsdcommcons.html">zsdcommcons</a>.
+<font color ="#8C8C8C">*INCLUDE:  commcons,</font>
+include <a href ="zsdvakedata.html">zsdvakedata</a>.
+<font color ="#8C8C8C">*          vakedata.</font>
+
+TABLES: konh, komg,
+        konp,
+        cdhdr.
+
+DATA: access_program(8),
+      change_data_entered   LIKE true,
+      cond_data_entered     LIKE true,
+      datmax                LIKE vake-datbi VALUE '99991231',
+      datmin                LIKE vake-datab VALUE '00010101',
+      delete_flag           LIKE true,
+      report                LIKE sy-repid,
+      selection_screen_flag LIKE true,
+      subrc                 LIKE sy-subrc,
+      validity_entered      LIKE true.
+
+DATA: chd_date TYPE cddatum,
+      chd_time TYPE cduzeit,
+      chd_user TYPE cdusername.
+DATA:
+  gv_no_data TYPE abap_bool.
+<font color ="#8C8C8C">************************************************************************</font>
+<font color ="#8C8C8C">* S E L E C T I O N   S C R E E N                                      *</font>
+<font color ="#8C8C8C">************************************************************************</font>
+
+<font color ="#8C8C8C">* Select Options: Across Usages</font>
+SELECTION-SCREEN SKIP.
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE TEXT-s01.
+  SELECT-OPTIONS:
+     so_knumh  FOR konh-knumh            "CONDITION RECORD NUMBER
+                   NO-DISPLAY,
+     so_date   FOR chd_date,             "CHANGE DATE
+     so_time   FOR chd_time,             "CHANGE TIME
+     so_user   FOR chd_user              "CHANGE USER
+                   MATCHCODE OBJECT user_addr,
+     so_tcode  FOR cdhdr-tcode.          "CHANGE TRANSACTION CODE
+SELECTION-SCREEN END OF BLOCK b1.
+
+<font color ="#8C8C8C">* Select Options: Usage Specific Fields</font>
+SELECTION-SCREEN SKIP.
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE TEXT-s02.
+
+  SELECT-OPTIONS:
+     so_vkorg FOR komg-vkorg,              " Sales Organization
+     so_matnr FOR komg-matnr,              " Material
+     so-bo    FOR konh-knuma_bo
+               MEMORY ID vbo
+               MATCHCODE OBJECT vmbo,
+     so-ag    FOR konh-knuma_ag
+               MEMORY ID vk1
+               MATCHCODE OBJECT vmbo,
+     so-pi    FOR konh-knuma_pi
+               MATCHCODE OBJECT vmbo,
+     so-kschl FOR konp-kschl,
+     so-kotab FOR konh-kotabnr,
+     so-datab FOR konh-datab,
+     so-datbi FOR konh-datbi.
+
+SELECTION-SCREEN END OF BLOCK b2.
+
+<font color ="#8C8C8C">* Drill-Down als Voreinstellung -------------------------------------</font>
+SELECTION-SCREEN SKIP.
+SELECTION-SCREEN BEGIN OF BLOCK b3 WITH FRAME TITLE TEXT-s03.
+<font color ="#8C8C8C">* SELECTION-SCREEN BEGIN OF LINE.</font>
+  PARAMETERS: p_drill AS CHECKBOX DEFAULT 'X'.
+<font color ="#8C8C8C">* SELECTION-SCREEN COMMENT 3(50) TEXT-S04 FOR FIELD P_DRILL.</font>
+<font color ="#8C8C8C">* SELECTION-SCREEN END OF LINE.</font>
+  PARAMETERS: p_kdele AS CHECKBOX.
+  PARAMETERS: p_new DEFAULT 'X' NO-DISPLAY.
+SELECTION-SCREEN END OF BLOCK b3.
+<font color ="#8C8C8C">* Drill-Down als Voreinstellung -------------------------------------</font>
+<font color ="#8C8C8C">************************************************************************</font>
+<font color ="#8C8C8C">* E V E N T S                                                          *</font>
+<font color ="#8C8C8C">************************************************************************</font>
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* EVENT     INITIALIZATION                                             *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Check authority for displaying change documents.                     *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+INITIALIZATION.
+  report = sy-repid.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* EVENT     AT SELECTION-SCREEN ON BLOCK B1                            *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Set flag if data in block 1 was entered and carry out edit checks.   *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+AT SELECTION-SCREEN ON BLOCK b1.
+<font color ="#8C8C8C">* Set flag if report was called via selection screen</font>
+  DESCRIBE TABLE so_knumh LINES sy-tabix.
+  IF sy-tabix = 0.
+    selection_screen_flag = true.
+  ELSE.
+    selection_screen_flag = false.
+  ENDIF.
+<font color ="#8C8C8C">* Set flag for change data entered</font>
+  IF selection_screen_flag = true.
+    IF so_date-sign  IS INITIAL AND
+       so_time-sign  IS INITIAL AND
+       so_tcode-sign IS INITIAL AND
+       so_user-sign  IS INITIAL.
+      change_data_entered = false.
+    ELSE.
+      change_data_entered = true.
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* EVENT     AT SELECTION-SCREEN ON BLOCK B2                            *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Set flag if data in block 2 was entered and carry out edit checks.   *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+AT SELECTION-SCREEN ON BLOCK b2.
+  IF selection_screen_flag = true.
+<font color ="#8C8C8C">* Set flag for condition data entered</font>
+
+    IF    so_vkorg-sign IS INITIAL AND
+          so_matnr-sign IS INITIAL AND
+          so-kschl-sign IS INITIAL AND
+          so-kotab-sign IS INITIAL AND
+          so-bo-sign    IS INITIAL AND
+          so-ag-sign    IS INITIAL AND
+          so-pi-sign    IS INITIAL.
+      cond_data_entered = false.
+    ELSE.
+      cond_data_entered = true.
+    ENDIF.
+<font color ="#8C8C8C">* Set flag for validity dates entered</font>
+    IF so-datab-sign IS INITIAL AND
+       so-datbi-sign IS INITIAL.
+      validity_entered = false.
+    ELSE.
+      validity_entered = true.
+    ENDIF.
+<font color ="#8C8C8C">* If validity dates were entered but no condition data, error message</font>
+    IF validity_entered = true AND cond_data_entered = false.
+      MESSAGE e001(38) WITH TEXT-i01.
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* EVENT     AT SELECTION-SCREEN                                        *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Carry out edit checks for entire screen (all blocks).                *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+AT SELECTION-SCREEN.
+<font color ="#8C8C8C">* Berechtigung Prüfen</font>
+  DESCRIBE TABLE so_knumh LINES sy-tabix.
+  IF sy-tabix = 0.
+<font color ="#8C8C8C">*   new object required for authority check S_SCD0_OBJ</font>
+    "AUTHORITY-CHECK OBJECT 'S_SCD0' ID 'ACTVT' FIELD '08'.
+<font color ="#8C8C8C">**20260923 ## ####</font>
+<font color ="#8C8C8C">*    IF cl_ct_cnd_changedoc_util=&gtgo_changedoc_util-&gtdo_check_authority( sy-repid ) = abap_false.</font>
+<font color ="#8C8C8C">*      MESSAGE e800.</font>
+<font color ="#8C8C8C">*    ENDIF.</font>
+
+  ENDIF.
+  IF selection_screen_flag = true.
+<font color ="#8C8C8C">* If nothing was entered for any select options, give error message</font>
+    IF change_data_entered = false AND cond_data_entered = false.
+      MESSAGE e001(38) WITH TEXT-i02.
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* EVENT     START-OF-SELECTION                                         *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* If selection-screen was used, read from konh if possible.            *</font>
+<font color ="#8C8C8C">* Load change documents into internal tables.                          *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+START-OF-SELECTION.
+
+  DATA lv_match TYPE abap_bool.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* #### ###</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">* ## SD_CONDITION_CHANGE_DOCS_LOAD# # SO_KNUMH# ####</font>
+<font color ="#8C8C8C">* ## ## MESSAGE / LEAVE# # # #### ## ## ####.</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF selection_screen_flag = true
+ AND change_data_entered   = false
+ AND cond_data_entered     = false.
+    gv_no_data = abap_true.
+    MESSAGE s887(cd).
+    RETURN.
+
+  ENDIF.
+
+<font color ="#8C8C8C">*  IF cl_ct_cnd_changedoc_util=&gtgo_changedoc_util-&gtdo_check_authority( sy-repid ) = abap_false.</font>
+<font color ="#8C8C8C">*    MESSAGE e800.</font>
+<font color ="#8C8C8C">*  ENDIF.</font>
+  IF selection_screen_flag = true.
+<font color ="#8C8C8C">* Default validity dates if not entered</font>
+    IF so-datab-sign IS INITIAL.
+      so-datab-sign = 'I'.
+      so-datab-low = datmin.
+      so-datab-option = 'GE'.
+      APPEND so-datab.
+    ENDIF.
+    IF so-datbi-sign IS INITIAL.
+      so-datbi-sign = 'I'.
+      so-datbi-low = datmax.
+      so-datbi-option = 'LE'.
+      APPEND so-datbi.
+    ENDIF.
+<font color ="#8C8C8C">* select from KONH based on condition data if cond_data_entered is true.</font>
+    IF cond_data_entered = true.
+      SELECT * FROM konh
+                   WHERE knuma_bo IN so-bo
+                     AND knuma_ag IN so-ag
+                     AND knuma_pi IN so-pi
+                     AND kschl    IN so-kschl
+                     AND kotabnr  IN so-kotab.
+
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Sales Organization / Material</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+        CLEAR : lv_match.
+        PERFORM check_condition_key
+          CHANGING lv_match.
+        CHECK lv_match = abap_true.
+
+        PERFORM parse_validity USING delete_flag.
+        IF delete_flag = false.
+          so_knumh-option = 'EQ'.
+          so_knumh-low = konh-knumh.
+          APPEND so_knumh.
+        ENDIF.
+      ENDSELECT.
+      SORT so_knumh BY low.
+    ENDIF.
+  ENDIF.
+<font color ="#8C8C8C">* Load change doc tables: i_level1 and i_level2.  These tables</font>
+<font color ="#8C8C8C">* will be used by the function SD_CONDITION_CHANGE_DOCS_DISPL to display</font>
+<font color ="#8C8C8C">* change documents</font>
+<font color ="#8C8C8C">* # ## ## # G/W ### ## ###</font>
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* ## ## Condition Record ##</font>
+<font color ="#8C8C8C">* ## SD_CONDITION_CHANGE_DOCS_LOAD ## LEAVE ##</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF cond_data_entered = abap_true
+  AND so_knumh[] IS INITIAL.
+
+    gv_no_data = abap_true.
+
+    MESSAGE s887(cd) DISPLAY LIKE 'E'.
+
+    RETURN.
+
+  ENDIF.
+
+
+  zcl_sd_chgdoc_gw=&gtreset_cache( ).
+
+  CALL FUNCTION 'SD_CONDITION_CHANGE_DOCS_LOAD'
+    EXPORTING
+      report                = report
+      cond_data_entered     = cond_data_entered
+      change_data_entered   = change_data_entered
+      selection_screen_flag = selection_screen_flag
+      only_deleted_records  = p_kdele
+      new_display           = p_new
+    TABLES
+      so_knumh              = so_knumh
+      so_date               = so_date
+      so_time               = so_time
+      so_user               = so_user
+      so_tcode              = so_tcode
+    EXCEPTIONS
+      OTHERS                = 1.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* EVENT     END-OF-SELECTION                                           *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Set PF-STATUS and write change documents.                            *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+END-OF-SELECTION.
+  SET PF-STATUS 'LIST'.
+<font color ="#8C8C8C">* Drill-Down als Voreinstellung -------------------------------------</font>
+  IF NOT p_drill IS INITIAL.
+    SET USER-COMMAND 'EXPA'.
+    sy-ucomm = 'EXPA'.                 "sonst geht Batch nicht
+  ENDIF.
+<font color ="#8C8C8C">* Drill-Down als Voreinstellung -------------------------------------</font>
+  PERFORM write_detail_lines.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* EVENT     AT-USER-COMMAND                                            *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* FCODE was chosen...                                                  *</font>
+<font color ="#8C8C8C">* Set LSIND to 0 so user never leaves basic list and write change docs *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+AT USER-COMMAND.
+  sy-lsind = 0.
+  PERFORM write_detail_lines.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* EVENT     AT-LINE-SELECTION                                          *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* A line was chosen (double click)...                                  *</font>
+<font color ="#8C8C8C">* Set LSIND to 0 so user never leaves basic list and write change docs *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+AT LINE-SELECTION.
+  sy-lsind = 0.
+  PERFORM write_detail_lines.
+<font color ="#8C8C8C">* Scroll list so it appears to stay on the same page as the last...</font>
+  SCROLL LIST INDEX 1 TO PAGE 1 LINE sy-staro.
+
+<font color ="#8C8C8C">************************************************************************</font>
+<font color ="#8C8C8C">* F O R M S                                                            *</font>
+<font color ="#8C8C8C">************************************************************************</font>
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* FORM     parse_selection                                            *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Eliminate records from being displayed based on the select options   *</font>
+<font color ="#8C8C8C">* data the user entered.  This form is called from the function        *</font>
+<font color ="#8C8C8C">* SD_CONDITION_CHANGE_DOCS_LOAD.  The value of delete_flag is set here.*</font>
+<font color ="#8C8C8C">* DELETE_FLAG = TRUE means that the change document will not be        *</font>
+<font color ="#8C8C8C">* displayed.                                                           *</font>
+<font color ="#8C8C8C">* NOTE:  The reason this form was placed here rather than inside the   *</font>
+<font color ="#8C8C8C">*        function SD_CONDITION_CHANGE_DOCS_LOAD is to allow the parse  *</font>
+<font color ="#8C8C8C">*        routine to be different for different condition usages.       *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+FORM parse_selection TABLES ikonh STRUCTURE konh
+                     USING objectid
+                     CHANGING delete_flag.
+  delete_flag = false.
+<font color ="#8C8C8C">* Read KONH if not already in internal KONH table (for performance)</font>
+  IF konh-knumh NE objectid.
+    READ TABLE ikonh WITH KEY knumh = objectid BINARY SEARCH.
+    IF sy-subrc &lt&gt 0.
+      SELECT SINGLE * FROM konh WHERE knumh = objectid.
+      INSERT konh INTO ikonh INDEX sy-tabix.
+    ELSE.
+      konh = ikonh.
+    ENDIF.
+  ENDIF.
+<font color ="#8C8C8C">* Check KONH data against select options and set delete flag</font>
+  IF NOT konh-kschl    IN so-kschl     "condition type
+  OR NOT konh-kotabnr  IN so-kotab     "condition table
+  OR NOT konh-knuma_bo IN so-bo        "rebate agreement
+  OR NOT konh-knuma_ag IN so-ag        "sales deal
+  OR NOT konh-knuma_pi IN so-pi.       "promotion
+    delete_flag = true.
+  ENDIF.
+<font color ="#8C8C8C">* Only evaluate validity period if delete flag is still true and user</font>
+<font color ="#8C8C8C">* entered validity date select options</font>
+  IF delete_flag = false.
+    IF so-datab-low NE datmin OR so-datbi-low NE datmax.
+<font color ="#8C8C8C">* Check to make sure condition record validity period is within the</font>
+<font color ="#8C8C8C">* value entered on the select options screen</font>
+      PERFORM periods_of_validity_read.
+      PERFORM time_vake_akt_fill(sapmv130) USING false.
+      LOOP AT time_vake_akt WHERE knumh = objectid AND
+                                  datab IN so-datab AND
+                                  datbi IN so-datbi.
+        EXIT.
+      ENDLOOP.
+<font color ="#8C8C8C">* If the condition record related to the change document is valid during</font>
+<font color ="#8C8C8C">* the select options validity period, then it will be kept (not parsed)</font>
+      IF sy-subrc = 0.
+        delete_flag = false.
+      ELSE.
+        delete_flag = true.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+ENDFORM.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* FORM     parse_validity                                             *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Eliminate records from being displayed based on the validity period  *</font>
+<font color ="#8C8C8C">* entered on the select options screen.                                *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+FORM parse_validity CHANGING delete_flag.
+  delete_flag = false.
+  IF validity_entered = true.
+<font color ="#8C8C8C">* Check to make sure condition record validity period is within the</font>
+<font color ="#8C8C8C">* value entered on the select options screen</font>
+    PERFORM periods_of_validity_read.
+    PERFORM time_vake_akt_fill(sapmv130) USING false.
+    LOOP AT time_vake_akt WHERE knumh = konh-knumh AND
+                                datab IN so-datab AND
+                                datbi IN so-datbi.
+      EXIT.
+    ENDLOOP.
+<font color ="#8C8C8C">* If the condition record related to the change document is valid during</font>
+<font color ="#8C8C8C">* the select options validity period, then it will be kept (not parsed)</font>
+    IF sy-subrc = 0.
+      delete_flag = false.
+    ELSE.
+      delete_flag = true.
+    ENDIF.
+  ENDIF.
+ENDFORM.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* FORM     PERIODS_OF_VALIDITY_READ                                    *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+FORM periods_of_validity_read.
+  DATA: lv_vakey          TYPE vakey_long,
+        lo_cond_vakey_srv TYPE REF TO cl_cond_vakey_srv,
+        o_cx_ref          TYPE REF TO cx_cond_vakey.
+
+  lo_cond_vakey_srv = cl_cond_vakey_srv=&gtget_instance( ).
+  TRY.
+      lv_vakey = lo_cond_vakey_srv-&gtdetermine_vakey_from_db( iv_usage   = konh-kvewe
+                                                             iv_kotabnr = konh-kotabnr
+                                                             iv_knumh   = konh-knumh ).
+    CATCH cx_cond_vakey INTO o_cx_ref.
+<font color ="#8C8C8C">* error handling if needed</font>
+      CLEAR lv_vakey.
+  ENDTRY.
+  MOVE-CORRESPONDING konh TO vake.
+  vake-vakey = lv_vakey.
+<font color ="#8C8C8C">* find access program</font>
+  PERFORM set_access_program(sapmv130) USING konh-kvewe
+                                             konh-kotabnr
+                                             access_program.
+<font color ="#8C8C8C">* read all periods of validity for vakey</font>
+  vake-datab  = datmin.
+  vake-datbi  = datmin.
+  *vake-datab = datmax.
+  *vake-datbi = datmax.
+  PERFORM access_single_using IN PROGRAM (access_program)
+        USING 'RECEIVE_COND_RECORD'
+              report
+              vake
+              *vake
+              subrc.
+ENDFORM.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* FORM     RECEIVE_COND_RECORD                                         *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+FORM receive_cond_record USING pvake subrc.
+<font color ="#8C8C8C">* fill time_vake</font>
+  vake = pvake.
+  MOVE-CORRESPONDING vake TO time_vake_key_data.
+  READ TABLE time_vake WITH KEY time_vake_key_data BINARY SEARCH.
+  CHECK sy-subrc &lt&gt 0.
+  CLEAR time_vake.
+  MOVE-CORRESPONDING vake TO time_vake.
+  INSERT time_vake INDEX sy-tabix.
+  subrc = 1.
+ENDFORM.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* FORM WRITE_DETAIL_LINES                                              *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Write change documents.  The function SD_CONDITION_CHANGE_DOCS_LOAD  *</font>
+<font color ="#8C8C8C">* must have been executed before SD_CONDITION_CHANGE_DOCS_DISPL so     *</font>
+<font color ="#8C8C8C">* that the appropriate internal tables are loaded...                   *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+FORM write_detail_lines.
+  DATA lv_display_subrc TYPE sy-subrc.
+
+<font color ="#8C8C8C">* ## Z #### DISPL ## ### G/W ## ## ###</font>
+  zcl_sd_chgdoc_gw=&gtbegin_display( iv_report = sy-repid ).
+  TRY.
+      CALL FUNCTION 'SD_CONDITION_CHANGE_DOCS_DISPL'
+        EXPORTING
+          ucomm       = sy-ucomm
+          new_display = p_new
+        EXCEPTIONS
+          OTHERS      = 1.
+      lv_display_subrc = sy-subrc.
+    CLEANUP.
+<font color ="#8C8C8C">*     ### ### ### ### #### ## #### ##</font>
+      zcl_sd_chgdoc_gw=&gtend_display( ).
+  ENDTRY.
+
+  zcl_sd_chgdoc_gw=&gtend_display( ).
+<font color ="#8C8C8C">* ## ### ## # ## FM# ## ## ##</font>
+  sy-subrc = lv_display_subrc.
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CHECK_CONDITION_KEY</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+FORM check_condition_key
+  CHANGING pv_match TYPE abap_bool.
+
+  DATA:
+    lv_vakey          TYPE vakey_long,
+    lo_cond_vakey_srv TYPE REF TO cl_cond_vakey_srv,
+    lo_cx             TYPE REF TO cx_cond_vakey.
+
+  CLEAR pv_match.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* #### ### # ## Key Check ###</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF so_vkorg[] IS INITIAL
+ AND so_matnr[] IS INITIAL.
+    pv_match = abap_true.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Condition Record# VAKEY ##</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  lo_cond_vakey_srv = cl_cond_vakey_srv=&gtget_instance( ).
+
+  TRY.
+
+      lv_vakey =
+        lo_cond_vakey_srv-&gtdetermine_vakey_from_db(
+          iv_usage   = konh-kvewe
+          iv_kotabnr = konh-kotabnr
+          iv_knumh   = konh-knumh ).
+
+    CATCH cx_cond_vakey INTO lo_cx.
+      RETURN.
+
+  ENDTRY.
+
+  CHECK lv_vakey IS NOT INITIAL.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Condition Table# #### Generated Access Program ##</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  PERFORM set_access_program(sapmv130)
+    USING konh-kvewe
+          konh-kotabnr
+          access_program.
+
+  CHECK access_program IS NOT INITIAL.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* VAKEY -&gt KOMG</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  CLEAR komg.
+
+  PERFORM fill_komg_from_vakey
+    IN PROGRAM (access_program)
+    USING komg
+          lv_vakey.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Sales Organization</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF so_vkorg[] IS NOT INITIAL
+ AND komg-vkorg NOT IN so_vkorg.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Material</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF so_matnr[] IS NOT INITIAL
+ AND komg-matnr NOT IN so_matnr.
+    RETURN.
+  ENDIF.
+
+  pv_match = abap_true.
+
+ENDFORM.
+
+
+
+<font color ="#8C8C8C">*Text elements</font>
+<font color ="#8C8C8C">*-------------</font>
+<font color ="#8C8C8C">* I02 Please enter selection criteria</font>
+<font color ="#8C8C8C">* S02 Selection criteria - condition data</font>
+<font color ="#8C8C8C">* S04 Detailed display</font>
+
+
+
+<font color ="#8C8C8C">*Selection texts</font>
+<font color ="#8C8C8C">*---------------</font>
+<font color ="#8C8C8C">* P_DRILL         Detailed display</font>
+<font color ="#8C8C8C">* P_KDELE         only physically deleted recs</font>
+<font color ="#8C8C8C">* SO-AG D       .</font>
+<font color ="#8C8C8C">* SO-BO D       .</font>
+<font color ="#8C8C8C">* SO-DATAB D       .</font>
+<font color ="#8C8C8C">* SO-DATBI D       .</font>
+<font color ="#8C8C8C">* SO-KOTAB D       .</font>
+<font color ="#8C8C8C">* SO-KSCHL D       .</font>
+<font color ="#8C8C8C">* SO_DATE D       .</font>
+<font color ="#8C8C8C">* SO_TCODE D       .</font>
+<font color ="#8C8C8C">* SO_USER D       .</font>
+<br><br><br><br><hr>
+<H3>*STATUS*</H3>
+STAUTS NAME : LIST
+<TABLE BORDER="1">
+<TR align=center height="30" bgcolor="#BDBDBD">
+<TD><font size=2>FCODE</font></TD>
+<TD><font size=2>TEXT</font></TD>
+<TD colspan="2"><font size=2>ICON</font></TD></TR>
+<TR align = center height="30">
+<TD><font size=2>PICK</font></TD>
+<TD><font size=2>Choose</font></TD>
+<TD><font size=2>@16@</font></TD>
+<TD><font size=2>ICON_SELECT_DETAIL</font></TD>
+</TR>
+<TR align = center height="30">
+<TD><font size=2>BACK</font></TD>
+<TD><font size=2>Back</font></TD>
+<TD><font size=2></font></TD>
+<TD><font size=2></font></TD>
+</TR>
+<TR align = center height="30">
+<TD><font size=2>SORA</font></TD>
+<TD><font size=2>Sort ascending</font></TD>
+<TD><font size=2>@3E@</font></TD>
+<TD><font size=2>ICON_SORT_UP</font></TD>
+</TR>
+<TR align = center height="30">
+<TD><font size=2>SORD</font></TD>
+<TD><font size=2>Sort descending</font></TD>
+<TD><font size=2>@3F@</font></TD>
+<TD><font size=2>ICON_SORT_DOWN</font></TD>
+</TR>
+<TR align = center height="30">
+<TD><font size=2>COMP</font></TD>
+<TD><font size=2>Collapse all</font></TD>
+<TD><font size=2>@4I@</font></TD>
+<TD><font size=2>ICON_PREVIOUS_HIERARCHY_LEVEL</font></TD>
+</TR>
+<TR align = center height="30">
+<TD><font size=2>EXPA</font></TD>
+<TD><font size=2>Expand all</font></TD>
+<TD><font size=2>@4H@</font></TD>
+<TD><font size=2>ICON_NEXT_HIERARCHY_LEVEL</font></TD>
+</TR>
+<TR align = center height="30">
+<TD><font size=2>RW</font></TD>
+<TD><font size=2>Cancel</font></TD>
+<TD><font size=2>@0W@</font></TD>
+<TD><font size=2>ICON_CANCEL</font></TD>
+</TR>
+<TR align = center height="30">
+<TD><font size=2>%EX</font></TD>
+<TD><font size=2>Exit</font></TD>
+<TD><font size=2></font></TD>
+<TD><font size=2></font></TD>
+</TR>
+<TR align = center height="30">
+<TD><font size=2>%PC</font></TD>
+<TD><font size=2>Save to PC file</font></TD>
+<TD><font size=2></font></TD>
+<TD><font size=2></font></TD>
+</TR>
+<TR align = center height="30">
+<TD><font size=2>P--</font></TD>
+<TD><font size=2>First page</font></TD>
+<TD><font size=2>@2Y@</font></TD>
+<TD><font size=2>ICON_FIRST_PAGE</font></TD>
+</TR>
+<TR align = center height="30">
+<TD><font size=2>P-</font></TD>
+<TD><font size=2>Previous page</font></TD>
+<TD><font size=2>@2Z@</font></TD>
+<TD><font size=2>ICON_PREVIOUS_PAGE</font></TD>
+</TR>
+<TR align = center height="30">
+<TD><font size=2>P+</font></TD>
+<TD><font size=2>Next page</font></TD>
+<TD><font size=2>@30@</font></TD>
+<TD><font size=2>ICON_NEXT_PAGE</font></TD>
+</TR>
+<TR align = center height="30">
+<TD><font size=2>P++</font></TD>
+<TD><font size=2>Last page</font></TD>
+<TD><font size=2>@31@</font></TD>
+<TD><font size=2>ICON_LAST_PAGE</font></TD>
+</TR>
+<TR align = center height="30">
+<TD><font size=2>%SC</font></TD>
+<TD><font size=2>Find</font></TD>
+<TD><font size=2>@13@</font></TD>
+<TD><font size=2>ICON_SEARCH</font></TD>
+</TR>
+<TR align = center height="30">
+<TD><font size=2>P--</font></TD>
+<TD><font size=2>First page</font></TD>
+<TD><font size=2>@2Y@</font></TD>
+<TD><font size=2>ICON_FIRST_PAGE</font></TD>
+</TR>
+<TR align = center height="30">
+<TD><font size=2>P-</font></TD>
+<TD><font size=2>Previous page</font></TD>
+<TD><font size=2>@2Z@</font></TD>
+<TD><font size=2>ICON_PREVIOUS_PAGE</font></TD>
+</TR>
+<TR align = center height="30">
+<TD><font size=2>P+</font></TD>
+<TD><font size=2>Next page</font></TD>
+<TD><font size=2>@30@</font></TD>
+<TD><font size=2>ICON_NEXT_PAGE</font></TD>
+</TR>
+<TR align = center height="30">
+<TD><font size=2>P++</font></TD>
+<TD><font size=2>Last page</font></TD>
+<TD><font size=2>@31@</font></TD>
+<TD><font size=2>ICON_LAST_PAGE</font></TD>
+</TR>
+<TR align = center height="30">
+<TD><font size=2>PRI</font></TD>
+<TD><font size=2>Print</font></TD>
+<TD><font size=2>@0X@</font></TD>
+<TD><font size=2>ICON_PRINT</font></TD>
+</TR>
+</TABLE><BR><BR>
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

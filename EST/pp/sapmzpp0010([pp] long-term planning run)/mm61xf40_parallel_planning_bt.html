@@ -1,0 +1,142 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF40_PARALLEL_PLANNING_BT</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF40_PARALLEL_PLANNING_BT</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Parallel-Dispo im Batch</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000255"></div>
+FORM parallel_planning_bt USING u_cm61x LIKE cm61x
+                                u_rm61x LIKE rm61x.
+  DATA: planning_finished LIKE am61x-flg01.
+  DATA: anzdp TYPE i,
+        anzmt TYPE i.
+
+<font color ="#8C8C8C">*--&gt INITIALISIERUNGEN</font>
+<font color ="#8C8C8C">*--&gt Tabelle mit Destinations lesen</font>
+  PERFORM <a href ="javascript:Link('MM61XF40_FILL_TASKX.html?id=#000000000253');">fill_taskx</a>.
+
+<font color ="#8C8C8C">*--&gt STEUER-KZ TRANSAKTION</font>
+<font color ="#8C8C8C">*--&gt CM61X uebertragen</font>
+  MOVE u_cm61x TO cm61x.
+  MOVE u_rm61x TO rm61x.
+<font color ="#8C8C8C">*--&gt ATP initialisieren bzw. Puffer deaktivieren, falls CM61X-ATPDA = X</font>
+  PERFORM <a href ="javascript:Link('MM61XF31_ATP_INITIALIZE.html?id=#000000000196');">atp_initialize</a>.
+<font color ="#8C8C8C">*--&gt Parallel-Statistik initialisieren</font>
+  PERFORM beginn_statistik.
+<font color ="#8C8C8C">*--&gt Initialization</font>
+  PERFORM <a href ="javascript:Link('MM61XF88_MRP_RUN_INIT.html?id=#000000000404');">mrp_run_badi_init</a>.
+
+<font color ="#8C8C8C">*--&gt WERKSDATEN</font>
+<font color ="#8C8C8C">*--&gt Werksuebergr. Planung : Tabelle mit Werken lesen</font>
+  PERFORM <a href ="javascript:Link('MM61XF40_CHECK_MULTI_PLANT.html?id=#000000000248');">check_multi_plant</a>.
+<font color ="#8C8C8C">*--&gt Planung VM-Tabelle DBVM aktiv/inaktiv</font>
+  PERFORM <a href ="javascript:Link('MM61XDBR_READ_T000MD.html?id=#000000000138');">read_t000md</a>.
+<font color ="#8C8C8C">*--&gt Check on Existence of Plant MRP Areas</font>
+  PERFORM check_mdlw_exist IN PROGRAM saplmrp1.
+<font color ="#8C8C8C">*--&gt Planungswerk bzw. Planungsumfang einlesen</font>
+  PERFORM <a href ="javascript:Link('MM61XF40_FILL_PLANTX.html?id=#000000000252');">fill_plantx</a>.
+
+  LOOP AT plantx.
+<font color ="#8C8C8C">*--&gt Aktuelles Werk zuweisen</font>
+    PERFORM assign_plant.
+<font color ="#8C8C8C">*--&gt Kommunikationsaerea -Werksebene- erstellen</font>
+    CALL FUNCTION 'MD_READ_PLANT'
+      EXPORTING
+        ewerks = cm61x-werks
+        ecm61x = cm61x
+      IMPORTING
+        icm61w = cm61w
+        it399d = t399d
+      EXCEPTIONS
+        error  = 1.
+    IF sy-subrc &gt 0.
+      MESSAGE ID sy-msgid TYPE 'A' NUMBER sy-msgno
+            WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Planungslauf sperren</font>
+    PERFORM enqueue_mrp_run USING cm61x-plobj
+                                  cm61x-plscn
+                                  cm61x-werks
+                                  plantx-berid.
+<font color ="#8C8C8C">*--&gt Planungslauf sperren fuer MRP-Teile, falls mitgeplant</font>
+    IF cm61x-icmrp EQ xflag.
+      PERFORM enqueue_mrp_run USING mdobjb
+                                    cm61x-plscn
+                                    cm61x-werks
+                                    plantx-berid.
+    ENDIF.
+  ENDLOOP.
+<font color ="#8C8C8C">*--&gt Werksunabh. Pre-Read DB-Tabellen</font>
+  CALL FUNCTION 'MD_MRP_PREREAD'
+    TABLES
+      nread_tab = nread.
+
+<font color ="#8C8C8C">*--&gt kein Dynpro, daher Refresh screen verhinden</font>
+  refresh_flag = xflag.
+
+<font color ="#8C8C8C">*--&gt MATERIALVORMERKUNGEN</font>
+<font color ="#8C8C8C">*--&gt Initialisierung des Set-Keys MDVM/DMVM</font>
+  PERFORM init_set_key.
+<font color ="#8C8C8C">*--&gt Materialvormerkungen lesen</font>
+  PERFORM <a href ="javascript:Link('MM61XMDV_MDMMX_FILL.html?id=#000000000698');">mdmmx_fill</a>.
+  mdmmx_tindx = 1.
+  CLEAR new_level_flag.
+  IF NOT mdmmx[] IS INITIAL.
+    rm61x-disst = mdmmx-disst.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt alle Materialien planen (paketweise auf asynch. RFC verteilen)</font>
+  WHILE planning_finished IS INITIAL.
+    PERFORM dispatcher CHANGING planning_finished.
+<font color ="#8C8C8C">*--&gt Exit bei Dump-Stop und alle Tasks beendet</font>
+    IF  mrpstop EQ xflag
+    AND planning_finished EQ xflag.
+      EXIT.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Auf Antwort warten</font>
+    WAIT UNTIL task_finished = xflag.
+    CLEAR task_finished.
+  ENDWHILE.
+
+  LOOP AT plantx.
+<font color ="#8C8C8C">*   Delock</font>
+    PERFORM dequeue_mrp_run USING cm61x-plobj
+                                  cm61x-plscn
+                                  plantx-plwrk
+                                  plantx-berid.
+<font color ="#8C8C8C">*  --&gt Planungslauf entsperren fuer MRP-Teile im MPS-Lauf</font>
+    IF cm61x-icmrp EQ xflag.
+      PERFORM dequeue_mrp_run USING mdobjb
+                                    cm61x-plscn
+                                    plantx-plwrk
+                                    plantx-berid.
+    ENDIF.
+  ENDLOOP.
+  PERFORM <a href ="javascript:Link('MM61XF88_AUFBEREITEN_STATISTIK.html?id=#000000000396');">aufbereiten_statistik</a>.
+  PERFORM anzeigen_statistik.
+<font color ="#8C8C8C">*--&gt Fehlermeldung (f. Batch)</font>
+<font color ="#8C8C8C">*--&gt bei Programmstop wegen zu hoher Anzahl an Abbrüchen</font>
+  IF mrpstop EQ xflag.
+    anzdp = rm61x-anzdp.
+    anzmt = rm61x-anzmt.
+    MESSAGE e252(md) WITH anzdp anzmt.
+  ENDIF.
+
+ENDFORM.                    "PARALLEL_PLANNING_BT
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

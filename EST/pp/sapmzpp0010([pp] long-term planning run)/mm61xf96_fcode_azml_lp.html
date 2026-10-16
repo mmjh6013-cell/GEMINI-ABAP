@@ -1,0 +1,124 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF96_FCODE_AZML_LP</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF96_FCODE_AZML_LP</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Anzeigen Materialübersicht für Langfristplanung                      *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000526"></div>
+FORM fcode_azml_lp.
+<font color ="#8C8C8C">*--&gt local data</font>
+  DATA: ls_mdke     TYPE mdke,
+        ls_mdkp     TYPE mdkp,
+        lt_mdpsx    TYPE badi_mdpsx.
+<font color ="#8C8C8C">*--&gt Steuerleiste für Sammelanzeige initialisieren</font>
+  CLEAR cr61t.
+  MOVE charq TO cr61t-lsmod.        "Modus für Langfristplanung
+  MOVE charx TO cr61t-tabau.
+  MOVE cm61x-plscn TO cr61t-plscn.
+<font color ="#8C8C8C">*--&gt Übersicht aufrufen</font>
+  DO.
+<font color ="#8C8C8C">*--&gt check whether customer-specific columns have to be filled via</font>
+<font color ="#8C8C8C">*    BAdI MD_ADD_COL_OVERVIEW</font>
+    PERFORM <a href ="javascript:Link('MM61XBAD.html?id=#000000000020');">check_add_columns_active</a> USING    cm61x-plauf
+                                     CHANGING badi_m61r.
+
+<font color ="#8C8C8C">*--&gt call BAdI method for filling of customer-specific columns</font>
+    IF NOT badi_m61r-badon IS INITIAL.
+      LOOP AT mdkex INTO ls_mdke.
+<font color ="#8C8C8C">*--&gt get MDKP and MDPSX from memory</font>
+        CALL FUNCTION 'MD_READ_MRP_DATA_FROM_MEMORY'
+          EXPORTING
+            iv_memid               = id_ph
+            iv_plscn               = cm61x-plscn
+            iv_material            = ls_mdke-matnr
+            iv_plant               = ls_mdke-plwrk
+            iv_berid               = ls_mdke-berid
+          IMPORTING
+            es_mdkp                = ls_mdkp
+            et_mdpsx               = mdpsx[]
+          EXCEPTIONS
+            material_not_in_memory = 1
+            decompression_error    = 2
+            table_not_in_memory    = 3
+            OTHERS                 = 4.
+        IF sy-subrc &lt&gt 0.
+          CONTINUE.
+        ENDIF.
+<font color ="#8C8C8C">*--&gt type conversion MDPSX to badi table</font>
+        IF NOT badi_m61r-mdpsx_required IS INITIAL.
+          lt_mdpsx[] = mdpsx[].
+        ENDIF.
+<font color ="#8C8C8C">*--&gt call badi method</font>
+        PERFORM <a href ="javascript:Link('MM61XBAD.html?id=#000000000021');">fill_add_columns</a> USING    cm61x-plauf
+                                          badi_m61r
+                                          ls_mdkp
+                                          lt_mdpsx
+                                 CHANGING ls_mdke.
+<font color ="#8C8C8C">*--&gt adjust MDKEX</font>
+        MODIFY mdkex FROM ls_mdke.
+      ENDLOOP.
+    ENDIF.
+
+<font color ="#8C8C8C">*--&gt call material overview</font>
+    CALL FUNCTION 'MD_MRP_LIST_OVERVIEW'
+      EXPORTING
+        erm61r     = rm61r
+        ecr61t     = cr61t
+        ebadi_m61r = badi_m61r
+      IMPORTING
+        ifcode     = am61x-xcode
+        imatnr     = am61x-matnr
+        iberid     = am61x-berid
+        iwerks     = am61x-werks
+        izeile     = mdkex_xline
+        icr61t     = cr61t
+      TABLES
+        mdkex      = mdkex.
+<font color ="#8C8C8C">*--&gt Setzen Flag für Tabellensteuerung MDKEX im FB</font>
+    MOVE charn TO cr61t-tabau.
+<font color ="#8C8C8C">*--&gt Prüfen Funktionscode aus Materialübersicht</font>
+    IF am61x-xcode EQ 'BACK'.
+      EXIT.
+    ENDIF.
+    IF am61x-xcode EQ 'EEOT'
+    OR am61x-xcode EQ 'EXIT'.
+      PERFORM back_to_tcode_os.
+    ENDIF.
+    IF am61x-xcode EQ 'AZER'
+    OR am61x-xcode EQ 'AZDL'                                "new SA 46c
+    OR am61x-xcode EQ 'NEER'.
+      PERFORM fcode_azer.
+      IF am61x-xcode EQ fc-eexi.
+        EXIT.
+      ENDIF.
+      IF am61x-xcode EQ fc-eeot.
+        PERFORM leave_to_transaction.
+      ENDIF.
+      IF am61x-xcode EQ fc-goon.
+<font color ="#8C8C8C">*--&gt Struktur nach unten durchplanen</font>
+        PERFORM fcode_goon_lp.
+<font color ="#8C8C8C">*--&gt Einträge der MDKEX in Sammelanzeige nachbearbeiten</font>
+        MOVE charx TO cr61t-tabau.
+<font color ="#8C8C8C">*--&gt Table-Control neu initialisieren</font>
+        MOVE chart TO cr61t-intcs.
+      ENDIF.
+    ENDIF.
+  ENDDO.
+ENDFORM.                    "FCODE_AZML_LP
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

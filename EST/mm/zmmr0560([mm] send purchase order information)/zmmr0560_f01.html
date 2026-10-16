@@ -1,0 +1,367 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZMMR0560_F01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZMMR0560_F01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZMMR1010_F01</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form INITIALIZATION</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000005"></div>
+FORM INITIALIZATION .
+
+  S_BEDAT-LOW = SY-DATUM - 1.
+  S_BEDAT-HIGH = SY-DATUM.
+  APPEND S_BEDAT.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form AT_SELECTION_SCREEN_OUTPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000006"></div>
+FORM AT_SELECTION_SCREEN_OUTPUT .
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form AT_SELECTION_SCREEN</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000007"></div>
+FORM AT_SELECTION_SCREEN .
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form GET_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000008"></div>
+FORM GET_DATA .
+
+  DATA: LS_DATA LIKE GS_DATA.
+
+  SELECT DISTINCT
+         A1~EBELN, A2~EBELP, A1~LIFNR, A1~EKGRP, A1~EKORG,
+         CASE B1~KALSK WHEN '20' THEN @ABAP_TRUE END AS GUBUN,
+         A2~MATNR, A2~LGORT, A2~MENGE,
+         A2~ELIKZ, A2~AFNAM, A1~ZDESTI, A2~INSMK, A2~MEINS,
+         CASE WHEN A2~LOEKZ &lt&gt @SPACE THEN 'D' END AS LOEVM,
+         "##, ####, ## ## ## ##
+         CASE WHEN A2~NETWR = 0 AND A2~WEPOS = @SPACE AND A2~REPOS = @SPACE
+               THEN @ABAP_TRUE END AS UMSON,
+         A2~ZZVBELN, A2~ZZPOSNR
+    FROM EKKO AS A1 INNER JOIN EKPO AS A2
+                            ON A2~EBELN = A1~EBELN
+                    INNER JOIN CDHDR AS A3
+                            ON A3~OBJECTCLAS = 'EINKBELEG'
+                           AND A3~OBJECTID = A1~EBELN
+                           AND A3~TCODE IN ( 'ME21N', 'ME22N' )
+                    INNER JOIN LFM1 AS B1
+                            ON B1~LIFNR = A1~LIFNR
+                           AND B1~EKORG = A1~EKORG
+   WHERE A1~BUKRS = @P_BUKRS
+     AND A1~EKORG = @P_EKORG
+     AND A1~BSART = @P_BSART
+     AND A2~WERKS IN @S_WERKS
+     AND A1~EKGRP IN @S_EKGRP
+     AND A1~EBELN IN @S_EBELN
+     AND A3~UDATE IN @S_BEDAT
+     AND A1~BSART &lt&gt 'UB' "####
+     AND A2~KNTTP &lt&gt 'K' "###
+     AND A2~RETPO = @SPACE " ## X
+     INTO TABLE @DATA(LT_DATA).
+
+  SELECT A~EBELN, A~EBELP,
+         SUM( CASE WHEN B~SHKZG = 'S' THEN B~MENGE END ) AS MENGE_P,
+         SUM( CASE WHEN B~SHKZG = 'H' THEN ( -1 * B~MENGE ) END ) AS MENGE_M
+    FROM @LT_DATA AS A INNER JOIN EKBE AS B
+                               ON B~EBELN = A~EBELN
+                              AND B~EBELP = A~EBELP
+                              AND B~VGABE = '1' "GR
+   GROUP BY A~EBELN, A~EBELP
+    INTO TABLE @DATA(LT_EKBE).
+  SORT LT_EKBE BY EBELN EBELP.
+
+  SELECT A~EBELN, A~EBELP, MIN( B~EINDT ) AS EINDT
+    FROM @LT_DATA AS A INNER JOIN EKET AS B
+                               ON B~EBELN = A~EBELN
+                              AND B~EBELP = A~EBELP
+   GROUP BY A~EBELN, A~EBELP
+    INTO TABLE @DATA(LT_EKET).
+  SORT LT_EKET BY EBELN EBELP.
+
+  "#### ##
+  SELECT DISTINCT A~EBELN, A~EBELP
+    FROM @LT_DATA AS A INNER JOIN ZMMT0560 AS B
+                               ON B~EBELN = B~EBELN
+                              AND B~EBELP = B~EBELP
+   WHERE A~LOEVM = 'D'
+    INTO TABLE @DATA(LT_0560).
+  SORT LT_0560 BY EBELN EBELP.
+
+  "####
+  SELECT A~ZZVBELN, A~ZZPOSNR, B~BSTKD
+    FROM @LT_DATA AS A INNER JOIN VBKD AS B
+                               ON B~VBELN = A~ZZVBELN
+                              AND B~POSNR = A~ZZPOSNR
+    INTO TABLE @DATA(LT_VBKD).
+  SORT LT_VBKD BY ZZVBELN ZZPOSNR.
+
+  LOOP AT LT_DATA INTO DATA(LS_DATA_TMP).
+    CLEAR LS_DATA.
+    MOVE-CORRESPONDING LS_DATA_TMP TO LS_DATA.
+    IF LS_DATA-LOEVM = 'D'.
+      READ TABLE LT_0560 TRANSPORTING NO FIELDS
+                         WITH KEY EBELN = LS_DATA-EBELN
+                                  EBELP = LS_DATA-EBELP
+                                  BINARY SEARCH.
+      IF SY-SUBRC &lt&gt 0.
+        CONTINUE.
+
+      ENDIF.
+
+    ENDIF.
+
+    READ TABLE LT_EKBE INTO DATA(LS_EKBE)
+                       WITH KEY EBELN = LS_DATA-EBELN
+                                EBELP = LS_DATA-EBELP
+                                BINARY SEARCH.
+    IF SY-SUBRC = 0.
+      LS_DATA-LFMNG = LS_EKBE-MENGE_P + LS_EKBE-MENGE_M.
+
+    ENDIF.
+
+    READ TABLE LT_EKET INTO DATA(LS_EKET)
+                       WITH KEY EBELN = LS_DATA-EBELN
+                                EBELP = LS_DATA-EBELP
+                                BINARY SEARCH.
+    IF SY-SUBRC = 0.
+      LS_DATA-EINDT = LS_EKET-EINDT.
+
+    ENDIF.
+
+    READ TABLE LT_VBKD INTO DATA(LS_VBKD)
+                       WITH KEY ZZVBELN = LS_DATA_TMP-ZZVBELN
+                                ZZPOSNR = LS_DATA_TMP-ZZPOSNR
+                                BINARY SEARCH.
+    IF SY-SUBRC = 0.
+      LS_DATA-BSTKD = LS_VBKD-BSTKD.
+
+    ENDIF.
+
+    APPEND LS_DATA TO GT_DATA.
+
+  ENDLOOP.
+
+  IF GT_DATA IS INITIAL.
+    CASE SY-BATCH.
+      WHEN ABAP_TRUE.
+        MESSAGE S000 WITH TEXT-E01.
+
+      WHEN SPACE.
+        "No Data
+        MESSAGE S000 WITH TEXT-E01 DISPLAY LIKE 'E'.
+
+    ENDCASE.
+
+    LEAVE LIST-PROCESSING.
+
+  ENDIF.
+
+  DESCRIBE TABLE GT_DATA LINES DATA(LV_LINE).
+  MESSAGE S012 WITH LV_LINE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SEND_DATA_QMS</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000009"></div>
+FORM SEND_DATA_QMS.
+
+  DATA: LS_RETURN LIKE ZMMS0501,
+        LT_TAB    LIKE TABLE OF ZMMS0520.
+
+  MOVE-CORRESPONDING GT_DATA TO LT_TAB.
+
+  CALL FUNCTION <a href ="zmm_set_material_master_qms/zmm_set_material_master_qms.html">'ZMM_SET_MATERIAL_MASTER_QMS'</a>
+    IMPORTING
+      ES_RETURN = LS_RETURN
+    TABLES
+      IT_TAB    = LT_TAB.
+
+  "### S ### F (### ## ## # E)
+  CASE LS_RETURN-STATUS.
+    WHEN 'F' OR 'E'.
+      MESSAGE S000 WITH LS_RETURN-MESSAGE DISPLAY LIKE 'E'.
+
+    WHEN 'S'.
+      MESSAGE S000 WITH LS_RETURN-MESSAGE.
+
+  ENDCASE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SEND_DATA_MES</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000010"></div>
+FORM SEND_DATA_MES .
+
+  DATA: LS_RETURN LIKE ZMMS0501,
+        LT_TAB    LIKE TABLE OF ZMMS0521.
+
+  MOVE-CORRESPONDING GT_DATA TO LT_TAB.
+
+  CALL FUNCTION <a href ="zmm_set_material_master_qms/zmm_set_material_master_qms.html">'ZMM_SET_MATERIAL_MASTER_QMS'</a>
+    IMPORTING
+      ES_RETURN = LS_RETURN
+    TABLES
+      IT_TAB    = LT_TAB.
+
+  "### S ### F (### ## ## # E)
+  CASE LS_RETURN-STATUS.
+    WHEN 'F' OR 'E'.
+      MESSAGE S000 WITH LS_RETURN-MESSAGE DISPLAY LIKE 'E'.
+
+    WHEN 'S'.
+      MESSAGE S000 WITH LS_RETURN-MESSAGE.
+
+  ENDCASE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SEND_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000011"></div>
+FORM SEND_DATA .
+
+  DATA: LS_RETURN LIKE ZMMS0501,
+        LT_DATA_F LIKE TABLE OF ZMMS0560,
+        LS_DATA_F LIKE ZMMS0560,
+        LT_DATA_E LIKE TABLE OF ZMMT0560 WITH EMPTY KEY.
+
+  DATA: LT_ROW TYPE LVC_T_ROW.
+
+  CASE SY-BATCH.
+    WHEN SPACE.
+      CALL METHOD GO_GRID-&gtGET_SELECTED_ROWS
+        IMPORTING
+          ET_INDEX_ROWS = LT_ROW.
+
+      IF LT_ROW IS INITIAL.
+        MESSAGE S008 DISPLAY LIKE 'E'.
+        RETURN.
+
+      ENDIF.
+
+      LOOP AT LT_ROW INTO DATA(LS_ROW).
+        READ TABLE GT_DATA INTO DATA(LS_DATA) INDEX LS_ROW-INDEX.
+        CHECK SY-SUBRC = 0.
+        MOVE-CORRESPONDING LS_DATA TO LS_DATA_F.
+        APPEND LS_DATA_F TO LT_DATA_F.
+
+      ENDLOOP.
+
+    WHEN ABAP_TRUE.
+      LOOP AT GT_DATA INTO LS_DATA.
+        MOVE-CORRESPONDING LS_DATA TO LS_DATA_F.
+        APPEND LS_DATA_F TO LT_DATA_F.
+
+      ENDLOOP.
+
+  ENDCASE.
+
+  CALL FUNCTION <a href ="zmm_set_po_info/zmm_set_po_info.html">'ZMM_SET_PO_INFO'</a>
+    IMPORTING
+      ES_RETURN = LS_RETURN
+    TABLES
+      IT_DATA   = LT_DATA_F
+      ET_DATA   = LT_DATA_E.
+
+  IF LS_RETURN-STATUS = 'E'.
+    MESSAGE S000 WITH 'Send failed' DISPLAY LIKE 'E'.
+
+  ELSE.
+    SELECT COUNT(*)
+      FROM @LT_DATA_E AS A
+     WHERE A~IF_TYPE = 'S'
+     INTO @DATA(LV_LINE).
+
+  ENDIF.
+
+  MESSAGE S010 WITH LV_LINE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CTCV_CONVERT_FLOAT_TO_DATE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt PS_DATA_ZHSDAT</font>
+<font color ="#8C8C8C">*&      &lt-- LV_FLOAT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000012"></div>
+FORM CTCV_CONVERT_FLOAT_TO_DATE  USING    PV_FLOAT
+                                 CHANGING PV_DATE.
+
+  DATA: LV_DATE  LIKE CAWN-ATWRT,
+        LV_FLOAT LIKE CAWN-ATFLV.
+
+  LV_FLOAT = PV_FLOAT.
+  CALL FUNCTION 'CTCV_CONVERT_FLOAT_TO_DATE'
+    EXPORTING
+      FLOAT = LV_FLOAT
+    IMPORTING
+      DATE  = LV_DATE.
+
+  PV_DATE = LV_DATE.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

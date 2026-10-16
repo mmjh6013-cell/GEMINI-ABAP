@@ -1,0 +1,234 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZMMR1510_F01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZMMR1510_F01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZMMR1010_F01</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form INITIALIZATION</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000025"></div>
+FORM INITIALIZATION .
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form AT_SELECTION_SCREEN_OUTPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000026"></div>
+FORM AT_SELECTION_SCREEN_OUTPUT .
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form AT_SELECTION_SCREEN</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000027"></div>
+FORM AT_SELECTION_SCREEN .
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form GET_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000028"></div>
+FORM GET_DATA .
+
+  DATA: LS_DATA LIKE GS_DATA,
+        LV_STDT LIKE SY-DATUM,
+        LV_ENDT LIKE SY-DATUM.
+
+  READ TABLE S_DATE INTO DATA(LS_DATE) INDEX 1.
+
+  IF SY-SUBRC = 0.
+    IF LS_DATE-LOW IS INITIAL.
+      LV_STDT = '00000000'.
+
+    ELSE.
+      LV_STDT = LS_DATE-LOW.
+
+    ENDIF.
+
+    IF LS_DATE-HIGH IS INITIAL.
+      LV_ENDT = '99991231'.
+
+    ELSE.
+      LV_ENDT = LS_DATE-HIGH.
+
+    ENDIF.
+
+  ENDIF.
+
+  "MAIN
+  SELECT A1~INFNR, A1~MATNR, A1~LIFNR,
+         CASE WHEN A1~MATKL IS INITIAL THEN C1~MATKL
+              ELSE A1~MATKL END AS MATKL,
+         A2~EKORG, A2~ESOKZ,
+         B1~DATBI, B1~DATAB,
+         B2~KBETR, B2~KONWA,
+         B2~KPEIN, B2~KMEIN
+    FROM EINA AS A1 INNER JOIN EINE AS A2
+                            ON A2~INFNR = A1~INFNR
+                           AND A2~LOEKZ = @SPACE
+                    INNER JOIN A018 AS B1
+                            ON B1~KAPPL = 'M'
+                           AND B1~KSCHL = 'PB00'
+                           AND B1~LIFNR = A1~LIFNR
+                           AND B1~MATNR = A1~MATNR
+                           AND B1~EKORG = A2~EKORG
+                           AND B1~ESOKZ = A2~ESOKZ
+                    INNER JOIN KONP AS B2
+                            ON B2~KNUMH = B1~KNUMH
+                           AND B2~KAPPL = B1~KAPPL
+                           AND B2~KSCHL = B1~KSCHL
+                    INNER JOIN MARA AS C1
+                            ON C1~MATNR = A1~MATNR
+   WHERE A1~INFNR IN @S_INFNR
+     AND A1~MATNR IN @S_MATNR
+     AND A1~MATKL IN @S_MATKL
+     AND A1~LIFNR IN @S_LIFNR
+     AND A2~EKORG IN @S_EKORG
+     AND A2~ESOKZ IN @S_ESOKZ
+     AND A2~WERKS IN @S_WERKS
+     AND B1~DATAB &lt= @LV_ENDT
+     AND B1~DATBI &gt= @LV_STDT
+     AND A1~LOEKZ = @SPACE
+    INTO TABLE @DATA(LT_MAIN).
+  SORT LT_MAIN BY MATNR LIFNR EKORG ESOKZ DATAB.
+
+  "TEXT
+  SELECT DISTINCT
+        A~MATNR, B~MAKTX
+    FROM @LT_MAIN AS A INNER JOIN MAKT AS B
+                               ON B~MATNR = A~MATNR
+                              AND B~SPRAS = @SY-LANGU
+    INTO TABLE @DATA(LT_MAKT).
+  SORT LT_MAKT BY MATNR.
+
+  SELECT DISTINCT
+        A~MATKL, B~WGBEZ
+    FROM @LT_MAIN AS A INNER JOIN T023T AS B
+                               ON B~MATKL = A~MATKL
+                              AND B~SPRAS = @SY-LANGU
+   ORDER BY A~MATKL
+    INTO TABLE @DATA(LT_T023T).
+  SORT LT_T023T BY MATKL.
+
+  SELECT DISTINCT
+        A~LIFNR, B~NAME1
+    FROM @LT_MAIN AS A INNER JOIN LFA1 AS B
+                               ON B~LIFNR = A~LIFNR
+    INTO TABLE @DATA(LT_LFA1).
+  SORT LT_LFA1 BY LIFNR.
+
+  SELECT DISTINCT
+        A~EKORG, B~EKOTX
+    FROM @LT_MAIN AS A INNER JOIN T024E AS B
+                               ON B~EKORG = A~EKORG
+    INTO TABLE @DATA(LT_T024E).
+  SORT LT_T024E BY EKORG.
+
+  SELECT DISTINCT
+        A~ESOKZ, B~DDTEXT
+    FROM @LT_MAIN AS A INNER JOIN DD07T AS B
+                               ON B~DOMNAME    = 'ESOKZ'
+                              AND B~DDLANGUAGE = @SY-LANGU
+    INTO TABLE @DATA(LT_DD07T).
+  SORT LT_DD07T BY ESOKZ.
+
+  LOOP AT LT_MAIN INTO DATA(LS_MAIN).
+    MOVE-CORRESPONDING LS_MAIN TO LS_DATA.
+
+    READ TABLE LT_MAKT INTO DATA(LS_MAKT)
+                       WITH KEY MATNR = LS_DATA-MATNR
+                       BINARY SEARCH.
+
+    IF SY-SUBRC = 0.
+      LS_DATA-MAKTX = LS_MAKT-MAKTX.
+
+    ENDIF.
+
+    READ TABLE LT_T023T INTO DATA(LS_T023T)
+                        WITH KEY MATKL = LS_DATA-MATKL
+                        BINARY SEARCH.
+
+    IF SY-SUBRC = 0.
+      LS_DATA-WGBEZ = LS_T023T-WGBEZ.
+
+    ENDIF.
+
+    READ TABLE LT_LFA1 INTO DATA(LS_LFA1)
+                       WITH KEY LIFNR = LS_DATA-LIFNR
+                       BINARY SEARCH.
+
+    IF SY-SUBRC = 0.
+      LS_DATA-LIFNR_NM = LS_LFA1-NAME1.
+
+    ENDIF.
+
+    READ TABLE LT_T024E INTO DATA(LS_T024E)
+                       WITH KEY EKORG = LS_DATA-EKORG
+                       BINARY SEARCH.
+
+    IF SY-SUBRC = 0.
+      LS_DATA-EKOTX = LS_T024E-EKOTX.
+
+    ENDIF.
+
+    READ TABLE LT_DD07T INTO DATA(LS_DD07T)
+                       WITH KEY ESOKZ = LS_DATA-ESOKZ
+                       BINARY SEARCH.
+
+    IF SY-SUBRC = 0.
+      LS_DATA-ESOKZ_NM = LS_DD07T-DDTEXT.
+
+    ENDIF.
+
+    APPEND LS_DATA TO GT_DATA.
+
+    CLEAR LS_DATA.
+
+  ENDLOOP.
+
+  IF GT_DATA IS INITIAL.
+    "No Data
+    MESSAGE S000 WITH TEXT-E01 DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+
+  ENDIF.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

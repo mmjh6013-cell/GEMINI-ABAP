@@ -1,0 +1,399 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZCOR8010_F01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZCOR8010_F01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZCOR8010_F01</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form init_data_1000</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000001"></div>
+FORM init_data_1000 .
+
+  GET PARAMETER ID 'CAC' FIELD p_kokrs.
+  PERFORM <a href="#000000000011">check_data</a>.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form modify_selection_screen</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000002"></div>
+FORM modify_selection_screen .
+
+  LOOP AT SCREEN.
+    IF screen-name EQ 'P_BUKRS'.
+      screen-input = 0.
+    ENDIF.
+
+    MODIFY SCREEN.
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form transfer_data_0100</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000003"></div>
+FORM transfer_data_0100 .
+
+  CALL FUNCTION <a href ="zco_sfs_get_cctrinfo/zco_sfs_get_cctrinfo.html">'ZCO_SFS_GET_CCTRINFO'</a>
+    EXPORTING
+      i_kokrs  = p_kokrs  " Company Code
+      i_bukrs  = p_bukrs  " Controlling Area
+      i_exdate = p_datum  " Execution Date
+    IMPORTING
+      et_data  = gt_data. " [CO] CCTR ## ## ## ##
+
+  IF p_list IS NOT INITIAL.
+    SELECT a~*,
+           @p_bezei AS bezei,
+           @p_butxt AS butxt
+      FROM @gt_data AS a
+     ORDER BY zccstus, a~kostl
+      INTO CORRESPONDING FIELDS OF TABLE @gt_disp.
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form create_alv</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      &lt-- GO_GRID</font>
+<font color ="#8C8C8C">*&      &lt-- GO_DOCKING</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000004"></div>
+FORM create_alv  CHANGING po_grid    TYPE REF TO cl_gui_alv_grid
+                          po_docking TYPE REF TO cl_gui_docking_container.
+  CREATE OBJECT po_docking
+    EXPORTING
+      repid     = sy-repid
+      dynnr     = sy-dynnr
+      side      = po_docking-&gtdock_at_top
+      extension = 2000.
+
+  CREATE OBJECT po_grid
+    EXPORTING
+      i_parent = po_docking.
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_fcat</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt GO_GRID</font>
+<font color ="#8C8C8C">*&      &lt-- GT_FCAT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000005"></div>
+FORM set_fcat  USING    po_grid TYPE REF TO cl_gui_alv_grid
+               CHANGING pt_fcat TYPE lvc_t_fcat.
+
+  CLEAR : pt_fcat[].
+
+  PERFORM <a href="#000000000006">write_fieldcat</a> TABLES pt_fcat
+                          USING:
+          '1'  'X' 'KOKRS'   TEXT-f01 '04' 'TKA01' 'KOKRS' ' ',   " CO Area
+          '2'  'X' 'BEZEI'   TEXT-f02 '10' 'TKA01' 'BEZEI' ' ',   " Controlling Area Name
+          '3'  'X' 'BUKRS'   TEXT-f03 '04' 'T001'  'BUKRS' ' ',   " CO code
+          '4'  'X' 'BUTXT'   TEXT-f04 '10' 'T001'  'BUTXT' ' ',   " Company Code Name
+          '5'  'X' 'KOSTL'   TEXT-f05 '10' 'CSKS'  'KOSTL' ' ',   " Cost Center
+          '6'  'X' 'DATAB'   TEXT-f06 '40' 'CSKS'  'DATAB' ' ',   " Valid-From Date
+          '7'  ' ' 'DATBI'   TEXT-f07 '10' 'CSKS'  'DATBI' ' ',   " Valid To Date
+          '8'  ' ' 'KTEXT'   TEXT-f08 '40' 'CSKT'  'KTEXT' ' ',   " Cost Center Text
+          '9'  ' ' 'LTEXT'   TEXT-f09 '01' 'CSKT'  'LTEXT' ' ',   " Cost Center Long Text
+          '10' ' ' 'ZCCSTUS' TEXT-f10 '01' ''      ''      ' '.   " Status
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form write_fieldcat</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt PT_FCAT</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt TEXT_F01</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000006"></div>
+FORM write_fieldcat  TABLES pt_fcat TYPE lvc_t_fcat
+                     USING  pos
+                            key
+                            fieldname
+                            headname
+                            outputlen
+                            table
+                            field
+                            just.
+
+  DATA: ls_fieldcat TYPE lvc_s_fcat.
+
+  CLEAR: ls_fieldcat.
+
+  ls_fieldcat-col_pos   = pos.
+  ls_fieldcat-key       = key.
+  ls_fieldcat-fieldname = fieldname.
+  ls_fieldcat-coltext   = headname.
+  ls_fieldcat-outputlen = outputlen.
+  ls_fieldcat-ref_table = table.
+  ls_fieldcat-ref_field = field.
+  ls_fieldcat-just      = just.
+  ls_fieldcat-col_opt = gc_x.
+
+  CASE fieldname.
+    WHEN 'ZKSTLV1'.
+<font color ="#8C8C8C">*      ls_fieldcat-edit       = gc_x.</font>
+<font color ="#8C8C8C">*      ls_fieldcat-f4availabl = gc_x.</font>
+      ls_fieldcat-drdn_hndl = 1.
+      ls_fieldcat-drdn_alias = abap_on.
+    WHEN 'ZBDSTAT'.
+<font color ="#8C8C8C">*      ls_fieldcat-edit = abap_on.</font>
+      ls_fieldcat-drdn_hndl = 2.
+      ls_fieldcat-drdn_alias = abap_on.
+    WHEN 'ZBDPERID'.
+<font color ="#8C8C8C">*      ls_fieldcat-edit = abap_on.</font>
+      ls_fieldcat-drdn_hndl = 3.
+      ls_fieldcat-drdn_alias = abap_on.
+    WHEN 'ZBDCCTR'.
+<font color ="#8C8C8C">*      ls_fieldcat-edit = abap_on.</font>
+      ls_fieldcat-drdn_hndl = 4.
+      ls_fieldcat-drdn_alias = abap_on.
+    WHEN 'ZBDCUM' OR 'ZBDREPEM' OR 'ZBSTLMNT'.
+<font color ="#8C8C8C">*      ls_fieldcat-edit     = gc_x.</font>
+      ls_fieldcat-checkbox = gc_x.
+  ENDCASE.
+
+  APPEND ls_fieldcat TO pt_fcat.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_layo</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt GO_GRID</font>
+<font color ="#8C8C8C">*&      &lt-- GS_LAYO</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000007"></div>
+FORM set_layo  USING    po_grid TYPE REF TO cl_gui_alv_grid
+               CHANGING ps_layo TYPE lvc_s_layo.
+
+  CLEAR : ps_layo.
+
+  ps_layo-zebra      = gc_x.
+  ps_layo-sel_mode   = gc_d.
+  ps_layo-no_rowins  = gc_x.
+<font color ="#8C8C8C">*  ps_layo-cwidth_opt = gc_x.</font>
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_variant</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt GO_GRID</font>
+<font color ="#8C8C8C">*&      &lt-- GS_VARIANT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000008"></div>
+FORM set_variant  USING    po_grid    TYPE REF TO cl_gui_alv_grid
+                  CHANGING ps_variant TYPE disvariant.
+
+  CLEAR : ps_variant.
+
+  CASE po_grid.
+    WHEN go_grid.
+      gs_variant-report     = sy-repid.
+      gs_variant-handle     = 'AVL1'.
+      gs_variant-username   = sy-uname.
+    WHEN OTHERS.
+  ENDCASE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form display_alv</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt GT_DATA</font>
+<font color ="#8C8C8C">*&      --&gt GT_FCAT</font>
+<font color ="#8C8C8C">*&      --&gt GT_SORT</font>
+<font color ="#8C8C8C">*&      --&gt GT_FILT</font>
+<font color ="#8C8C8C">*&      --&gt GT_EXCLUDE</font>
+<font color ="#8C8C8C">*&      --&gt GO_GRID</font>
+<font color ="#8C8C8C">*&      --&gt GS_VARIANT</font>
+<font color ="#8C8C8C">*&      --&gt GS_LAYO</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000009"></div>
+FORM display_alv  TABLES pt_outtab
+                         pt_fcat    TYPE lvc_t_fcat
+                         pt_sort    TYPE lvc_t_sort
+                         pt_filt    TYPE lvc_t_filt
+<font color ="#8C8C8C">*                         PT_F4      TYPE LVC_T_F4</font>
+                         pt_func    TYPE ui_functions
+                  USING  po_grid    TYPE REF TO cl_gui_alv_grid
+                         ps_variant TYPE disvariant
+                         ps_layout  TYPE lvc_s_layo.
+
+  CALL METHOD po_grid-&gtset_table_for_first_display
+    EXPORTING
+      is_variant                    = ps_variant
+      i_save                        = zcl_co_util=&gtalv_layo_ctrl( )
+      i_default                     = 'X'
+      is_layout                     = ps_layout
+      it_toolbar_excluding          = pt_func[]
+    CHANGING
+      it_outtab                     = pt_outtab[]
+      it_fieldcatalog               = pt_fcat[]
+      it_sort                       = pt_sort[]
+      it_filter                     = pt_filt[]
+    EXCEPTIONS
+      invalid_parameter_combination = 1
+      program_error                 = 2
+      too_many_lines                = 3
+      OTHERS                        = 4.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form refresh_alv</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt GT_FCAT</font>
+<font color ="#8C8C8C">*&      --&gt GS_LAYO</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000010"></div>
+FORM refresh_alv  TABLES pt_fieldcat TYPE lvc_t_fcat "GT_FIELDCAT1
+                  USING  ps_layout TYPE lvc_s_layo        "GS_LAYOUT1
+                         p_grid       "GRID1
+                         p_layout     "X
+                         p_fieldcat   "X
+                         p_tool       "X
+                         p_soft.      "X
+
+  DATA: ls_stable   TYPE lvc_s_stbl,
+        lt_fieldcat TYPE lvc_t_fcat,
+        ls_variant  LIKE disvariant.
+  ls_stable-row = 'X'.
+  ls_stable-col = 'X'.
+
+  FIELD-SYMBOLS: &ltgrid&gt TYPE REF TO cl_gui_alv_grid.
+  ASSIGN (p_grid) TO &ltgrid&gt.
+
+  CHECK &ltgrid&gt IS BOUND.
+
+  lt_fieldcat[] = pt_fieldcat[].
+  ls_variant = gs_variant.
+  CALL FUNCTION 'LVC_VARIANT_SELECT'
+    EXPORTING
+      i_dialog            = space
+      i_user_specific     = 'X'
+      it_default_fieldcat = lt_fieldcat[]
+    IMPORTING
+      et_fieldcat         = lt_fieldcat[]
+    CHANGING
+      cs_variant          = ls_variant
+    EXCEPTIONS
+      wrong_input         = 1
+      fc_not_complete     = 2
+      not_found           = 3
+      program_error       = 4
+      data_missing        = 5
+      OTHERS              = 6.
+  IF ls_variant IS NOT INITIAL.
+    pt_fieldcat[] = lt_fieldcat[].
+  ENDIF.
+
+  IF p_layout = 'X'.
+    CALL METHOD &ltgrid&gt-&gtset_frontend_layout
+      EXPORTING
+        is_layout = ps_layout.
+  ENDIF.
+
+  IF p_fieldcat = 'X'.
+    CALL METHOD &ltgrid&gt-&gtset_frontend_fieldcatalog
+      EXPORTING
+        it_fieldcatalog = pt_fieldcat[].
+  ENDIF.
+
+  IF p_tool = 'X'.
+    CALL METHOD &ltgrid&gt-&gtset_toolbar_interactive.
+  ENDIF.
+
+  CALL METHOD &ltgrid&gt-&gtrefresh_table_display
+    EXPORTING
+      is_stable      = ls_stable
+      i_soft_refresh = p_soft.
+
+  CALL METHOD cl_gui_cfw=&gtflush.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form check_data</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000011"></div>
+FORM check_data .
+
+  " #### ###
+  SELECT SINGLE bezei
+    FROM tka01
+   WHERE kokrs EQ @p_kokrs
+    INTO @p_bezei.
+
+  " #### ### #### ## ##
+  SELECT SINGLE bukrs
+    FROM tka02
+   WHERE kokrs EQ @p_kokrs
+    INTO @p_bukrs.
+
+  " ## ###
+  SELECT SINGLE butxt
+    FROM t001
+   WHERE bukrs EQ @p_bukrs
+    INTO @p_butxt.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

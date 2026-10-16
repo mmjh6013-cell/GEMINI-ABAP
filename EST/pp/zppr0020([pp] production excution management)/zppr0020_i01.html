@@ -1,0 +1,842 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZPPR0020_I01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZPPR0020_I01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZPPR0020_I01</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Module  AT_EXIT_COMMAND  INPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000048"></div>
+MODULE at_exit_command INPUT.
+  CASE sy-ucomm.
+    WHEN 'BACK' OR 'EXIT' OR 'CANCEL' OR 'CANC' .
+      LEAVE TO SCREEN 0.
+  ENDCASE.
+ENDMODULE.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Module  USER_COMMAND_0100  INPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000049"></div>
+MODULE user_command_0100 INPUT.
+
+  CASE gv_okcode.
+
+    WHEN 'REFRESH'. " W
+      PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000021');">get_data</a> .
+      PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000020');">refresh_alv_100</a> .
+
+    WHEN 'PROD'.
+
+      CLEAR gs_order .
+
+      DATA lt_idx TYPE lvc_t_row .
+      DATA ls_idx TYPE lvc_s_row .
+
+      REFRESH lt_idx[] .
+      CALL METHOD o-&gto_alv-&gtget_selected_rows
+        IMPORTING
+          et_index_rows = lt_idx.
+
+      IF lt_idx[] IS NOT INITIAL .
+
+        CLEAR gs_order .
+        gv_row_idx = lt_idx[ 1 ]-index .
+
+        PERFORM <a href="#000000000056">open_screen_200</a> USING gv_row_idx .
+<font color ="#8C8C8C">***********************************************************************</font>
+<font color ="#8C8C8C">*        READ TABLE gt_main ASSIGNING FIELD-SYMBOL(&ltfmain&gt) INDEX lv_idx .</font>
+<font color ="#8C8C8C">*        IF &ltfmain&gt IS ASSIGNED .</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*          MOVE-CORRESPONDING &ltfmain&gt TO gs_order .</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*          " ## ## ##</font>
+<font color ="#8C8C8C">*          CLEAR gs_exec_gr .</font>
+<font color ="#8C8C8C">*          gs_exec_gr-wemng = gs_order-wemng .</font>
+<font color ="#8C8C8C">*          gs_exec_gr-meins = gs_order-amein .</font>
+<font color ="#8C8C8C">*          gs_exec_gr-budat = gs_order-budat .</font>
+<font color ="#8C8C8C">*          gs_exec_gr-edate = sy-datlo .</font>
+<font color ="#8C8C8C">*          gs_exec_gr-pdate = sy-datlo .</font>
+<font color ="#8C8C8C">*          gs_exec_gr-xdate = sy-datlo .</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*          " 0200 LOAD # : check box - unChecked</font>
+<font color ="#8C8C8C">*          c_kzear = ' ' .</font>
+<font color ="#8C8C8C">*          c_cancel = ' ' .</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*          PERFORM get_data_0200 USING &ltfmain&gt-aufnr .</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*          CALL SCREEN '0200' STARTING AT 1 1 .</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*          PERFORM get_data .</font>
+<font color ="#8C8C8C">*          o-&gtm_90_refresh_alv( ) .</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*        ENDIF .</font>
+<font color ="#8C8C8C">***********************************************************************</font>
+      ELSE .
+
+        MESSAGE TEXT-m07 TYPE 'S' DISPLAY LIKE 'E' .
+
+      ENDIF .
+
+  ENDCASE.
+
+ENDMODULE.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Module  F4_MATNR_100  INPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000050"></div>
+MODULE f4_matnr_100 INPUT.
+
+  DATA : lt_ddshretval LIKE TABLE OF ddshretval,
+         ls_dynp       LIKE dynpread,
+         lt_dynp       LIKE TABLE OF dynpread.
+
+  CLEAR : ls_dynp, lt_dynp.
+
+  SELECT DISTINCT b~werks, b~matnr, c~maktx, a~meins
+    FROM mara AS a
+   INNER JOIN marc AS b
+           ON a~matnr EQ b~matnr
+          AND b~beskz EQ 'E'
+   INNER JOIN makt AS c
+           ON b~matnr EQ c~matnr
+          AND c~spras EQ @sy-langu
+   INNER JOIN t001w AS d
+           ON b~werks EQ d~werks
+   INNER JOIN t001k AS e
+           ON d~bwkey EQ e~bwkey
+   WHERE a~mtart EQ 'FERT'
+     AND b~werks EQ @p_plant
+    INTO TABLE @DATA(lt_mara_100).
+  SORT lt_mara_100 BY matnr.
+
+  " #### ##
+  CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = 'S_MATNR-LOW'
+      dynpprog        = sy-repid
+      dynpnr          = sy-dynnr
+      dynprofield     = 'GS_BULK-MATNR'
+      value_org       = 'S'
+    TABLES
+      value_tab       = lt_mara_100
+      return_tab      = lt_ddshretval
+    EXCEPTIONS
+      parameter_error = 1
+      no_values_found = 2
+      OTHERS          = 3.
+
+  IF sy-subrc &lt&gt 0.
+
+  ENDIF.
+
+ENDMODULE.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Module  F4_MATNR_120  INPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000051"></div>
+MODULE f4_matnr_120 INPUT.
+
+  DATA : lt_ddshretval2 LIKE TABLE OF ddshretval,
+         ls_dynp2       LIKE dynpread,
+         lt_dynp2       LIKE TABLE OF dynpread.
+
+  CLEAR : ls_dynp2, lt_dynp2.
+
+  SELECT DISTINCT b~werks, b~matnr, c~maktx, a~meins
+    FROM mara AS a
+   INNER JOIN marc AS b
+           ON a~matnr EQ b~matnr
+          AND b~beskz EQ 'E'
+   INNER JOIN makt AS c
+           ON b~matnr EQ c~matnr
+          AND c~spras EQ @sy-langu
+   INNER JOIN t001w AS d
+           ON b~werks EQ d~werks
+   INNER JOIN t001k AS e
+           ON d~bwkey EQ e~bwkey
+   WHERE a~mtart EQ 'FERT'
+     AND b~werks EQ @p_plant
+    INTO TABLE @DATA(lt_mara_120).
+  SORT lt_mara_120 BY matnr.
+
+  " #### ##
+  CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = 'MATNR'
+      dynpprog        = sy-repid
+      dynpnr          = sy-dynnr
+      dynprofield     = 'GS_PACK-MATNR_P'
+      value_org       = 'S'
+    TABLES
+      value_tab       = lt_mara_120
+      return_tab      = lt_ddshretval2
+    EXCEPTIONS
+      parameter_error = 1
+      no_values_found = 2
+      OTHERS          = 3.
+  IF sy-subrc &lt&gt 0.
+
+  ENDIF.
+
+ENDMODULE.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Module  F4_AUART_120  INPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000052"></div>
+MODULE f4_auart_120 INPUT.
+
+  SELECT a~werks, a~auart, b~txt
+    FROM t399x AS a
+   INNER JOIN t003p AS b
+           ON a~auart EQ b~auart
+          AND b~spras EQ @sy-langu
+   WHERE a~autyp EQ '40'
+     AND a~werks EQ @p_plant
+    INTO TABLE @DATA(lt_t399x_120).
+
+  " #### ##
+  CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = 'AUART'
+      dynpprog        = sy-repid
+      dynpnr          = sy-dynnr
+      dynprofield     = 'GS_PACK-AUART'
+      value_org       = 'S'
+    TABLES
+      value_tab       = lt_t399x_120
+    EXCEPTIONS
+      parameter_error = 1
+      no_values_found = 2
+      OTHERS          = 3.
+  IF sy-subrc &lt&gt 0.
+
+  ENDIF.
+
+ENDMODULE.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Module SET_INIT_200 OUTPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000053"></div>
+MODULE set_init_200 OUTPUT.
+
+  PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000028');">modify_screen_200</a> .
+
+  " ====================================
+  " CBO Class # ### ALV Grid Display
+
+  IF o2 IS INITIAL .
+
+    CREATE OBJECT o2.
+
+    CREATE OBJECT o2-&gto_container
+      EXPORTING
+        container_name = 'G_CONTAINER'.
+
+    CALL METHOD o2-&gtm_10_create_object( ).
+
+
+    " ----------  SET Event Handler  -------------------
+    " Set F4 Event to ALV
+    o2-&gtm_30_add_f4_fld( 'CHARG' ) .
+    o2-&gtm_30_add_f4_fld( 'LGORT' ) .
+    o2-&gtm_30_add_f4_fld( 'MATNR' ) .
+
+    CALL METHOD o2-&gtm_30_set_handler
+      EXPORTING
+        double_click          = 'X'
+        data_changed          = 'X'
+        data_changed_finished = 'X'
+        toolbar               = 'X'
+        f4                    = 'X'
+        user_command          = 'X'.
+    " ----------  SET Event Handler  -------------------
+
+    " SET Field Catalog
+    PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000016');">set_fieldcatalog_200</a> .
+
+    " SET Drop Down Handle
+    PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000045');">set_drop_down_200</a>.
+
+    " SET Layout
+    o2-&gtm_30_set_layout( EXPORTING i_field = 'SEL_MODE'    i_value = 'C' ) .
+    o2-&gtm_30_set_layout( EXPORTING i_field = 'CWIDTH_OPT'  i_value = 'X' ) .
+    o2-&gtm_30_set_layout( EXPORTING i_field = 'STYLEFNAME'  i_value = 'CELLTAB' ) .
+    o2-&gtm_30_set_layout( EXPORTING i_field = 'NO_ROWMARK'  i_value = 'X' ) .
+<font color ="#8C8C8C">*    o2-&gtm_30_set_layout( EXPORTING i_field = 'COL_OPT'     i_value = 'X' ) .</font>
+    o2-&gtm_30_set_layout( EXPORTING i_field = 'INFO_FNAME'  i_value = 'COLOR' ) .
+
+    " DeActivate Toolbar
+    CALL METHOD o2-&gtm_30_ex_toolbar
+      EXPORTING
+        iv_append    = 'X'
+        iv_insert    = 'X'
+        iv_delete    = 'X'
+        iv_paste     = 'X'
+        iv_paste_new = 'X'
+        iv_copy_row  = 'X'
+        iv_detail    = 'X'
+        iv_check     = 'X'
+        iv_copy      = 'X'
+        iv_view      = 'X'
+        iv_info      = 'X'
+        iv_undo      = 'X'
+        iv_find      = 'X'
+        iv_find_more = 'X'
+        iv_refresh   = 'X'
+        iv_cut       = 'X'
+        iv_sort_asc  = 'X'
+        iv_sort_dsc  = 'X'
+        iv_sum       = 'X'
+        iv_subtot    = 'X'
+        iv_print     = 'X'
+        iv_export    = 'X'
+        iv_filter    = 'X'
+        iv_variant   = 'X'.
+
+    " ==============================================
+    o2-&gtt_fcat[] = gt_fcat[] .
+
+    CALL METHOD o2-&gtm_80_display_alv
+      CHANGING
+        t_data = gt_200.
+
+  ELSE .
+
+    o2-&gtm_90_refresh_alv( ) .
+
+  ENDIF .
+  " CBO Class # ### ALV Grid Display
+  " ====================================
+
+
+
+ENDMODULE.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Module  SET_BUT_TEXT  OUTPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000054"></div>
+MODULE set_but_text OUTPUT .
+
+<font color ="#8C8C8C">**  CLEAR gv_charg_exist .</font>
+<font color ="#8C8C8C">**</font>
+<font color ="#8C8C8C">**  IF gs_bulk-werks IS NOT INITIAL AND gs_bulk-matnr IS NOT INITIAL .</font>
+<font color ="#8C8C8C">**</font>
+<font color ="#8C8C8C">**    SELECT SINGLE charg</font>
+<font color ="#8C8C8C">**      INTO @gv_charg_exist</font>
+<font color ="#8C8C8C">**      FROM mcha</font>
+<font color ="#8C8C8C">**     WHERE matnr = @gs_bulk-matnr</font>
+<font color ="#8C8C8C">**       AND werks = @gs_bulk-werks</font>
+<font color ="#8C8C8C">**       AND charg = @gs_bulk-charg .</font>
+<font color ="#8C8C8C">**</font>
+<font color ="#8C8C8C">**  ELSE .</font>
+<font color ="#8C8C8C">**</font>
+<font color ="#8C8C8C">**    gs_bulk-charg = |{ gs_bulk-erdat+2(6) }| .</font>
+<font color ="#8C8C8C">**</font>
+<font color ="#8C8C8C">**  ENDIF .</font>
+<font color ="#8C8C8C">**</font>
+<font color ="#8C8C8C">**  IF gv_charg_exist IS NOT INITIAL .</font>
+<font color ="#8C8C8C">**    but_lot = TEXT-f15 .</font>
+<font color ="#8C8C8C">**    MODIFY SCREEN .</font>
+<font color ="#8C8C8C">**  ELSE .</font>
+<font color ="#8C8C8C">**    but_lot = TEXT-f14 .</font>
+<font color ="#8C8C8C">**    MODIFY SCREEN .</font>
+<font color ="#8C8C8C">**  ENDIF .</font>
+
+ENDMODULE.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Module  USER_COMMAND_0200  INPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000055"></div>
+MODULE user_command_0200 INPUT.
+
+  DATA ls_200 TYPE ts_0200 .
+
+  " Check Data Changed
+  CASE sy-ucomm .
+
+    WHEN 'EX_GR_SAVE' OR 'BUT_CN_SAVE'  .
+
+      " ####, #### ## data# ###
+      IF sy-datar = 'X' .
+
+        MESSAGE TEXT-m35 TYPE 'S' DISPLAY LIKE 'W' .
+        EXIT .
+
+      ENDIF .
+  ENDCASE .
+
+  CASE sy-ucomm .
+
+    WHEN 'EX_GR_SAVE' .  " ## ##
+      PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000034');">save_ord_conf</a> .
+
+    WHEN 'EX_GR_CANC' .  " ## ##
+      PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000035');">canc_ord_conf</a> .
+
+
+    WHEN 'BUT_CN_SAVE' .    " ## ##
+      PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000033');">save_consumption</a> .
+
+      " ### ## ### ##
+      CALL METHOD o2-&gto_alv-&gtrefresh_table_display
+        EXPORTING
+          is_stable = VALUE lvc_s_stbl( row = 'X' col = 'X' )  " ## # ### ##
+        EXCEPTIONS
+          finished  = 1
+          OTHERS    = 2.
+
+      IF sy-subrc &lt&gt 0.
+        " ## ##
+      ENDIF.
+
+    WHEN 'BUT_CN_CANC' .    " ## ##
+      PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000036');">canc_consumption</a> .
+
+      " ### ## ### ##
+      CALL METHOD o2-&gto_alv-&gtrefresh_table_display
+        EXPORTING
+          is_stable = VALUE lvc_s_stbl( row = 'X' col = 'X' )  " ## # ### ##
+        EXCEPTIONS
+          finished  = 1
+          OTHERS    = 2.
+
+      IF sy-subrc &lt&gt 0.
+        " ## ##
+      ENDIF.
+
+    WHEN 'BUT_BATCH' .    " Lot R&D
+      PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000046');">bapi_batch_change_rnd</a> .
+
+    WHEN 'C_KZEAR' .  " ## ### ##
+      PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000029');">get_data_0200</a> USING gs_order-aufnr .
+<font color ="#8C8C8C">*      CALL METHOD o2-&gtm_90_refresh_alv( ).</font>
+
+    WHEN 'C_CANCEL' .  " #### ##
+      PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000029');">get_data_0200</a> USING gs_order-aufnr .
+<font color ="#8C8C8C">*      CALL METHOD o2-&gtm_90_refresh_alv( ).</font>
+
+
+    WHEN 'BUT_CN_ADD' .  " ## ##
+      PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000030');">add_line_200</a> .
+
+    WHEN 'BUT_CN_DEL' .  " ## ##
+      PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000031');">del_line_200</a> .
+
+    WHEN 'BUT_COPY' .  " Copy Order
+      PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000032');">copy_order</a> .
+
+
+    WHEN 'BUT_PRNT' .
+
+      PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000043');">select_resb</a> .
+      PERFORM <a href ="javascript:Link('ZPPR0020_XLS_DOWN.html?id=#000000000066');">print_out_sheet</a> .
+
+    WHEN 'BUT_CHAN' .
+      PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000044');">change_ord</a>.
+
+  ENDCASE .
+
+  " Calculate and Append Total Line
+  PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000040');">calc_total_gt200</a> .
+
+  CALL METHOD o2-&gto_alv-&gtset_frontend_layout
+    EXPORTING
+      is_layout = o2-&gts_layo.     " Layout
+
+ENDMODULE.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form open_screen_200</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt LV_IDX</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000056"></div>
+FORM open_screen_200 USING p_lv_idx.
+
+  DATA lt_in  TYPE TABLE OF zpps0030 .
+  DATA lt_out TYPE TABLE OF zpps0020 .
+
+  READ TABLE gt_main ASSIGNING FIELD-SYMBOL(&ltfmain&gt) INDEX p_lv_idx .
+  IF &ltfmain&gt IS ASSIGNED .
+
+    MOVE-CORRESPONDING &ltfmain&gt TO gs_order .
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*    DATA lt_enq TYPE TABLE OF seqg3.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*    " AUFK LOCK ## ### READ</font>
+<font color ="#8C8C8C">*    CALL FUNCTION 'ENQUEUE_READ'</font>
+<font color ="#8C8C8C">*      EXPORTING</font>
+<font color ="#8C8C8C">*        gclient               = sy-mandt  " Client</font>
+<font color ="#8C8C8C">*        gname                 = 'AUFK'     " Granularity name (-&gt table name)</font>
+<font color ="#8C8C8C">**       garg                  = space     " Granularity value(-&gtvalues of key fields)</font>
+<font color ="#8C8C8C">*        guname                = space     " User Name</font>
+<font color ="#8C8C8C">**       local                 = space     " Single-Character Flag</font>
+<font color ="#8C8C8C">**       fast                  = space     " Redundant table fields are not fully filled</font>
+<font color ="#8C8C8C">**       gargnowc              = space     " All characters in GARG are literals</font>
+<font color ="#8C8C8C">**        IMPORTING</font>
+<font color ="#8C8C8C">**       number                =           " Number of chosen lock entries</font>
+<font color ="#8C8C8C">**       subrc                 =           " Error code of the enqueue call</font>
+<font color ="#8C8C8C">*      TABLES</font>
+<font color ="#8C8C8C">*        enq                   = lt_enq    " List of the chosen lock entries</font>
+<font color ="#8C8C8C">*      EXCEPTIONS</font>
+<font color ="#8C8C8C">*        communication_failure = 1         " See RFC documentation</font>
+<font color ="#8C8C8C">*        system_failure        = 2         " See RFC documentation</font>
+<font color ="#8C8C8C">*        OTHERS                = 3.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*    " AUFK LOCK ## ### # ## aufnr ### ##</font>
+<font color ="#8C8C8C">*    READ TABLE lt_enq INTO DATA(ls_enq) WITH KEY garg = |{ sy-mandt }{ gs_order-aufnr }|.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*    " LOCK #### ##</font>
+<font color ="#8C8C8C">*    IF sy-subrc EQ 0.</font>
+<font color ="#8C8C8C">*      " This order is currently locked by user: &</font>
+<font color ="#8C8C8C">*      MESSAGE s000(zppm1) DISPLAY LIKE 'E' WITH TEXT-m45 ls_enq-guname.</font>
+<font color ="#8C8C8C">*      EXIT.</font>
+<font color ="#8C8C8C">*    ENDIF.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*    " LOCK# ## ## ## ## ## # LOCK</font>
+<font color ="#8C8C8C">*    CALL FUNCTION 'ENQUEUE_ESORDER'</font>
+<font color ="#8C8C8C">*      EXPORTING</font>
+<font color ="#8C8C8C">*        mode_aufk      = 'E'</font>
+<font color ="#8C8C8C">*        mandt          = sy-mandt</font>
+<font color ="#8C8C8C">*        aufnr          = gs_order-aufnr</font>
+<font color ="#8C8C8C">*        x_aufnr        = abap_on</font>
+<font color ="#8C8C8C">*        _scope         = '3'</font>
+<font color ="#8C8C8C">*      EXCEPTIONS</font>
+<font color ="#8C8C8C">*        foreign_lock   = 1</font>
+<font color ="#8C8C8C">*        system_failure = 2</font>
+<font color ="#8C8C8C">*        OTHERS         = 3.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*    IF sy-subrc NE 0.</font>
+<font color ="#8C8C8C">*      " This order is currently locked by user: &</font>
+<font color ="#8C8C8C">*      MESSAGE s000(zppm1) DISPLAY LIKE 'E' WITH TEXT-m45 ls_enq-guname.</font>
+<font color ="#8C8C8C">*      EXIT.</font>
+<font color ="#8C8C8C">*    ENDIF.</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+    " ## ## ##
+    CLEAR gs_exec_gr .
+    gs_exec_gr-wemng = gs_order-wemng .
+    gs_exec_gr-meins = gs_order-amein .
+    gs_exec_gr-budat = gs_order-budat .
+
+    gs_exec_gr-bhsdat = &ltfmain&gt-hsdat .
+    gs_exec_gr-bvfdat = &ltfmain&gt-vfdat .
+
+    " ## ### #####,
+    "   &gt ## ## ### ## ##
+    IF gs_exec_gr-wemng IS INITIAL .
+
+      gs_exec_gr-edate = sy-datlo .
+      gs_exec_gr-hsdat = sy-datlo .
+      gs_exec_gr-vfdat = sy-datlo .
+
+      CALL FUNCTION 'RP_CALC_DATE_IN_INTERVAL'
+        EXPORTING
+          date      = sy-datlo
+          months    = 6   " 6## ##
+          years     = 0
+          days      = 0
+        IMPORTING
+          calc_date = gs_exec_gr-vfdat.
+      gs_exec_gr-vfdat = gs_exec_gr-vfdat - 1 .
+
+    ELSE .
+      " ## ### #### ####,
+      "   &gt ## ## ### ## ## ###
+
+      CLEAR gs_exec_gr-edate .
+      CLEAR gs_exec_gr-menge .
+      CLEAR gs_exec_gr-hsdat .
+      CLEAR gs_exec_gr-vfdat .
+
+    ENDIF .
+    "   ----------------------------   Adjusted Qty.
+    REFRESH lt_in[] .
+    REFRESH lt_out[] .
+    lt_in = VALUE #( ( werks = p_plant    aufnr = gs_order-aufnr ) ) .
+    CALL FUNCTION <a href ="zpp_deduct_recursive_issue/zpp_deduct_recursive_issue.html">'ZPP_DEDUCT_RECURSIVE_ISSUE'</a>
+      TABLES
+        t_input  = lt_in
+        t_output = lt_out
+      EXCEPTIONS
+        no_data  = 1
+        OTHERS   = 2.
+    IF sy-subrc = 0 .
+<font color ="#8C8C8C">*      WRITE lt_out[ 1 ]-zadjust_qty TO gs_exec_gr-amenge CURRENCY gv_meins1  .</font>
+      gs_exec_gr-amenge = lt_out[ 1 ]-zadjust_qty .
+    ENDIF .
+    "   ----------------------------   Adjusted Qty.
+
+    " Save gs_exec_gr to old_exec_gr
+    "   &gt&gt to compare edate is changed
+    old_exec_gr = gs_exec_gr .
+
+    " Only For Display
+    gv_meins1 = gs_order-amein .
+    gv_meins2 = gs_order-amein .
+    " 0200 LOAD # : check box - unChecked
+    c_kzear = ' ' .
+    c_cancel = ' ' .
+
+    IF strlen( gs_order-charg ) &gt 1 .
+
+      " Blender( B201( B ) / B202( L ) / B203( E ) )
+<font color ="#8C8C8C">*--- cbo field 0811</font>
+<font color ="#8C8C8C">*      CASE gs_order-zzblender .</font>
+<font color ="#8C8C8C">*        WHEN 'B201' .</font>
+<font color ="#8C8C8C">*          gs_order-b201 = 'X' .</font>
+<font color ="#8C8C8C">*        WHEN 'B202' .</font>
+<font color ="#8C8C8C">*          gs_order-b202 = 'X' .</font>
+<font color ="#8C8C8C">*        WHEN 'B203' .</font>
+<font color ="#8C8C8C">*          gs_order-b203 = 'X' .</font>
+<font color ="#8C8C8C">*        WHEN 'TOTE MIXER' .</font>
+<font color ="#8C8C8C">*          gs_order-tm = 'X' .</font>
+<font color ="#8C8C8C">*        WHEN 'B301' .</font>
+<font color ="#8C8C8C">*          gs_order-b301 = 'X' .</font>
+<font color ="#8C8C8C">*        WHEN 'B302' .</font>
+<font color ="#8C8C8C">*          gs_order-b302 = 'X' .</font>
+<font color ="#8C8C8C">*        WHEN 'B303' .</font>
+<font color ="#8C8C8C">*          gs_order-b303 = 'X' .</font>
+<font color ="#8C8C8C">*        WHEN 'D/M MIXER' .</font>
+<font color ="#8C8C8C">*          gs_order-dm = 'X' .</font>
+<font color ="#8C8C8C">*        WHEN 'R&D' .</font>
+<font color ="#8C8C8C">*          gs_order-rd = 'X' .</font>
+<font color ="#8C8C8C">*      ENDCASE .</font>
+<font color ="#8C8C8C">*--- end</font>
+
+<font color ="#8C8C8C">* 2025.08.22 ##( Lot #### Prod. Started At# ### )</font>
+<font color ="#8C8C8C">*      " Product Started At( M / D / N )</font>
+<font color ="#8C8C8C">*      lv_len = strlen( gs_order-charg ) - 1 .</font>
+<font color ="#8C8C8C">*      CASE gs_order-charg+lv_len(1) .</font>
+<font color ="#8C8C8C">*        WHEN 'M' .</font>
+<font color ="#8C8C8C">*          gs_order-vm = 'X' .</font>
+<font color ="#8C8C8C">*        WHEN 'D' .</font>
+<font color ="#8C8C8C">*          gs_order-vd = 'X' .</font>
+<font color ="#8C8C8C">*        WHEN 'N' .</font>
+<font color ="#8C8C8C">*          gs_order-vn = 'X' .</font>
+<font color ="#8C8C8C">*      ENDCASE .</font>
+
+    ENDIF .
+
+<font color ="#8C8C8C">*--- cbo field 0811</font>
+<font color ="#8C8C8C">*    CASE gs_order-zzbulktype .</font>
+<font color ="#8C8C8C">*      WHEN 'S' .</font>
+<font color ="#8C8C8C">*        gs_order-bts = 'X' .</font>
+<font color ="#8C8C8C">*      WHEN 'F' .</font>
+<font color ="#8C8C8C">*        gs_order-btf = 'X' .</font>
+<font color ="#8C8C8C">*    ENDCASE .</font>
+<font color ="#8C8C8C">*--- end</font>
+
+    " Get Screen 200 ALV Data
+    PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000029');">get_data_0200</a> USING &ltfmain&gt-aufnr .
+
+    " Calculate and Append Total Line
+    PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000040');">calc_total_gt200</a> .
+
+    CALL SCREEN <a href ="javascript:Link('0200.html?id=#000000000071');">'0200'</a> STARTING AT 0 0 .
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*    " LOCK ##</font>
+<font color ="#8C8C8C">*    CALL FUNCTION 'DEQUEUE_ESORDER'</font>
+<font color ="#8C8C8C">*      EXPORTING</font>
+<font color ="#8C8C8C">*        mode_aufk = 'E'</font>
+<font color ="#8C8C8C">*        mandt     = sy-mandt</font>
+<font color ="#8C8C8C">*        aufnr     = gs_order-aufnr</font>
+<font color ="#8C8C8C">*        x_aufnr   = 'X'</font>
+<font color ="#8C8C8C">*        _scope    = '3'.</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+
+    PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000021');">get_data</a> .
+
+  ENDIF .
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Module SET_INIT_210 OUTPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000057"></div>
+MODULE set_init_210 OUTPUT.
+
+  IF o3 IS INITIAL .
+
+    CREATE OBJECT o3.
+
+    CREATE OBJECT o3-&gto_container
+      EXPORTING
+        container_name = 'O_CONTAINER_210'.
+
+    CALL METHOD o3-&gtm_10_create_object( ).
+
+    CALL METHOD o3-&gtm_30_set_handler
+      EXPORTING
+<font color ="#8C8C8C">*       double_click = 'X'</font>
+        data_changed = 'X'
+<font color ="#8C8C8C">*       data_changed_finished = 'X'</font>
+<font color ="#8C8C8C">*       toolbar      = 'X'</font>
+<font color ="#8C8C8C">*       f4           = 'X'</font>
+        user_command = 'X'.
+    " ----------  SET Event Handler  -------------------
+
+    " SET Field Catalog
+    PERFORM <a href ="javascript:Link('ZPPR0020_F01.html?id=#000000000017');">set_fieldcatalog_210</a> .
+
+    " SET Layout
+    o3-&gtm_30_set_layout( EXPORTING i_field = 'CWIDTH_OPT'  i_value = 'X' ) .
+    o3-&gtm_30_set_layout( EXPORTING i_field = 'STYLEFNAME'  i_value = 'CELLTAB' ) .
+    o3-&gtm_30_set_layout( EXPORTING i_field = 'NO_ROWMARK'  i_value = 'X' ) .
+    o3-&gtm_30_set_layout( EXPORTING i_field = 'INFO_FNAME'  i_value = 'COLOR' ) .
+
+    " DeActivate Toolbar
+    CALL METHOD o3-&gtm_30_ex_toolbar
+      EXPORTING
+        iv_append    = 'X'
+        iv_insert    = 'X'
+        iv_delete    = 'X'
+        iv_paste     = 'X'
+        iv_paste_new = 'X'
+        iv_copy_row  = 'X'
+        iv_detail    = 'X'
+        iv_check     = 'X'
+        iv_copy      = 'X'
+        iv_view      = 'X'
+        iv_info      = 'X'
+        iv_undo      = 'X'
+        iv_find      = 'X'
+        iv_find_more = 'X'
+        iv_refresh   = 'X'
+        iv_cut       = 'X'
+        iv_sort_asc  = 'X'
+        iv_sort_dsc  = 'X'
+        iv_sum       = 'X'
+        iv_subtot    = 'X'
+        iv_print     = 'X'
+        iv_export    = 'X'
+        iv_filter    = 'X'
+        iv_variant   = 'X'.
+
+    " ==============================================
+    o3-&gtt_fcat[] = gt_fcat[] .
+
+    CALL METHOD o3-&gtm_80_display_alv
+      CHANGING
+        t_data = gt_stock.
+
+  ELSE .
+
+    o3-&gtm_90_refresh_alv( ) .
+
+  ENDIF .
+  " CBO Class # ### ALV Grid Display
+  " ====================================
+
+ENDMODULE.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Module STATUS_0210 OUTPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000058"></div>
+MODULE status_0210 OUTPUT.
+  SET PF-STATUS 'STATUS_0210'.
+<font color ="#8C8C8C">*  SET TITLEBAR '0210'.</font>
+ENDMODULE.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Module  USER_COMMAND_0210  INPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000059"></div>
+MODULE user_command_0210 INPUT.
+
+  DATA lt_stock TYPE TABLE OF zpps0010 .
+
+  CASE sy-ucomm .
+
+    WHEN 'APPLY' .
+
+      " CHECK_CHANGED_DATA ##### ## ### #### ## ##
+      DATA lv_valid.
+
+      " ### DATA CHANGED CHECK
+      CALL METHOD o3-&gtcheck_changed_data
+        IMPORTING
+          e_valid = lv_valid. " Entries are Consistent
+
+      " LV_VALID# ## ## ## =&gt ### ### #### ## ##
+      IF lv_valid IS INITIAL.
+        " ## ##
+        EXIT.
+      ENDIF.
+
+<font color ="#8C8C8C">*      " 2025.08.29 Total ## #### ## VALI Check ##</font>
+<font color ="#8C8C8C">*      SELECT SUM( menge )</font>
+<font color ="#8C8C8C">*        FROM @gt_stock AS t</font>
+<font color ="#8C8C8C">*        INTO @gv_sum_qty .</font>
+
+      READ TABLE gt_stock INTO DATA(ls_sum) INDEX 1.
+
+      " Total - Sum = 0## ##
+      IF ls_sum-menge EQ 0 .
+
+        DELETE gt_stock WHERE menge IS INITIAL .
+
+        LEAVE TO SCREEN 0 .
+
+<font color ="#8C8C8C">*        REFRESH lt_stock[] .</font>
+<font color ="#8C8C8C">*        lt_stock[] = gt_stock[] .</font>
+<font color ="#8C8C8C">*        DELETE lt_stock WHERE menge IS INITIAL .</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*        IF lt_stock[] IS NOT INITIAL .</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*          PERFORM apply_stock_lines_200 USING lt_stock .</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*        ENDIF .</font>
+
+      ELSE .
+
+        MESSAGE TEXT-m39 TYPE 'E' .
+
+      ENDIF .
+
+    WHEN 'CANCL' OR 'CANC' .
+
+      REFRESH gt_stock[] .
+      LEAVE TO SCREEN 0 .
+
+  ENDCASE .
+
+ENDMODULE.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

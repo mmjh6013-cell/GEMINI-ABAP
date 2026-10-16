@@ -1,0 +1,221 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XI20_DO_MRP_MEHRSTUFIG</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XI20_DO_MRP_MEHRSTUFIG</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* MRP-Planung -mehrstufig-</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000612"></div>
+MODULE do_mrp_mehrstufig INPUT.
+
+  DATA:
+    lt_mdmmx TYPE TABLE OF mdmm,
+    lt_sel   TYPE pph_matnr_werks_berid_sel_tab,
+    ls_sel   LIKE pph_matnr_werks_berid_sel,
+    lv_lock_user LIKE sy-msgv1.             "Note-327333
+
+  FIELD-SYMBOLS:
+    &ltfs_mdmmx&gt LIKE LINE OF lt_mdmmx.
+
+<font color ="#8C8C8C">*--&gt Kommunikationsarea Transaktion</font>
+  PERFORM <a href ="javascript:Link('MM61XF30_ERSTELLEN_CM61X.html?id=#000000000193');">erstellen_cm61x</a>.
+<font color ="#8C8C8C">*--&gt ATP initialisieren bzw. Puffer deaktivieren, falls CM61X-ATPDA = X</font>
+  PERFORM <a href ="javascript:Link('MM61XF31_ATP_INITIALIZE.html?id=#000000000196');">atp_initialize</a>.
+<font color ="#8C8C8C">*--&gt Statistik initialisieren</font>
+  PERFORM beginn_statistik.
+
+<font color ="#8C8C8C">*--&gt Planung im Hauptspeicher</font>
+  IF rm61x-inmem = xflag.
+    IF rm61x-prgkz = xflag.
+      PERFORM mrp_in_memory_pg USING rm61x-matnr rm61x-werks.
+    ELSE.
+      PERFORM mrp_in_memory USING rm61x-matnr rm61x-werks rm61x-berid.
+    ENDIF.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Planungsvormerkungen initialisieren</font>
+<font color ="#8C8C8C">* CALL FUNCTION 'MD_RESET_PLANNING_REQUESTS'.      "herauszunehmen</font>
+<font color ="#8C8C8C">*--&gt Lesen Produktgruppe</font>
+  IF rm61x-prgkz EQ xflag.
+<font color ="#8C8C8C">*--&gt Clear Eingabefelder</font>
+    CLEAR rm61x-matnr.
+    CLEAR rm61x-werks.
+    CLEAR rm61x-berid.                    "note 642065
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Eingabematerial disponieren</font>
+  IF rm61x-prgkz NE xflag.
+ENHANCEMENT-SECTION     do_mrp_mehrstufig_01 SPOTS es_sapmm61x.
+
+"{ Begin ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+<font color ="#8C8C8C">*--&gt PIC : Processing SUS-Chain / MPN MRP SET</font>
+   IF NOT gt_pic_parts[] IS INITIAL.
+     PERFORM PIC_SET_REKWK .
+     PERFORM PIC_DO_MRP_MEHRSTUFIG .
+   ELSE.
+<font color ="#8C8C8C">*--&gt Material für Einzelplanung sperren</font>
+    PERFORM <a href ="javascript:Link('MM61XF34_SPERREN_MRP_EP.html?id=#000000000224');">SPERREN_MRP_EP</a> USING RM61X-WERKS RM61X-BERID RM61X-MATNR.
+<font color ="#8C8C8C">*--&gt Send Message</font>
+<font color ="#8C8C8C">*   PERFORM send_message_900 USING rm61x-matnr rm61x-werks rm61x-berid.</font>
+<font color ="#8C8C8C">*--&gt Eingabematerial disponieren</font>
+    GET_START_TIME TIME3.
+
+<font color ="#8C8C8C">* Selection via HANA</font>
+    IF cl_pph_mdpsx_selection=&gtget_hana_active( ) = abap_true.
+      ls_sel-matnr = rm61x-matnr.
+      ls_sel-werks = rm61x-werks.
+      ls_sel-berid = rm61x-berid.
+      APPEND ls_sel TO lt_sel.
+<font color ="#8C8C8C">* if result of MRP run shall be displayed use non-aggregated buffered mode</font>
+<font color ="#8C8C8C">*   Measure runtime for packages</font>
+      get_start_time time5.
+      IF rm61x-anzdl = abap_true.
+        CALL METHOD cl_pph_mdpsx_selection=&gtcontrol_hana_switches
+          EXPORTING
+            iv_agg_sel_finished     = abap_true
+            iv_read_nonagg_buffered = abap_true.
+        CALL METHOD cl_pph_mdpsx_selection=&gtsel_matnr_werks_berid_noag_s4h
+          EXPORTING
+            it_matnr_werks_berid = lt_sel.
+      ELSE.
+        CALL METHOD cl_pph_mdpsx_selection=&gtsel_matnr_werks_berid_agg_s4h
+          EXPORTING
+            it_matnr_werks_berid = lt_sel.
+      ENDIF.
+      run_time tdiff time6 time5.
+      gv_rtime_pre = gv_rtime_pre + tdiff.
+
+<font color ="#8C8C8C">* if material list shall be displayed use MRP in memory</font>
+      IF rm61x-anzls = abap_true.
+        CALL METHOD cl_pph_mdpsx_selection=&gtcontrol_hana_switches
+          EXPORTING
+            iv_switch_on_memory = abap_true.
+      ENDIF.
+    ENDIF.
+
+    PERFORM GRPG_SET_BUFFER IN PROGRAM SAPLGRPG.       "N1286547
+    PERFORM <a href ="javascript:Link('MM61XF32_BEARBEITEN_MATERIAL07.html?id=#000000000207');">BEARBEITEN_MATERIAL_MP</a> USING SPACE.
+    CLEAR TDIFF.
+    run_time tdiff time4 time3.
+<font color ="#8C8C8C">*--&gt Statistik erfassen</font>
+    perform erfassen_statistik using tdiff.
+<font color ="#8C8C8C">*--&gt Material für Einzelplanung entsperren</font>
+    PERFORM <a href ="javascript:Link('MM61XC02_ENTSPERREN_MRP.html?id=#000000000046');">ENTSPERREN_MRP</a> USING RM61X-WERKS RM61X-BERID RM61X-MATNR.
+<font color ="#8C8C8C">*--&gt Werk für Rekursivitätsprüfung merken</font>
+    REFRESH REKWK.
+    MOVE CM61D-MATNR TO REKMT-MATNR.
+    MOVE CM61D-BERID TO REKWK-BERID.
+    MOVE CM61D-WERKS TO REKWK-WERKS.
+    APPEND REKWK.
+   ENDIF. " PIC : Processing SUS-Chain / MPN MRP SET
+
+"{ End ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+
+END-ENHANCEMENT-SECTION.
+<font color ="#8C8C8C">* for HANA optimization preread materials which are already stored in GT_PLANREQUEST(MRP2)</font>
+  ELSEIF cl_pph_mdpsx_selection=&gtget_hana_active( ) = abap_true.
+<font color ="#8C8C8C">* Selection via HANA for Product groups</font>
+
+    CALL FUNCTION 'MD_GET_PLANNING_REQUESTS_ALL'
+      TABLES
+        ct_mdmmx = lt_mdmmx.
+
+    LOOP AT lt_mdmmx ASSIGNING &ltfs_mdmmx&gt.
+"Note-327333 Locks all the materials in product group before buffering
+      IF CM61X-PLOBJ EQ MDOBJL.
+        IF CM61X-PLAUF = lfrmp.
+          PERFORM <a href ="javascript:Link('MM61XC02_SPERREN_LFR_ML.html?id=#000000000067');">SPERREN_LFR_ML</a> USING CM61X-PLSCN
+                                       &ltfs_mdmmx&gt-plwrk
+                                       &ltfs_mdmmx&gt-berid
+                                       &ltfs_mdmmx&gt-matnr.
+        ENDIF.
+      ELSE.
+        IF CM61X-PLAUF = mrpmp OR CM61X-PLAUF = mpsmp.
+          PERFORM sperren_mrp_mp USING &ltfs_mdmmx&gt-plwrk
+                                       &ltfs_mdmmx&gt-berid
+                                       &ltfs_mdmmx&gt-matnr.
+        ENDIF.
+      ENDIF.
+      IF AM61X-RCODE NE 0.
+        MOVE sy-msgv1 TO lv_lock_user.
+        MESSAGE E951 with &ltfs_mdmmx&gt-matnr &ltfs_mdmmx&gt-plwrk lv_lock_user.
+      ENDIF.
+      ls_sel-matnr = &ltfs_mdmmx&gt-matnr.
+      ls_sel-werks = &ltfs_mdmmx&gt-plwrk.
+      ls_sel-berid = &ltfs_mdmmx&gt-berid.
+      APPEND ls_sel TO lt_sel.
+    ENDLOOP.
+<font color ="#8C8C8C">* if result of MRP run shall be displayed use non-aggregated buffered mode</font>
+    IF rm61x-anzdl = abap_true.
+      CALL METHOD cl_pph_mdpsx_selection=&gtcontrol_hana_switches
+        EXPORTING
+          iv_agg_sel_finished     = abap_true
+          iv_read_nonagg_buffered = abap_true.
+      CALL METHOD cl_pph_mdpsx_selection=&gtsel_matnr_werks_berid_noag_s4h
+        EXPORTING
+          it_matnr_werks_berid = lt_sel.
+    ELSE.
+      CALL METHOD cl_pph_mdpsx_selection=&gtsel_matnr_werks_berid_agg_s4h
+        EXPORTING
+          it_matnr_werks_berid = lt_sel.
+    ENDIF.
+
+<font color ="#8C8C8C">* if material list shall be displayed use MRP in memory</font>
+    IF rm61x-anzls = abap_true.
+      CALL METHOD cl_pph_mdpsx_selection=&gtcontrol_hana_switches
+        EXPORTING
+          iv_switch_on_memory = abap_true.
+    ENDIF.
+
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Materialvormerkungen abarbeiten</font>
+  DO.
+<font color ="#8C8C8C">*--&gt Naechste Vormerkung ermitteln</font>
+    PERFORM next_planning_request.
+    IF am61x-rcode NE char0.
+      EXIT.
+    ENDIF.
+
+"{ Begin ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+<font color ="#8C8C8C">*--&gt PIC : Processing SUS-Chain / MPN MRP SET                      "46a</font>
+    IF NOT gt_pic_parts[] IS INITIAL.
+       PERFORM PIC_DO_MRP_MEHRSTUFIG .
+       CONTINUE.
+    ENDIF.
+"{ End ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+
+ENHANCEMENT-POINT do_mrp_mehrstufig_02 SPOTS es_sapmm61x.
+<font color ="#8C8C8C">*--&gt Material bearbeiten</font>
+    get_start_time time3.
+    PERFORM bearbeiten_material_mp USING xflag.
+    CLEAR tdiff.
+    run_time tdiff time4 time3.
+<font color ="#8C8C8C">*--&gt Statistik erfassen</font>
+    PERFORM erfassen_statistik USING tdiff.
+<font color ="#8C8C8C">*--&gt Material für Einzelplanung entsperren</font>
+    PERFORM entsperren_mrp USING cm61d-werks cm61d-berid cm61d-matnr.
+  ENDDO.
+<font color ="#8C8C8C">*--&gt Statistik aufbereiten</font>
+  PERFORM grpg_clear_buffer IN PROGRAM saplgrpg. "{ ENHO DIMP_GEN_SAPMM61X IS-A DIMP_GENERAL }
+ENHANCEMENT-POINT do_mrp_mehrstufig_03 SPOTS es_sapmm61x .
+  PERFORM <a href ="javascript:Link('MM61XF88_AUFBEREITEN_STATISTIK.html?id=#000000000396');">aufbereiten_statistik</a>.
+  CALL FUNCTION 'DEQUEUE_ALL'.  "Unlock all the materials from product group after planning
+<font color ="#8C8C8C">*--&gt Statistik anzeigen</font>
+  PERFORM anzeigen_statistik.
+ENDMODULE.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

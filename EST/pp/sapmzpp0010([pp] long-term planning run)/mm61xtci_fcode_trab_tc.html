@@ -1,0 +1,163 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XTCI_FCODE_TRAB_TC</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XTCI_FCODE_TRAB_TC</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*  Auftragsstruktur im Tree anzeigen</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<div id="000000000849"></div>
+FORM fcode_trab_tc.
+
+  DATA: lv_found   TYPE bool,
+        ls_mdps    LIKE mdps,
+        ls_line    TYPE mrp_list_line_type.
+
+<font color ="#8C8C8C">*--&gt Daten der selektierten Zeile holen</font>
+  PERFORM <a href ="javascript:Link('MM61XTCI_PICKUP.html?id=#000000000895');">pickup</a> CHANGING ls_line lv_found.
+<font color ="#8C8C8C">*--&gt Wenn Cursor falsch steht, dann erstes Element anzeigen</font>
+  IF lv_found &lt&gt gc_true.
+    PERFORM <a href ="javascript:Link('MM61XTCI_PICKUP.html?id=#000000000897');">pickup_first_element</a> CHANGING ls_line lv_found.
+    IF lv_found = gc_true.
+<font color ="#8C8C8C">*--&gt 'Auftragsbericht zum ersten Besch.element &1 &2 wird angezeigt'</font>
+      MESSAGE i711 WITH ls_line-mdez-delb0 ls_line-mdez-extra.
+    ENDIF.
+  ELSE.
+<font color ="#8C8C8C">*--&gt 'Der Auftragsbaum wird angezeigt'</font>
+    MESSAGE s712(61).
+  ENDIF.
+  CHECK lv_found = gc_true.
+<font color ="#8C8C8C">*--&gt wenn Einstieg über Dispoliste muß emdps leer bleiben</font>
+  IF cm61x-plauf EQ anzdl
+  OR cm61x-plauf EQ anzds
+  OR cm61x-plauf EQ lfrdl
+  OR cm61x-plauf EQ lfrds.
+    CLEAR ls_mdps.
+  ELSE.
+    ls_mdps = ls_line-mdps.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Kennzeichen, dass mindestens einmal Auftragsstruktur aubgebaut ist</font>
+  order_tree_created = xflag.
+
+<font color ="#8C8C8C">*--&gt Auftragsbaum anzeigen</font>
+  mdst-treet = mtree2.
+
+<font color ="#8C8C8C">*--&gt Get profile for order report</font>
+  IF mdst-ordpr IS INITIAL.
+<font color ="#8C8C8C">*   take default profile</font>
+    mdst-ordpr = 'SAP000000001'.
+  ENDIF.
+  IF mdst-ordpr &lt&gt gs_profile-profid.
+    SELECT SINGLE * FROM t464 INTO gs_profile
+     WHERE profid = mdst-ordpr.
+    IF NOT sy-subrc IS INITIAL.
+      MESSAGE e014(jo) WITH mdst-ordpr.
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt If order report is created with limited hierarchies send message</font>
+  IF gs_profile-hier_level &gt 0 AND
+     gs_profile-hier_level &lt 999.
+    MESSAGE s713(61) with gs_profile-hier_level.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Ausgewaehlte Zeile an den Tree senden</font>
+  CALL FUNCTION 'MTREE_DATA_SEND'
+    EXPORTING
+      erm61r   = rm61r
+      ecm61x   = cm61x
+      edelkz   = ls_line-mdps-delkz
+      edelnr   = ls_line-mdps-del12
+      edelps   = ls_line-mdps-delps
+      edelet   = ls_line-mdps-delet
+      emdps    = ls_line-mdps
+      ememfl   = mdst-memfl
+      eprofile = gs_profile.
+
+<font color ="#8C8C8C">*--&gt reset old data buffer from order report</font>
+  CALL FUNCTION 'MD_REPORT_DATA_SET'
+    EXPORTING
+      iv_refresh = xflag.
+
+ENDFORM.                    "fcode_trab_tc
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*  display order report in stock/req list</font>
+<font color ="#8C8C8C">*  -&gt redirect order report to order tree</font>
+<font color ="#8C8C8C">*     called from popups in function group M61R</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<div id="000000000850"></div>
+FORM fcode_trab_popup USING iv_delkz TYPE delkz
+                            iv_del12 TYPE del12
+                            iv_delps TYPE delps
+                            iv_delet TYPE delet
+                            is_mdps  TYPE mdps.             "#EC CALLED
+
+  DATA: ls_mdps    LIKE mdps,
+        ls_profile TYPE t464.
+
+<font color ="#8C8C8C">*--&gt 'Der Auftragsbaum wird angezeigt'</font>
+  MESSAGE s712(61).
+
+<font color ="#8C8C8C">*--&gt wenn Einstieg über Dispoliste muß emdps leer bleiben</font>
+  IF cm61x-plauf EQ anzdl
+  OR cm61x-plauf EQ anzds
+  OR cm61x-plauf EQ lfrdl
+  OR cm61x-plauf EQ lfrds.
+    CLEAR ls_mdps.
+  ELSE.
+    ls_mdps = is_mdps.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Kennzeichen, dass mindestens einmal Auftragsstruktur aubgebaut ist</font>
+  order_tree_created = xflag.
+
+<font color ="#8C8C8C">*--&gt Auftragsbaum anzeigen</font>
+  mdst-treet = mtree2.
+
+<font color ="#8C8C8C">*--&gt Get profile for order report</font>
+  IF mdst-ordpr IS INITIAL.
+<font color ="#8C8C8C">*   take default profile</font>
+    mdst-ordpr = 'SAP000000001'.
+  ENDIF.
+  SELECT SINGLE * FROM t464 INTO ls_profile
+   WHERE profid = mdst-ordpr.
+  IF NOT sy-subrc IS INITIAL.
+    MESSAGE e014(jo) WITH mdst-ordpr.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Ausgewaehlte Zeile an den Tree senden</font>
+  CALL FUNCTION 'MTREE_DATA_SEND'
+    EXPORTING
+      erm61r   = rm61r
+      ecm61x   = cm61x
+      edelkz   = iv_delkz
+      edelnr   = iv_del12
+      edelps   = iv_delps
+      edelet   = iv_delet
+      emdps    = ls_mdps
+      ememfl   = mdst-memfl
+      eprofile = ls_profile.
+
+<font color ="#8C8C8C">*--&gt reset old data buffer from order report</font>
+  CALL FUNCTION 'MD_REPORT_DATA_SET'
+    EXPORTING
+      iv_refresh = xflag.
+
+ENDFORM.                    "fcode_trab_popup
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

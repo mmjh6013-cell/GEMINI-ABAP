@@ -1,0 +1,105 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF40_CALL_TASK_DISPOSITI08</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF40_CALL_TASK_DISPOSITI08</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       FORM CALL_TASK_DISPOSITION                                    *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000241"></div>
+FORM call_task_disposition.
+
+  DATA: hana_opt TYPE xfeld.
+
+  taskx-statu = statu_working.
+  MODIFY taskx INDEX taskx-index.
+<font color ="#8C8C8C">*--&gt Vormerkungen fuer evtl. Nachbearbeitung festhalten</font>
+  CLEAR workx.
+  workx-index = taskx-index.
+  workx-statu = statu_working.
+  LOOP AT cm61d_tab.
+    MOVE-CORRESPONDING cm61d_tab TO workx.
+<font color ="#8C8C8C">*--&gt Note 636067 sorted INSERT instead of APPEND</font>
+    INSERT TABLE workx.
+  ENDLOOP.
+  REFRESH perfy.
+<font color ="#8C8C8C">*</font>
+
+  IF cm61x-plobj NE mdobjl.
+    hana_opt = cl_pph_mdpsx_selection=&gtget_hana_active( ).
+  ENDIF.
+
+  CALL FUNCTION 'MRP_MATERIAL_PARALLEL'
+       DESTINATION       taskx-desti
+       STARTING NEW TASK taskx-tname
+       PERFORMING get_results ON END OF TASK
+       EXPORTING
+            icm61x   = cm61x
+            tindx    = taskx-index
+            iplsc    = plsc
+            user_key = rm61x-uxkey
+            user_par = rm61x-uxpar
+            hana_opt = hana_opt
+       TABLES
+            cm61d_tab = cm61d_tab
+            tplantx   = plantx
+            perf_tab  = perfy
+            nread_tab = nread
+       EXCEPTIONS communication_failure = 01
+                  system_failure        = 02.
+  IF sy-subrc &lt&gt 0.
+<font color ="#8C8C8C">*--&gt ERROR HANDLING</font>
+    taskx-statu = statu_error.
+    MODIFY taskx INDEX taskx-index.
+<font color ="#8C8C8C">*--&gt Vormerkungen fuer Nachbearbeitung festhalten</font>
+    LOOP AT workx WHERE index = taskx-index
+                    AND statu = statu_working.
+      workx-statu = error_at_call.     "nachbearbeiten
+      MODIFY workx.
+    ENDLOOP.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt test and maintenance: write send information</font>
+  IF not trace_level is initial.
+    PERFORM <a href="#000000000242">trace_rfc</a> using text-080.
+  ENDIF.
+ENDFORM.                               " CALL_TASK_DISPOSITION
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       FORM trace_rfc_send                                           *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       write Send info for RFC                                       *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000242"></div>
+FORM trace_rfc using action.
+  CHECK trace_level = '1'.
+  format intensified on.
+  WRITE: / sy-vline, action.
+  perform <a href="#000000000243">write_taskx</a>.
+  format intensified off.
+ENDFORM.
+
+<div id="000000000243"></div>
+form write_taskx.
+  write:
+    taskx-index,
+    taskx-statu,
+    taskx-desti,
+    taskx-rtime,
+    taskx-anzmt,
+    80 sy-vline.
+endform.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

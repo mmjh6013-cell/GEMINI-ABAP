@@ -1,0 +1,489 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZPPR0020_XLS_DOWN</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZPPR0020_XLS_DOWN</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZPPR0020_XLS_DOWN</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*--####################### To Use Excel OLE #######################--</font>
+<font color ="#8C8C8C">*-- EXCEL ## ##</font>
+  DATA: g_excel  TYPE ole2_object,       " Excel object
+        g_mapl   TYPE ole2_object,        " list of workbooks
+        g_map    TYPE ole2_object,        " workbook
+        g_sheets TYPE ole2_object,        " workbook's sheets
+        g_awork  TYPE ole2_object,        " workbook's sheets
+        g_sheet  TYPE ole2_object,        " workbook's sheet#
+        g_zl     TYPE ole2_object,        " cell
+        g_zl2    TYPE ole2_object,        " cell2
+        g_f      TYPE ole2_object,        " font
+        g_shape  TYPE ole2_object,        " font
+        g_zrl    TYPE ole2_object.        " RANGE
+  DATA: range    TYPE ole2_object.
+<font color ="#8C8C8C">*--####################### To Use Excel OLE #######################--</font>
+
+  DATA : gv_directory    TYPE string,
+         gv_filename_xls TYPE rlgrap-filename,
+         gv_filename_jpg TYPE string,
+         gv_filename_pdf TYPE rlgrap-filename.
+
+  DATA gv_qrtext TYPE string .
+  DATA lv_down_fname TYPE string .
+  DATA gv_path TYPE string .
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form print_out_sheet</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000066"></div>
+  FORM print_out_sheet .
+
+    DATA lv_subrc TYPE sy-subrc .
+
+    DATA : ls_key      LIKE wwwdatatab.
+    DATA ls0010 TYPE zppt0010 .
+
+    DATA lv_term TYPE usr41-terminal .
+    CALL FUNCTION 'TERMINAL_ID_GET'
+      IMPORTING
+        terminal = lv_term.
+
+    CLEAR ls0010 .
+    " PC## # # ### Default Directory ### ###
+    "   DB zppt0010 ## SELECT
+    SELECT SINGLE *
+      FROM zppt0010
+     WHERE ipadr = @lv_term
+       AND cflag = 'POS' " Product Order Sheet
+      INTO @ls0010 .
+
+    IF gt_order_item[] IS INITIAL .
+      MESSAGE TEXT-m17 TYPE 'I' DISPLAY LIKE 'E' .
+      EXIT .
+    ENDIF .
+
+
+    " 1 ) ########## Choose Down Path
+    lv_down_fname = |{ gs_order-aufnr }_{ sy-datlo }_{ sy-timlo }.xlsx| .
+
+    DATA ole TYPE ole2_object .
+    DATA dir_exist TYPE abap_bool .
+
+    CREATE OBJECT ole 'Scripting.FileSystemObject'.
+
+<font color ="#8C8C8C">* #### ## ## ##</font>
+    CALL METHOD OF ole 'FolderExists' = dir_exist
+      EXPORTING
+        #1 = ls0010-droot.
+
+    IF dir_exist = 1 .
+      " =========  ## ##( temp ) : ### ## ##, ### ##  =======
+      gv_filename_xls = |{ ls0010-droot }{ lv_down_fname } | .
+    ELSE .
+      "  --------  Set Download File Names  ---------
+      gv_filename_xls = zcl_cm_util=&gtfile_save_dialog(
+          i_def_name = lv_down_fname
+          i_directory = ls0010-droot
+          i_file_filter = '.xlsx'
+      ) .
+
+      " ------  PC## ### Directory # DB zppt0010# ##  -----
+      ls0010-ipadr = lv_term .
+      ls0010-cflag = 'POS' .
+      ls0010-droot = gv_filename_xls .
+
+      REPLACE ALL OCCURRENCES OF lv_down_fname IN ls0010-droot WITH ' ' .
+
+      MODIFY zppt0010 FROM ls0010 .
+      " ------  PC## # # ### Directory # DB zppt0010# ##  -----
+    ENDIF .
+
+    " --- Saving ## #### ## ##### EXIT  ----
+    IF gv_filename_xls IS INITIAL .
+      MESSAGE TEXT-m41 TYPE 'I' DISPLAY LIKE 'E' .
+      EXIT .
+    ENDIF .
+    " --- Saving ## #### ## ##### EXIT  ----
+
+    TRANSLATE gv_filename_xls TO LOWER CASE .
+
+    gv_filename_jpg = gv_filename_xls .
+    REPLACE ALL OCCURRENCES OF '.xlsx' IN gv_filename_jpg WITH '.jpg' .
+    REPLACE ALL OCCURRENCES OF '.xls' IN gv_filename_jpg WITH '.jpg' .
+
+    gv_filename_pdf = gv_filename_jpg .
+    REPLACE ALL OCCURRENCES OF '.jpg' IN gv_filename_pdf WITH '.pdf' .
+    "  --------  Set Download File Names  ---------
+
+
+
+    " ######### Export QRCode &gt&gt JPG File
+    PERFORM <a href="#000000000069">save_qr_image</a> .
+
+
+    CLEAR: ls_key.
+
+    " 2 ) ########## Download Template File
+    SELECT SINGLE *
+      FROM wwwdata
+      INTO CORRESPONDING FIELDS OF ls_key
+     WHERE objid = 'ZMXPPR0010_SHEET' .
+
+    CALL FUNCTION 'DOWNLOAD_WEB_OBJECT'
+      EXPORTING
+        key         = ls_key
+        destination = gv_filename_xls
+      IMPORTING
+        rc          = lv_subrc.
+
+    IF lv_subrc NE 0.
+      EXIT.
+    ENDIF.
+
+
+
+    IF lv_subrc EQ 0.
+
+      " 3 ) ########## Open Downloaded Template File
+      CLEAR:g_excel, g_mapl, g_mapl, g_sheet.
+      IF g_excel-header = space OR g_excel-handle = -1.
+        CREATE OBJECT g_excel 'Excel.Application'.
+        PERFORM <a href="#000000000067">check_err</a> USING 'ERR : Create Object'.
+      ENDIF.
+
+      " 4 ) ########## Print Values to Excel File
+
+      "   4-1 ) ########## Open File / Workbook / Worksheet
+      CALL METHOD OF g_excel 'Workbooks' = g_mapl.
+
+      PERFORM <a href="#000000000067">check_err</a> USING 'ERR : Workbook' .
+
+      CALL METHOD OF g_mapl 'OPEN' "= G_MAP
+        EXPORTING
+          #1 = gv_filename_xls.     "### ## ###
+
+      CALL METHOD OF g_excel 'Worksheets' = g_sheet
+        EXPORTING
+        #1 = 1.
+
+      CALL METHOD OF g_sheet 'Activate'.
+
+      "   4-2 ) ########## Set Visible
+      SET PROPERTY OF g_excel 'Visible' = 1 .  "0-##, 1-###
+
+      "   4-1 ) ########## Open File / Workbook / Worksheet
+
+      DATA lv_rc TYPE i.
+
+      DATA : lt_ole_i TYPE  TABLE OF char200,
+             lv_tab   VALUE cl_abap_char_utilities=&gthorizontal_tab.
+      DATA lv_dat(10) .
+      DATA lv_menge_sum TYPE resb-erfmg .
+      DATA lv_menge_sum_str(20) .
+      DATA lv_sortf_sum TYPE resb-erfmg .
+      DATA lv_sortf_sum_str(20) .
+      DATA lv_total_sum TYPE resb-erfmg .
+      DATA oref TYPE REF TO cx_root .
+      DATA lv_charg_str TYPE string .
+      DATA lv_remk_str TYPE string .
+
+      " ****Excel ### ##**************************************
+      " ## #### ### ###
+
+      CALL METHOD OF g_excel 'WORKSHEETS' = g_sheet
+         EXPORTING
+           #1       = 1 .
+
+      CALL METHOD OF g_sheet 'Activate'.
+
+      DATA(lv_cnt) = 1.
+      CLEAR lv_menge_sum .
+
+      " ------ ### ## ## ### ### Excel# ##  -------
+      LOOP AT gt_order_item ASSIGNING FIELD-SYMBOL(&ltfline&gt) .
+
+        lv_cnt += 1 .
+
+        TRY.
+            IF &ltfline&gt-sortf IS INITIAL.
+              &ltfline&gt-sortf = &ltfline&gt-menge * '0.005'.
+            ELSE.
+              " 2025.07.14 SELECT ### ### sortf * menge # Tolerance# ### ##
+              &ltfline&gt-sortf = &ltfline&gt-menge * &ltfline&gt-sortf.
+
+            ENDIF.
+              CATCH cx_sy_conversion_no_number.
+                &ltfline&gt-sortf = &ltfline&gt-menge * 0.
+        ENDTRY.
+        PERFORM <a href="#000000000068">fill_one_cell</a> USING :
+
+              13  lv_cnt 0  &ltfline&gt-matnr ,
+              14  lv_cnt 0  &ltfline&gt-matnr ,
+              15  lv_cnt 0  &ltfline&gt-menge ,
+              16  lv_cnt 0  &ltfline&gt-sortf .
+
+        " 2025.08.26 Total FERT 7920 ## SUM
+        IF &ltfline&gt-mtart NE 'FERT' OR &ltfline&gt-bklas NE '7920'.
+          ADD &ltfline&gt-menge TO lv_menge_sum .
+        ENDIF.
+
+        TRY.
+            ADD &ltfline&gt-sortf TO lv_sortf_sum .
+          CATCH cx_sy_conversion_no_number.
+        ENDTRY.
+
+        IF lv_cnt &gt 15 .
+          EXIT .
+        ENDIF .
+
+      ENDLOOP .
+      " ------ ### ## ## ### ### Excel# ##  -------
+
+      WRITE gs_order-dgltp TO lv_dat .
+      lv_charg_str = |LOT : { gs_order-charg }|.
+
+      " #### ##( RESB# ## ## ## # ### #### ## )  ------
+      "   ---&gt generate REMARK string
+      CLEAR lv_remk_str .
+      LOOP AT gt_order_item INTO DATA(ls_resb_line)
+        WHERE mtart = 'FERT' AND bklas = '7920' .
+
+        EXIT .
+
+      ENDLOOP .
+
+      IF ls_resb_line IS NOT INITIAL .
+        DATA lv_menge(13).
+        WRITE ls_resb_line-menge TO lv_menge UNIT ls_resb_line-meins.
+        lv_remk_str = |Agregar { lv_menge } { ls_resb_line-meins } { ls_resb_line-matnr } de escurrido| .
+
+      ENDIF .
+      " #### ##( RESB# ## ## ## # ### #### ## )  ------
+
+      " -- Total Sum = #### # ## + ### ## ## ##
+      lv_total_sum = lv_menge_sum + ls_resb_line-menge .
+
+      PERFORM <a href="#000000000068">fill_one_cell</a> USING:
+            3   2   0  gs_order-aufnr ,       " Prod Order No.
+            3   5   0  gs_order-name1 ,       " Client Name
+<font color ="#8C8C8C">*--- cbo field 0811</font>
+<font color ="#8C8C8C">*            3   9   0  gs_order-zzvbeln ,     " ZZVBELN( Sales Order )</font>
+            4   2   0  gs_order-matnr ,       " Product Code
+            4   5   0  gs_order-maktx ,       " Product Name
+<font color ="#8C8C8C">*            4   9   0  gs_order-zzposnr ,     " ZZPOSNR( Sales Order Item )</font>
+            6   5   0  lv_dat  ,              " Producing Date
+<font color ="#8C8C8C">*            7   5   0  gs_order-zzblender ,   " Blender</font>
+<font color ="#8C8C8C">*--- end</font>
+            8   5   0  lv_charg_str ,         " Product - Batch
+            15  17  0  lv_menge_sum  ,        " Total Sum of ## ##
+            16  17  0  lv_sortf_sum  ,        " Total Sum of Tolerance
+            22  2   0  lv_remk_str  ,         " ### #, Remark
+            22  17  0  ls_resb_line-menge  ,  " ### #, ## ## ##
+            23  17  0  lv_total_sum  .        " ## ## ## + ## ####
+
+      " ===== Print Text Elements for [ Foam Test ]  -------
+      "  -&gt Text ## #, Text Element# Update # #
+      "  -&gt 2025.07.24 ole## #### ## #### SMW0# ####
+<font color ="#8C8C8C">*      PERFORM fill_one_cell USING:</font>
+<font color ="#8C8C8C">*            27   2   0  TEXT-t11 ,</font>
+<font color ="#8C8C8C">*            27   5   0  TEXT-t12 ,</font>
+<font color ="#8C8C8C">*            28   2   0  TEXT-t21 ,</font>
+<font color ="#8C8C8C">*            28   5   0  TEXT-t22 ,</font>
+<font color ="#8C8C8C">*            29   2   0  TEXT-t31 ,</font>
+<font color ="#8C8C8C">*            29   5   0  TEXT-t32 ,</font>
+<font color ="#8C8C8C">*            30   2   0  TEXT-t41 ,</font>
+<font color ="#8C8C8C">*            30   5   0  TEXT-t42 ,</font>
+<font color ="#8C8C8C">*            31   2   0  TEXT-t51 ,</font>
+<font color ="#8C8C8C">*            31   5   0  TEXT-t52 ,</font>
+<font color ="#8C8C8C">*            32   2   0  TEXT-t61 ,</font>
+<font color ="#8C8C8C">*            32   5   0  TEXT-t62 ,</font>
+<font color ="#8C8C8C">*            33   2   0  TEXT-t71 ,</font>
+<font color ="#8C8C8C">*            33   5   0  TEXT-t72 ,</font>
+<font color ="#8C8C8C">*            34   2   0  TEXT-t81 ,</font>
+<font color ="#8C8C8C">*            34   5   0  TEXT-t82 ,</font>
+<font color ="#8C8C8C">*            35   2   0  TEXT-t91 ,</font>
+<font color ="#8C8C8C">*            35   5   0  TEXT-t92 .</font>
+      " ===== Print Text Elements for [ Foam Test ]  -------
+
+      " ---------**********  Put Image on Excel ***********---------
+      GET PROPERTY OF g_sheet 'Shapes' = g_shape .
+
+      " QR Image ## #, Left / Top # pixel# #### ###
+      "     &gt Excel Template File# ## ## #, ## ##
+      DATA lv_lef TYPE i VALUE 1060 .
+      DATA lv_top TYPE i VALUE 540 .
+      DATA lv_wid TYPE i VALUE 280 .
+      DATA lv_hei TYPE i VALUE 280 .
+
+      CALL METHOD OF g_shape 'AddPicture'
+        EXPORTING
+          #1 = gv_filename_jpg "image file name on presentation server
+          #2 = 0
+          #3 = 1
+          #4 = lv_lef   " left
+          #5 = lv_top   " top
+          #6 = lv_wid   " width
+          #7 = lv_hei. " height
+      " ---------**********  Put Image on Excel ***********---------
+
+      CALL METHOD OF g_excel 'ActiveWorkbook' = g_awork.
+      CALL METHOD OF g_awork 'Save'.
+
+      " ######  PDF #### ####.
+      CALL METHOD OF g_awork 'ExportAsfixedFormat'
+        EXPORTING
+          #1 = 0            "## ##: PDF.
+          #2 = gv_filename_pdf " ## ##,###.
+          #3 = 0.
+<font color ="#8C8C8C">*  PERFORM DOWNLOAD_ADD_FILE.</font>
+
+<font color ="#8C8C8C">********    "  @@@@@@@@@  ### # Excel ###### ##.</font>
+<font color ="#8C8C8C">********    CALL METHOD OF g_awork 'Close'.</font>
+<font color ="#8C8C8C">********    CALL METHOD OF g_excel 'Quit'.</font>
+
+
+      " ------------  DELETE jpg File  -------------
+      "  Excel# #### ## PC# down ## jpg file# ##
+      TRY.
+          cl_gui_frontend_services=&gtfile_delete(
+            EXPORTING
+              filename = gv_filename_jpg
+            CHANGING
+              rc       = lv_rc ).
+
+          IF lv_rc &lt&gt 0.
+            MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+                    WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+          ENDIF.
+
+        CATCH cx_root INTO DATA(lx_error).
+          MESSAGE lx_error-&gtget_text( ) TYPE 'E'.
+      ENDTRY.
+      " ------------  DELETE jpg File  -------------
+
+    ENDIF .
+
+  ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form check_err</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000067"></div>
+  FORM check_err USING pv_msg .
+
+    IF sy-subrc &lt&gt 0.
+
+      MESSAGE TEXT-m01 && pv_msg TYPE 'I' DISPLAY LIKE 'E' .
+      EXIT.
+
+    ENDIF.
+
+  ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form PRO_FILL_CELL_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt P_6</font>
+<font color ="#8C8C8C">*&      --&gt P_19</font>
+<font color ="#8C8C8C">*&      --&gt P_0</font>
+<font color ="#8C8C8C">*&      --&gt GS_EXCEL_HEAD_VBELN_VL</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000068"></div>
+  FORM fill_one_cell  USING   i   j   bold   val.
+    " Excel# ROW / COLUMN #### Data ##
+
+    CALL METHOD OF g_excel 'Cells' = g_zl
+      EXPORTING
+      #1 = i      "#
+      #2 = j.     "#
+
+    SET PROPERTY OF g_zl 'Value' = val .
+
+  ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form save_qr_image</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000069"></div>
+  FORM save_qr_image .
+
+    DATA lv_qr_text TYPE string .
+    DATA lv_qr_xstr TYPE xstring .
+    DATA lv_menge_sum TYPE resb-erfmg .
+    DATA oref TYPE REF TO cx_root .
+    " -------------------------------------------  Generate QR Text --------
+    CLEAR lv_qr_text .
+    LOOP AT gt_order_item ASSIGNING FIELD-SYMBOL(&ltfline&gt) .
+
+      lv_qr_text = |{ lv_qr_text }ITEM{ sy-tabix }{ &ltfline&gt-matnr }*{ &ltfline&gt-menge }*| .
+
+      ADD &ltfline&gt-menge TO lv_menge_sum .
+
+    ENDLOOP .
+
+    lv_qr_text = |{ lv_qr_text }PTID10*0       *| .
+    lv_qr_text = |{ lv_qr_text }Total*{ lv_menge_sum }*| .
+    lv_qr_text = |{ lv_qr_text }NAME{ gs_order-matnr }*| .
+    lv_qr_text = |{ lv_qr_text }{ gs_order-name1 }     OBSERVACIONES| .
+    " -------------------------------------------  Generate QR Text --------
+
+    TRY .
+
+        " text# QR ### ## XSTRING ## ##
+        CALL METHOD cl_rstx_barcode_renderer=&gtqr_code
+          EXPORTING
+            i_module_size  = 15
+            i_barcode_text = lv_qr_text
+          IMPORTING
+            e_bitmap       = lv_qr_xstr.
+
+
+        " XString ## raw_data # ##
+        DATA(lt_raw_data) = cl_bcs_convert=&gtxstring_to_solix(
+          EXPORTING
+            iv_xstring = lv_qr_xstr
+        ) .
+
+        " ### Raw Data# Binary #### Local ### ##
+        CALL METHOD cl_gui_frontend_services=&gtgui_download
+          EXPORTING
+            filename     = gv_filename_jpg
+            filetype     = 'BIN'
+            bin_filesize = xstrlen( lv_qr_xstr )
+          CHANGING
+            data_tab     = lt_raw_data.
+
+      CATCH cx_rstx_barcode_renderer .
+
+    ENDTRY .
+  ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XQUO_QUOTE_AUFTM_BILDEN_2</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XQUO_QUOTE_AUFTM_BILDEN_2</b></font>
+<hr>
+<pre width="100">
+<div id="000000000820"></div>
+FORM quote_auftm_bilden_2 USING qunum LIKE mdps-qunum
+                                qupos LIKE mdps-qupos
+                                datum LIKE mdps-dat00
+                                menge LIKE mdps-mng01
+                                aussl LIKE mdps-aussl
+                                oldsl LIKE mdps-oldsl.
+  DATA: l_tabix LIKE sy-tabix.
+<font color ="#8C8C8C">*--&gt Prüfen Quotierungsanker</font>
+  IF qunum IS INITIAL
+  OR qupos IS INITIAL.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Ermitteln Quotenposition</font>
+  MOVE qunum TO equpk-qunum.
+  MOVE qupos TO equpk-qupos.
+  READ TABLE equpx WITH KEY equpk BINARY SEARCH.
+  IF sy-subrc NE 0.
+    EXIT.
+  ENDIF.
+
+  IF equpx-abrmg IS INITIAL.
+    EXIT.
+  ENDIF.
+
+  IF equpx-abanz IS INITIAL.
+    equpx-abanz = 1.
+  ENDIF.
+
+<font color ="#8C8C8C">* Determination of period start and period end changed with note 2950239</font>
+<font color ="#8C8C8C">* to prevent overlaps in case of weeks and month periods</font>
+  IF ( equpx-abanz &gt 1 ) AND
+     ( equpx-abper = monat OR equpx-abper = woche ).
+    PERFORM <a href ="javascript:Link('MM61XQUO_QUOTE_INTERVALL_BESTI.html?id=#000000000822');">quote_intervall_statics</a>
+      TABLES equkx                   "it_EQUKX
+      USING datum                    "iv_date_in_intervall
+            equkx-vdatu              "iv_quotation_start_date
+            equkx-bdatu              "iv_quotation_end_date
+            equpx-abper              "iv_period_type
+            equpx-abanz              "iv_no_of_periods
+            qunum
+      CHANGING
+            equmk-vdatu              "ev_period_start
+            equmk-bdatu.             "ev_period_end
+  ELSE.
+<font color ="#8C8C8C">*--&gt Bestimmen von Anfangs- und Endtermin der zugehörigen Periode</font>
+<font color ="#8C8C8C">*--&gt Ergebnis in MDCAL-PRANF bzw. MDCAL-PREND</font>
+    PERFORM <a href ="javascript:Link('MM61XQUO_QUOTE_INTERVALL_BESTI.html?id=#000000000821');">quote_intervall_bestimmen</a> USING datum equpx-abper equpx-abanz.
+    MOVE mdcal-pranf TO equmk-vdatu.
+    MOVE mdcal-prend TO equmk-bdatu.
+  ENDIF.
+
+  MOVE qunum       TO equmk-qunum.
+  MOVE qupos       TO equmk-qupos.
+  READ TABLE equmx WITH KEY equmk BINARY SEARCH.
+  MOVE sy-tabix TO l_tabix.
+<font color ="#8C8C8C">*--&gt Sonderfall: Wochen- und Monatsperiode (nicht Pl.kalender)</font>
+<font color ="#8C8C8C">*--&gt             siehe Hinweis 83956</font>
+  IF sy-subrc NE 0
+  AND equpx-abper NE pkper.
+    PERFORM <a href ="javascript:Link('MM61XQUO_CHECK_EQUMX.html?id=#000000000818');">check_equmx</a> USING qunum qupos datum
+                              equpx-abper equpx-abanz
+                        CHANGING l_tabix.
+  ENDIF.
+  IF sy-subrc EQ 0.
+    PERFORM add_menge USING equmx-auftm menge.
+    MODIFY equmx INDEX l_tabix.
+  ELSE.
+    CLEAR equmx.
+    MOVE equmk-vdatu  TO equmx-vdatu.
+    MOVE equmk-bdatu  TO equmx-bdatu.
+    MOVE equmk-qunum  TO equmx-qunum.
+    MOVE equmk-qupos  TO equmx-qupos.
+    MOVE menge        TO equmx-auftm.
+    INSERT equmx INDEX l_tabix.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Wenn die max. Abrufmenge ueberschritten wird: Ausnahme setzen</font>
+  IF equmx-auftm GT equpx-abrmg.
+    PERFORM <a href ="javascript:Link('MM61XC01_SET_NEW_AUSSL.html?id=#000000000032');">set_new_aussl</a> USING ausc1 aussl oldsl.
+  ENDIF.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

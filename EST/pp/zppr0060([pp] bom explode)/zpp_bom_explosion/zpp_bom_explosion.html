@@ -1,0 +1,298 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZPP_BOM_EXPLOSION</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZPP_BOM_EXPLOSION</b></font>
+<hr>
+<pre width="100">
+FUNCTION zpp_bom_explosion.
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*"*"Local Interface:</font>
+<font color ="#8C8C8C">*"  IMPORTING</font>
+<font color ="#8C8C8C">*"     VALUE(IV_WERKS) TYPE  WERKS_D</font>
+<font color ="#8C8C8C">*"     VALUE(IV_MATNR) TYPE  MATNR</font>
+<font color ="#8C8C8C">*"     VALUE(IV_STLAN) TYPE  STLAN</font>
+<font color ="#8C8C8C">*"     REFERENCE(IV_STLAL) TYPE  STLAL</font>
+<font color ="#8C8C8C">*"     VALUE(IV_DATUV) TYPE  DATUV</font>
+<font color ="#8C8C8C">*"     VALUE(IV_EMENG) TYPE  EMENG</font>
+<font color ="#8C8C8C">*"  EXPORTING</font>
+<font color ="#8C8C8C">*"     VALUE(ES_REPLY) TYPE  ZCMS0060</font>
+<font color ="#8C8C8C">*"  TABLES</font>
+<font color ="#8C8C8C">*"      ET_TABLE STRUCTURE  ZPPS0090</font>
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+
+<font color ="#8C8C8C">*       <a href ="global-zpp_bom_explosion.html">Global data declarations</a></font>
+  DATA : ls_topmat TYPE cstmat,
+         lt_stb    LIKE TABLE OF stpox,
+         lt_matcat LIKE TABLE OF cscmat.
+
+  DATA : lv_seq       TYPE i,
+         es_table     LIKE et_table,
+         lv_werks     TYPE werks_d,
+         lv_level(40).
+
+  CALL FUNCTION 'CS_BOM_EXPL_MAT_V2'
+    EXPORTING
+      capid                 = 'PP01'
+      datuv                 = iv_datuv
+      mtnrv                 = iv_matnr
+      emeng                 = iv_emeng
+      mehrs                 = 'X'
+      stlan                 = iv_stlan
+      stlal                 = iv_stlal
+      werks                 = iv_werks
+    IMPORTING
+      topmat                = ls_topmat
+    TABLES
+      stb                   = lt_stb
+      matcat                = lt_matcat
+    EXCEPTIONS
+      alt_not_found         = 1
+      call_invalid          = 2
+      material_not_found    = 3
+      missing_authorization = 4
+      no_bom_found          = 5
+      no_plant_data         = 6
+      no_suitable_bom_found = 7
+      conversion_error      = 8
+      OTHERS                = 9.
+
+  IF lt_stb[] IS INITIAL.
+    es_reply-type    = 'E'.
+    es_reply-message = TEXT-e01.
+    EXIT.
+  ENDIF.
+
+  "## ASSY ### GET
+  SELECT DISTINCT
+         a1~matnr, a3~mtart,
+         a4~bklas,
+         a1~sobsl, a1~beskz,
+         t1~maktx,
+         a3~lvorm AS cl_del, "MARA DELETE
+         a1~lvorm AS pl_del  "MARC DELETE
+    FROM marc AS a1 INNER JOIN @lt_matcat AS a2
+                            ON a1~matnr EQ a2~matnr
+                           AND a1~werks EQ @iv_werks
+                    INNER JOIN mara AS a3
+                            ON a2~matnr EQ a3~matnr
+                    INNER JOIN mbew AS a4               " ## ASSY BKLAS ##
+                            ON a1~matnr = a4~matnr
+                           AND a1~werks = a4~bwkey
+                     LEFT JOIN makt AS t1
+                            ON a3~matnr EQ t1~matnr
+                           AND t1~spras EQ @sy-langu
+    INTO TABLE @DATA(lt_matnr).
+  SORT lt_matnr BY matnr.
+
+
+  "### ### ## ### GET.
+  SELECT DISTINCT
+       a2~werks,
+       a2~idnrk,
+       a3~mtart, a3~bismt,
+       a1~sobsl, a1~beskz,
+       a3~matkl, t1~wgbez,
+       a3~lvorm AS cl_del, "MARA DELETE
+       a1~lvorm AS pl_del  "MARC DELETE
+  FROM marc AS a1 INNER JOIN @lt_stb AS a2
+                          ON a1~matnr EQ a2~idnrk
+                         AND a1~werks EQ a2~werks
+                  INNER JOIN mara AS a3
+                          ON a2~idnrk EQ a3~matnr
+                   LEFT JOIN t023t AS t1
+                          ON a3~matkl EQ t1~matkl
+                         AND t1~spras EQ @sy-langu
+  INTO TABLE @DATA(lt_idnrk).
+
+  SELECT DISTINCT
+       a1~werks,
+       a2~potx1 AS idnrk,
+       a3~mtart, a3~bismt,
+       a1~sobsl, a1~beskz,
+       a3~matkl, t1~wgbez,
+       a3~lvorm AS cl_del, "MARA DELETE
+       a1~lvorm AS pl_del  "MARC DELETE
+  FROM marc AS a1 INNER JOIN @lt_stb AS a2
+                          ON a1~matnr EQ a2~potx1
+                         AND a1~werks EQ @iv_werks
+                  INNER JOIN mara AS a3
+                          ON a2~potx1 EQ a3~matnr
+                   LEFT JOIN t023t AS t1
+                          ON a3~matkl EQ t1~matkl
+                         AND t1~spras EQ @sy-langu
+  APPENDING TABLE @lt_idnrk.
+  SORT lt_idnrk BY werks idnrk.
+
+
+  "### #### GET
+  SELECT DISTINCT
+         a2~werks,
+         a2~idnrk,
+         a1~bklas, a1~vprsv, a1~mlast
+    FROM mbew AS a1 INNER JOIN @lt_stb AS a2
+                            ON a1~matnr EQ a2~idnrk
+                           AND a1~bwkey EQ a2~werks
+    INTO TABLE @DATA(lt_mbew).
+  SORT lt_mbew BY werks idnrk.
+
+  "### #### # ###
+  SELECT DISTINCT
+         a2~stlnr, a2~stlty,
+         a2~stlkn, a2~stpoz,
+         a2~datuv AS start_date,
+
+         CASE a1~valid_to
+            WHEN '00000000' THEN '29991231'
+            ELSE a1~valid_to END AS end_date
+
+    FROM stpo AS a1 INNER JOIN @lt_stb AS a2
+                            ON a1~stlnr EQ a2~stlnr
+                           AND a1~stlty EQ a2~stlty
+                           AND a1~stlkn EQ a2~stlkn
+                           AND a1~stpoz EQ a2~stpoz
+   INTO TABLE @DATA(lt_datuv).
+  SORT lt_datuv BY stlnr stlty stlkn stpoz.
+
+<font color ="#8C8C8C">*-- FUNCTION ## ### ##</font>
+  LOOP AT lt_stb INTO DATA(ls_stb).
+    ADD 1 TO lv_seq.
+    es_table-iv_werks = ls_topmat-werks. "###
+    es_table-iv_matnr = ls_topmat-matnr. "### ####
+    es_table-maktx    = ls_topmat-maktx. "### #####
+<font color ="#8C8C8C">* [ADD] - 2026/09/30 17:33</font>
+<font color ="#8C8C8C">*   #-&gt ### ## BKLAS ##</font>
+<font color ="#8C8C8C">*    es_table-bklas_p  = ls_topmat-bklas. "### ## #####</font>
+    es_table-bmein    = ls_topmat-bmein. "### ##
+    es_table-zseq     = lv_seq.          "##
+    es_table-stlan    = ls_stb-stlan.    "BOM##
+    es_table-stlal    = ls_stb-stlal.    "## BOM
+    es_table-datuv    = ls_stb-datuv.    "#####
+    es_table-posnr    = ls_stb-posnr.    "####
+    es_table-postp    = ls_stb-postp.    "####
+    es_table-aennr    = ls_stb-aennr.    "ECO ##
+
+<font color ="#8C8C8C">* [ADD] - 2026/09/22 16:02</font>
+<font color ="#8C8C8C">*   #-&gt ZZSUPTYPE Customer Field ##</font>
+    es_table-zzsuptype = ls_stb-zzsuptype. " Item Supply Type
+
+
+    IF ls_stb-postp = 'T'.
+      es_table-idnrk    = ls_stb-potx1.    "###
+      es_table-idnrk_t  = ls_stb-potx2.    "####
+      lv_werks          = iv_werks.
+    ELSE.
+      es_table-idnrk    = ls_stb-idnrk.    "###
+      es_table-idnrk_t  = ls_stb-ojtxp.    "####
+      lv_werks          = ls_stb-werks.
+    ENDIF.
+
+    es_table-menge    = ls_stb-mngko.    "###
+    es_table-meins    = ls_stb-meins.    "##
+    es_table-beikz_2  = ls_stb-beikz.    "#######
+    es_table-dumps_2  = |{ ls_stb-dumps CASE = UPPER } |.    "####
+    es_table-sanka_2  = ls_stb-sanka.    "######
+    es_table-itsob_2  = ls_stb-itsob.    "
+    es_table-alpgr    = ls_stb-alpgr.    "####
+    es_table-alprf    = ls_stb-alprf.    "####
+
+    READ TABLE lt_matcat INTO DATA(ls_matcat)
+                         WITH KEY index = ls_stb-ttidx BINARY SEARCH.
+
+    "## ASSY ## # ##
+    IF sy-subrc = 0.
+      es_table-matnr   = ls_matcat-matnr. "## ASSY
+
+      READ TABLE lt_matnr INTO DATA(ls_matnr)
+                          WITH KEY matnr = ls_matcat-matnr BINARY SEARCH.
+      IF sy-subrc = 0.
+<font color ="#8C8C8C">* [ADD] - 2026/09/30 17:30</font>
+<font color ="#8C8C8C">*   #-&gt ## ASSY BKLAS ## ##</font>
+        es_table-bklas_a   = ls_matnr-bklas.  "## ASSY #####
+        es_table-beskz     = ls_matnr-beskz . "## ASSY ####
+        es_table-sobsl     = ls_matnr-sobsl.  "## ASSY ######
+        es_table-mtart     = ls_matnr-mtart.  "## ASSY ####
+        es_table-matnr_t   = ls_matnr-maktx.  "## ASSY#
+        es_table-cl_del    = ls_matnr-cl_del. "## MARA DELETE
+        es_table-pl_del    = ls_matnr-pl_del. "## MARC DELETE
+      ENDIF.
+    ENDIF.
+
+    "### ####
+    READ TABLE lt_mbew INTO DATA(ls_mbew)
+                        WITH KEY werks = ls_stb-werks
+                                 idnrk = ls_stb-idnrk BINARY SEARCH.
+    IF sy-subrc = 0.
+      es_table-bklas = ls_mbew-bklas. "#####
+      es_table-vprsv = ls_mbew-vprsv. "####
+      es_table-mlast = ls_mbew-mlast. "## ## ##
+    ENDIF.
+
+    "### ## # ##
+    READ TABLE lt_idnrk INTO DATA(ls_idnrk)
+                        WITH KEY werks = lv_werks
+                                 idnrk = es_table-idnrk BINARY SEARCH.
+    IF sy-subrc = 0.
+      es_table-beskz_2   = ls_idnrk-beskz . "### ####
+      es_table-mtart_2   = ls_idnrk-mtart.  "### ####
+      es_table-sobsl_2   = ls_idnrk-sobsl.  "### ######
+      es_table-idnrk_old = ls_idnrk-bismt.  "### ###
+      es_table-matkl_2   = ls_idnrk-matkl.  "### ####
+      es_table-wgbez_2   = ls_idnrk-wgbez.  "### #### ##
+      es_table-cl_del_2  = ls_idnrk-cl_del. "### MARA DELETE
+      es_table-pl_del_2  = ls_idnrk-pl_del. "### MARC DELETE
+    ENDIF.
+
+    READ TABLE lt_stb INTO DATA(ls_hseq) WITH KEY wegxx = ls_stb-vwegx
+                                                  stufe = ls_stb-stufe - 1.
+    IF sy-subrc = 0.
+      es_table-zhseq = sy-tabix.      "## ##
+      es_table-beikz = ls_hseq-beikz. "## ASSY #######
+      es_table-dumps = |{ ls_hseq-dumps CASE = UPPER } |. "## ASSY ####
+      es_table-sanka = ls_hseq-sanka. "## ASSY ####
+    ENDIF.
+
+    "### ####
+    READ TABLE lt_datuv INTO DATA(ls_datuv) WITH KEY stlnr = ls_stb-stlnr
+                                                     stlty = ls_stb-stlty
+                                                     stlkn = ls_stb-stlkn
+                                                     stpoz = ls_stb-stpoz BINARY SEARCH.
+    IF sy-subrc = 0.
+      es_table-start_date = ls_datuv-start_date. "### #####
+      es_table-end_date   = ls_datuv-end_date.   "### #####
+    ENDIF.
+
+    DO ls_stb-stufe TIMES.
+      lv_level = |{ lv_level }.|.
+    ENDDO.
+
+    es_table-stufe   = ls_stb-stufe. "##
+    es_table-stufe_t = |{ lv_level }{ ls_stb-stufe }|. "## ###
+
+    APPEND es_table TO et_table.
+    CLEAR : es_table, lv_level, lv_werks.
+  ENDLOOP.
+
+
+<font color ="#8C8C8C">*-- ####</font>
+  IF et_table[] IS NOT INITIAL.
+    es_reply-type = 'S'.
+  ELSE.
+    es_reply-message = TEXT-m04.
+    es_reply-type    = 'E'.
+  ENDIF.
+
+ENDFUNCTION.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

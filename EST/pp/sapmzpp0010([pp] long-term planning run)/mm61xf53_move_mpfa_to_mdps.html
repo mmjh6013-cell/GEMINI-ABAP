@@ -1,0 +1,162 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF53_MOVE_MPFA_TO_MDPS</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF53_MOVE_MPFA_TO_MDPS</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* MDPS aus MPFA fuer Fertigungsauftrag erstellen</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000298"></div>
+FORM move_mpfa_to_mdps.
+<font color ="#8C8C8C">*--&gt Reset MDPS</font>
+  CLEAR mdps.
+<font color ="#8C8C8C">*--&gt Sortierblock setzen</font>
+  MOVE netpla     TO mdps-plaab.
+  MOVE s1plusx    TO mdps-sort1.
+  MOVE s2feauf    TO mdps-sort2.
+  IF mpfa-autyp EQ aftypb.
+    MOVE s2barez     TO mdps-delkz.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Pruefen Bruttoplanung</font>
+  IF  mt61d-miskz EQ miskzb.
+    MOVE brtpla     TO mdps-plaab.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Pruefen Kundeneinzelfertigung</font>
+  IF mpfa-sobkz EQ sobkze.
+    MOVE kndpla     TO mdps-plaab.
+    MOVE mpfa-kdauf TO plakd-kdauf.
+    MOVE mpfa-kdpos TO plakd-kdpos.
+    MOVE plakd      TO mdps-planr.
+  ENDIF.
+
+  "{ Begin ENHO ADSUB_MM61XF53_MOVE_MPFA_TO001 IS-AD-SUC AD_SUB }
+<font color ="#8C8C8C">* DI A&D PCS - Customer stock</font>
+<font color ="#8C8C8C">*--&gt Prüfen Customer Stock</font>
+  IF mpfa-sobkz EQ sobkzb.
+    MOVE cstpla     TO mdps-plaab.
+    MOVE mpfa-aufnr TO plakd-kdauf.
+    MOVE mpfa-posnr TO plakd-kdpos.
+    MOVE plakd      TO mdps-planr.
+  ENDIF.
+  "{ End ENHO ADSUB_MM61XF53_MOVE_MPFA_TO001 IS-AD-SUC AD_SUB }
+
+ENHANCEMENT-POINT move_mpfa_to_mdps_01 SPOTS es_sapmm61x.
+<font color ="#8C8C8C">*--&gt Pruefen Projekteinzelfertigung</font>
+  IF mpfa-sobkz EQ sobkzq.
+    MOVE propla     TO mdps-plaab.
+    MOVE mpfa-pspel TO plapr-pspel.
+    MOVE plapr      TO mdps-planr.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Pruefen Lagerortdisposition</font>
+  IF mdps-plaab EQ netpla
+  OR mdps-plaab EQ brtpla.
+    IF NOT mpfa-lgort IS INITIAL.
+      PERFORM check_lgort USING mpfa-lgort.
+      IF mard-diskz EQ diskz1.      "Lagerort ausgeschlossen
+        MOVE lgods2     TO mdps-plaab.
+        MOVE mpfa-lgort TO plalg-lgort.
+        MOVE plalg      TO mdps-planr.
+      ENDIF.
+      IF mard-diskz EQ diskz2.      "Lagerort seperat disponieren
+        MOVE lgods1     TO mdps-plaab.
+        MOVE mpfa-lgort TO plalg-lgort.
+        MOVE plalg      TO mdps-planr.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Setzen Verarbeitungsstatus</font>
+  IF am61x-vstat EQ vstath.
+    MOVE vstath TO mdps-vstat.
+  ELSE.
+    MOVE vstatv TO mdps-vstat.
+  ENDIF.
+  IF mpfa-kztechab EQ xflag
+  OR mpfa-kzloevm  EQ xflag
+  OR mpfa-kzloekz  EQ xflag
+  OR mpfa-kzgesp   EQ xflag.
+    MOVE vstatd TO mdps-vstat.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Daten uebernehmen</font>
+  MOVE feauf      TO mdps-delkz.
+  IF mpfa-autyp EQ aftypb.
+    MOVE barez       TO mdps-delkz.
+  ENDIF.
+  MOVE plusx      TO mdps-plumi.
+  MOVE mpfa-auart TO mdps-baart.
+  MOVE mpfa-aufnr TO mdps-del12.
+  MOVE mpfa-posnr TO mdps-delps.
+<font color ="#8C8C8C">* MOVE mpfa-gamng TO mdps-mng01.</font>
+<font color ="#8C8C8C">* MOVE mpfa-gasmg TO mdps-mng02.</font>
+<font color ="#8C8C8C">*--&gt Mengen uebernehmen; ggf. umrechnung in Basis-ME</font>
+  IF  (  mpfa-umren NE 1
+      OR mpfa-umrez NE 1 )
+  AND mpfa-umren NE 0
+  AND mpfa-umrez NE 0.
+    DATA: l_hmeng LIKE af61x-mng01.
+    l_hmeng = mpfa-gamng - mpfa-wemng - mpfa-iamng.
+    mdps-mng01 = l_hmeng * mpfa-umrez / mpfa-umren.
+    mdps-mng02 = mpfa-gasmg * mpfa-umrez / mpfa-umren.
+    mdps-mdmng = mpfa-wemng + mpfa-iamng.
+    mdps-mdmng = l_hmeng * mpfa-umrez / mpfa-umren.
+  ELSE.
+    mdps-mng01 = mpfa-gamng - mpfa-wemng - mpfa-iamng.
+    mdps-mng02 = mpfa-gasmg.
+    mdps-mdmng = mpfa-wemng + mpfa-iamng.
+  ENDIF.
+  MOVE mpfa-gltrp TO mdps-dat01.
+  MOVE mpfa-gstrp TO mdps-dat02.
+  MOVE mpfa-webaz TO mdps-webaz.
+  MOVE mpfa-lgort TO mdps-lgort.
+  MOVE mpfa-knttp TO mdps-knttp.
+  MOVE mpfa-sobkz TO mdps-sobkz.
+  MOVE mpfa-kzvbr TO mdps-kzvbr.
+<font color ="#8C8C8C">* move mpfa-kzbws to mdps-kzbws.</font>
+  MOVE mpfa-kdauf TO mdps-kdauf.
+  MOVE mpfa-kdpos TO mdps-kdpos.
+  MOVE mpfa-pspel TO mdps-pspel.
+  MOVE mpfa-werks TO mdps-wrk01.
+  MOVE mpfa-pwwrk TO mdps-wrk02.
+  MOVE mpfa-verid TO mdps-verid.
+  MOVE mpfa-verto TO mdps-verto.
+<font color ="#8C8C8C">*--&gt Setzen Verfügbarkeitskennzeichen</font>
+  MOVE xflag TO mdps-vrfkz.
+<font color ="#8C8C8C">*--&gt Prüfen Planungswerk</font>
+  IF mdps-wrk01 NE mdkp-plwrk.
+    MOVE space TO mdps-vrfkz.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Prüfen Verarbeitungsstatus</font>
+  IF mdps-vstat EQ vstatd.
+    MOVE space TO mdps-vrfkz.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Daten aus OLD-Dispositionszeile</font>
+  IF mdps-vstat EQ vstatv.
+    MOVE mdpss-sernr TO mdps-sernr.
+    MOVE mdpss-qunum TO mdps-qunum.
+    MOVE mdpss-qupos TO mdps-qupos.
+<font color ="#8C8C8C">*   MOVE mdpss-verid TO mdps-verid.</font>
+    MOVE mdpss-aussl TO mdps-aussl.
+    MOVE mdpss-oldsl TO mdps-oldsl.
+    MOVE mdpss-mng03 TO mdps-mng03.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Reset Daten in OLD-Workaerea</font>
+  IF mdps-vstat EQ vstatv.
+    CLEAR mdpss-ukz01.
+    CLEAR mdpss-umdat.
+    CLEAR mdpss-mng04.
+  ENDIF.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

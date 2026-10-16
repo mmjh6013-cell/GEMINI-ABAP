@@ -1,0 +1,328 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZMMR0010_F01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZMMR0010_F01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZMMR0010_F01</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form INITIALIZATION</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000021"></div>
+FORM INITIALIZATION .
+
+  DATA: LS_DYNTXT TYPE SMP_DYNTXT.
+
+  DEFINE _INSRT_FUNC.
+    LS_DYNTXT-ICON_ID   = &1.
+    LS_DYNTXT-ICON_TEXT = &2.
+    LS_DYNTXT-QUICKINFO = &2.
+    SSCRFIELDS-&3 = LS_DYNTXT.
+
+  END-OF-DEFINITION.
+
+  _INSRT_FUNC: ICON_XLS TEXT-003 FUNCTXT_01.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form AT_SELECTION_SCREEN</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000022"></div>
+FORM AT_SELECTION_SCREEN .
+
+  CASE SY-UCOMM.
+    WHEN  'FC01'.
+      PERFORM <a href="#000000000024">DOWNLOAD_TEMPLATE</a>.
+
+  ENDCASE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form f4_filepath</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      &lt-- P_FILE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000023"></div>
+FORM F4_FILEPATH  CHANGING PV_FILE TYPE RLGRAP-FILENAME.
+
+  DATA: LT_FILE_TABLE TYPE FILETABLE,
+        LV_RC         TYPE I.
+
+  " 1. ## #### ### ## ### ##
+  CL_GUI_FRONTEND_SERVICES=&gtFILE_OPEN_DIALOG(
+    EXPORTING
+      WINDOW_TITLE            = 'Select Migration Excel File'
+      DEFAULT_EXTENSION       = 'XLSX'
+      " ## ### ### # ### ## ##
+      FILE_FILTER             = 'Excel Files (*.xls, *.xlsx)|*.xls;*.xlsx|All Files (*.*)|*.*'
+    CHANGING
+      FILE_TABLE              = LT_FILE_TABLE
+      RC                      = LV_RC
+    EXCEPTIONS
+      FILE_OPEN_DIALOG_FAILED = 1
+      CNTL_ERROR              = 2
+      ERROR_NO_GUI            = 3
+      NOT_SUPPORTED_BY_GUI    = 4
+      OTHERS                  = 5
+  ).
+
+  " 2. #### ### ##### #### ##
+  IF SY-SUBRC = 0.
+    " ### READ TABLE (# ## ### ## ### ###)
+    READ TABLE LT_FILE_TABLE INTO DATA(LS_FILE_TABLE) INDEX 1.
+    PV_FILE = LS_FILE_TABLE.
+
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form DOWNLOAD_TEMPLATE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000024"></div>
+FORM DOWNLOAD_TEMPLATE .
+
+  DATA: LS_WWWDATA           TYPE WWWDATATAB,
+        LV_OBJID             TYPE WWWDATA-OBJID,
+        LV_FILENAME          TYPE STRING,
+        LV_PATH              TYPE STRING,
+        LV_FULLPATH          TYPE STRING,
+        LV_FULLPATH2         TYPE RLGRAP-FILENAME,
+        LV_DEFAULT_FILE_NAME TYPE STRING,
+        LV_ACTION            TYPE I.
+
+  LS_WWWDATA-RELID = 'MI'.
+  LS_WWWDATA-OBJID = 'ZMMR0010'. "Key
+
+  SELECT SINGLE OBJID
+    INTO LV_OBJID
+    FROM WWWDATA
+   WHERE RELID = LS_WWWDATA-RELID
+     AND OBJID = LS_WWWDATA-OBJID.
+
+  IF SY-SUBRC &lt&gt 0.
+    "Excel template not found on server. (Check SMW0)
+    MESSAGE S000 WITH TEXT-E03 DISPLAY LIKE 'E'.
+    RETURN.
+
+  ENDIF.
+
+  LV_DEFAULT_FILE_NAME = TEXT-003.
+
+  CL_GUI_FRONTEND_SERVICES=&gtFILE_SAVE_DIALOG(
+    EXPORTING
+      WINDOW_TITLE      = 'Select path to save template'
+      DEFAULT_EXTENSION = 'xlsx'
+      DEFAULT_FILE_NAME = LV_DEFAULT_FILE_NAME
+      FILE_FILTER       = 'Excel Files (*.xlsx)|*.xlsx'
+    CHANGING
+      FILENAME          = LV_FILENAME
+      PATH              = LV_PATH
+      FULLPATH          = LV_FULLPATH
+      USER_ACTION       = LV_ACTION
+    EXCEPTIONS
+      OTHERS            = 1
+  ).
+
+  CHECK LV_ACTION = CL_GUI_FRONTEND_SERVICES=&gtACTION_OK.
+
+  LV_FULLPATH2 = LV_FULLPATH.
+
+  CALL FUNCTION 'DOWNLOAD_WEB_OBJECT'
+    EXPORTING
+      KEY         = LS_WWWDATA
+      DESTINATION = LV_FULLPATH2
+    EXCEPTIONS
+      OTHERS      = 1.
+
+  IF SY-SUBRC = 0.
+    "Template downloaded successfully.
+    MESSAGE S000 WITH TEXT-S01.
+
+  ELSE.
+    "Error occurred while downloading the template.
+    MESSAGE S000 WITH TEXT-E04 DISPLAY LIKE 'E'.
+
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form UPLOAD_EXCEL_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000025"></div>
+FORM UPLOAD_EXCEL_DATA .
+
+  DATA: LT_ROW   LIKE TABLE OF ZCMS0020,
+        LS_EXCEL LIKE ZMMT0010,
+        LT_EXCEL LIKE TABLE OF LS_EXCEL.
+
+  DATA: LV_COL TYPE I,
+        LV_ROW TYPE I,
+        LV_TAB TYPE STRING,
+        LV_STR TYPE STRING.
+
+  FIELD-SYMBOLS: &ltFS_VALUE&gt TYPE ANY,
+                 &ltLS_EXCEL&gt TYPE ANY.
+
+  IF P_FILE IS INITIAL.
+    "File path is empty.
+    MESSAGE S000 WITH TEXT-E01 DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+
+  ENDIF.
+
+  DESCRIBE FIELD LS_EXCEL TYPE FINAL(LV_TYPE) COMPONENTS LV_COL.
+
+  CALL FUNCTION <a href ="zmm_set_excel_to_itab/zmm_set_excel_to_itab.html">'ZMM_SET_EXCEL_TO_ITAB'</a>
+    EXPORTING
+      FILENAME    = P_FILE
+      I_BEGIN_COL = 1
+      I_BEGIN_ROW = 2
+      I_END_COL   = LV_COL
+      I_END_ROW   = 99999
+    TABLES
+      ET_TAB      = GT_EXCEL.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SAVE_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000026"></div>
+FORM SAVE_DATA .
+
+  DATA: LT_SAVE_10 LIKE TABLE OF ZMMT0010 WITH EMPTY KEY,
+        LT_SAVE_11 LIKE TABLE OF ZMMT0011 WITH EMPTY KEY,
+        LT_DELE_11 LIKE LT_SAVE_11.
+
+  CHECK GT_EXCEL IS NOT INITIAL.
+  MOVE-CORRESPONDING GT_EXCEL TO LT_SAVE_10.
+
+  LOOP AT LT_SAVE_10 ASSIGNING FIELD-SYMBOL(&ltLS_SAVE&gt).
+    &ltLS_SAVE&gt-IF_SAP_DATE = SY-DATUM.
+    &ltLS_SAVE&gt-IF_SAP_TIME = SY-UZEIT.
+    &ltLS_SAVE&gt-IF_UNAME    = SY-UNAME.
+
+  ENDLOOP.
+
+  MODIFY ZMMT0010 FROM TABLE LT_SAVE_10.
+
+  MOVE-CORRESPONDING LT_SAVE_10 TO LT_SAVE_11.
+
+  MODIFY ZMMT0011 FROM TABLE LT_SAVE_10.
+
+  DATA(LV_LINE) = LINES( LT_SAVE_10 ).
+
+  "& entries saved
+  MESSAGE S002 WITH LV_LINE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form delete_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000027"></div>
+FORM DELETE_DATA .
+
+  DATA: LT_SAVE LIKE TABLE OF ZMMT0010.
+
+  MOVE-CORRESPONDING GT_EXCEL TO LT_SAVE.
+
+  DELETE ZMMT0010 FROM TABLE LT_SAVE.
+
+  DATA(LV_LINE) = LINES( LT_SAVE ).
+
+  "& entries deleted
+  MESSAGE S005 WITH LV_LINE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form bapi_material_savedata</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt &ltLT_SAVE&gt</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000028"></div>
+FORM BAPI_MATERIAL_SAVEDATA  USING    PS_SAVE TYPE ZMMT0010.
+
+  DATA: LS_HEAD   TYPE BAPIMATHEAD,
+        LS_MARA   TYPE BAPI_MARA,
+        LS_MARAX  TYPE BAPI_MARAX,
+        LS_RETURN TYPE BAPIRET2.
+
+  DATA: LT_MAKT TYPE TABLE OF BAPI_MAKT WITH HEADER LINE.
+
+  LS_HEAD-MATERIAL   = PS_SAVE-INF_NUMBER.
+  LS_HEAD-BASIC_VIEW = 'X'.
+
+  LT_MAKT-LANGU      = SY-LANGU.
+  LT_MAKT-MATL_DESC  = PS_SAVE-INF_NAME.
+  APPEND LT_MAKT.
+
+  CALL FUNCTION 'BAPI_MATERIAL_SAVEDATA'
+    EXPORTING
+      HEADDATA            = LS_HEAD
+      CLIENTDATA          = LS_MARA
+      CLIENTDATAX         = LS_MARAX
+    IMPORTING
+      RETURN              = LS_RETURN
+    TABLES
+      MATERIALDESCRIPTION = LT_MAKT.
+
+  IF LS_RETURN-TYPE = 'E' OR LS_RETURN-TYPE = 'A'.
+    CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
+
+  ELSE.
+    CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+      EXPORTING
+        WAIT = 'X'.
+
+  ENDIF.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

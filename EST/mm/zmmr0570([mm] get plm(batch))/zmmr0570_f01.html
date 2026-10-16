@@ -1,0 +1,137 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZMMR0570_F01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZMMR0570_F01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZMMR0010_F01</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form GET_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000028"></div>
+FORM GET_DATA .
+
+  DATA: LS_RETURN LIKE ZMMS0501.
+
+  CALL FUNCTION <a href ="zmm_get_plm/zmm_get_plm.html">'ZMM_GET_PLM'</a>
+    IMPORTING
+      ES_RETURN = LS_RETURN.
+
+  "BATCH JOB## ## #### ### ### ## ####
+  IF LS_RETURN-STATUS = 'E'.
+    MESSAGE S000 WITH LS_RETURN-MESSAGE DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form BATCH_JOB</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000029"></div>
+FORM BATCH_JOB .
+
+  DATA: LV_JOBNAME  TYPE TBTCJOB-JOBNAME VALUE 'ZMM_SEND_PLM_JOB',
+        LV_JOBCOUNT TYPE TBTCJOB-JOBCOUNT,
+        LV_RELEASED TYPE C.
+
+  CALL FUNCTION 'JOB_OPEN'
+    EXPORTING
+      JOBNAME          = LV_JOBNAME
+    IMPORTING
+      JOBCOUNT         = LV_JOBCOUNT
+    EXCEPTIONS
+      CANT_CREATE_JOB  = 1
+      INVALID_JOB_DATA = 2
+      JOBNAME_MISSING  = 3
+      OTHERS           = 4.
+
+  IF SY-SUBRC &lt&gt 0.
+    MESSAGE 'Back job open failed.' TYPE 'E'.
+    EXIT.
+
+  ENDIF.
+
+  SUBMIT ZMMR0570
+    WITH P_SEND = 'X'
+    WITH P_GET  = SPACE
+    VIA JOB LV_JOBNAME NUMBER LV_JOBCOUNT
+    AND RETURN.
+
+  CALL FUNCTION 'JOB_CLOSE'
+    EXPORTING
+      JOBCOUNT             = LV_JOBCOUNT
+      JOBNAME              = LV_JOBNAME
+      STRTIMMED            = 'X'  " ## ## (## ## ## # sdlstrtdt, sdlstrttm ##)
+    IMPORTING
+      JOB_WAS_RELEASED     = LV_RELEASED
+    EXCEPTIONS
+      CANT_START_IMMEDIATE = 1
+      INVALID_STARTDATE    = 2
+      JOBNAME_MISSING      = 3
+      JOB_CLOSE_FAILED     = 4
+      JOB_NOSTEPS          = 5
+      JOB_NOTEX            = 6
+      LOCK_FAILED          = 7
+      INVALID_TARGET       = 8
+      OTHERS               = 9.
+
+  IF SY-SUBRC = 0 AND LV_RELEASED = 'X'.
+    MESSAGE 'Background job successfully scheduled.' TYPE 'S'.
+
+  ELSE.
+    MESSAGE 'Failed to schedule the background job.' TYPE 'E'.
+
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SEND_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000030"></div>
+FORM SEND_DATA .
+
+  DATA: LS_RETURN LIKE ZMMS0501.
+
+  CALL FUNCTION <a href ="zmm_set_plm/zmm_set_plm.html">'ZMM_SET_PLM'</a>
+    IMPORTING
+      ES_RETURN = LS_RETURN.
+
+  "BATCH JOB## ## #### ### ### ## ####
+  IF LS_RETURN = 'F'.
+    MESSAGE S000 WITH LS_RETURN-MESSAGE DISPLAY LIKE 'E'.
+
+  ENDIF.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

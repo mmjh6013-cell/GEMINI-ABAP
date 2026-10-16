@@ -1,0 +1,154 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF31_LOOP_MDVL_FOR_MRP</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF31_LOOP_MDVL_FOR_MRP</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Langfristplanungslauf (MS01 und RMMRP010)</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000202"></div>
+FORM loop_mdvl_for_mrp.
+  DATA: lv_result TYPE mdplanresult.
+
+
+
+"{ Begin ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+<font color ="#8C8C8C">*--&gt PIC : Check material master for interchangability</font>
+<font color ="#8C8C8C">*--&gt View Materialstamm lesen</font>
+    DATA : LV_PIC_RC LIKE AM61X-RCODE.
+
+
+
+
+<font color ="#8C8C8C">*</font>
+"{ End ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+
+
+ENHANCEMENT-POINT MM61XF31_LOOP_MDVL_FOR_MRP_01 SPOTS ES_SAPMM61X STATIC.
+
+<font color ="#8C8C8C">*--&gt Kommunikationsaerea -Werksebene- erstellen</font>
+  CALL FUNCTION 'MD_READ_PLANT'
+    EXPORTING
+      ewerks = cm61x-werks
+      ecm61x = cm61x
+    IMPORTING
+      icm61w = cm61w
+      it399d = t399d
+    EXCEPTIONS
+      error  = 1.
+  IF sy-subrc &gt 0.
+    MESSAGE ID sy-msgid TYPE 'A' NUMBER sy-msgno
+            WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Statistik initialisieren / Startzeitpunkt</font>
+  PERFORM beginn_statistik.
+<font color ="#8C8C8C">*--&gt Initialization</font>
+  PERFORM <a href ="javascript:Link('MM61XF88_MRP_RUN_INIT.html?id=#000000000404');">mrp_run_badi_init</a>.
+<font color ="#8C8C8C">*--&gt Planungslauf sperren</font>
+  PERFORM enqueue_mrp_run USING cm61x-plobj
+                                cm61x-plscn           "=SPACE
+                                cm61x-werks
+                                SPACE.
+<font color ="#8C8C8C">*--&gt Pre-Read</font>
+  CALL FUNCTION 'MD_MRP_PREREAD'.
+<font color ="#8C8C8C">*--&gt Dispobereichs-Planung aktiv/inaktiv</font>
+  PERFORM <a href ="javascript:Link('MM61XDBR_READ_T000MD.html?id=#000000000138');">read_t000md</a>.
+<font color ="#8C8C8C">*--&gt Check on Existence of Plant MRP Areas</font>
+  PERFORM check_mdlw_exist IN PROGRAM saplmrp1.
+<font color ="#8C8C8C">*--&gt Planungswerk bzw. zugehörige Dispobereiche einlesen</font>
+  PERFORM <a href ="javascript:Link('MM61XF40_FILL_PLANTX.html?id=#000000000252');">fill_plantx</a>.
+<font color ="#8C8C8C">*--&gt Planungswerk zuweisen</font>
+  PERFORM assign_plant.
+<font color ="#8C8C8C">*--&gt Initialisierung des Set-Keys MDVL/DMVL</font>
+  PERFORM init_set_key.
+<font color ="#8C8C8C">*--&gt Materialvormerkungen lesen</font>
+  PERFORM <a href ="javascript:Link('MM61XMDV_MDMMX_FILL.html?id=#000000000698');">mdmmx_fill</a>.
+<font color ="#8C8C8C">*--&gt LOOP ueber Materialvormerkdatei</font>
+  DO.
+<font color ="#8C8C8C">*--&gt Lesen naechste Materialvormerkung</font>
+    PERFORM <a href ="javascript:Link('MM61XMDV_READ_NEXT_MDMMX_PL.html?id=#000000000703');">read_next_mdmmx_pl</a> USING am61x-rcode.      "CM61X CM61D
+    IF am61x-rcode NE char0.
+      EXIT.
+    ENDIF.
+
+
+
+"{ Begin ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+<font color ="#8C8C8C">*--&gt PIC : Check material master for interchangability</font>
+<font color ="#8C8C8C">*--&gt View Materialstamm lesen</font>
+
+    PERFORM <a href ="javascript:Link('MM61XC02_READ_MT61D.html?id=#000000000059');">READ_MT61D</a> USING CM61D-MATNR CM61D-WERKS CM61D-BERID.
+    IF SY-SUBRC NE 0.
+      MOVE CHAR1 TO AM61X-RCODE.
+<font color ="#8C8C8C">*     EXIT.                                       " &lt&lt&lt&lt DEL note 356157</font>
+      PERFORM <a href ="javascript:Link('MM61XC02_LOESCHEN_MDVL_BT.html?id=#000000000052');">LOESCHEN_MDVL_BT</a>.                   " &lt&lt&lt&lt INS note 356157
+      CONTINUE.                                   " &lt&lt&lt&lt INS note 356157
+    ENDIF.
+<font color ="#8C8C8C">*--&gt PIC : material check for MPN+SUS</font>
+    PERFORM PIC_MDVM_CHECK_BT
+                      USING     MT61D
+                      CHANGING  LV_PIC_RC GT_PIC_PARTS[].
+    IF LV_PIC_RC NE 0.
+      MOVE CHAR1 TO AM61X-RCODE.
+      CONTINUE.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt PIC : Processing SUS-Chain / MPN MRP SET                      "46a</font>
+    IF NOT GT_PIC_PARTS[] IS INITIAL.
+       PERFORM PIC_DO_LFR_BT .
+       CONTINUE.
+    ENDIF.
+<font color ="#8C8C8C">*</font>
+"{ End ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+
+
+ENHANCEMENT-POINT MM61XF31_LOOP_MDVL_FOR_MRP_02 SPOTS ES_SAPMM61X.
+<font color ="#8C8C8C">* note 368933 - B</font>
+    CHECK cm61d-nolst IS INITIAL.
+<font color ="#8C8C8C">* note 368933 - E</font>
+<font color ="#8C8C8C">*--&gt Naechstes Material bearbeiten</font>
+    get_start_time time3.
+    PERFORM bearbeiten_material_lfrpl.
+    CLEAR tdiff.
+    run_time tdiff time4 time3.
+    IF cm61x-stopx = xflag.                  "stop planning
+      EXIT.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Statistik erfassen</font>
+    IF cm61d-nomrp IS INITIAL.
+      PERFORM erfassen_statistik USING tdiff.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Collect Material Status</font>
+    MOVE-CORRESPONDING cm61d TO lv_result.
+    MOVE tdiff TO lv_result-rtime.
+    IF NOT gv_md_planning_result_act IS INITIAL.            "HW 557324
+      CALL METHOD gv_md_planning_result-&gtcollect_material_status
+        EXPORTING
+          im_result    = lv_result
+          im_matstat   = statn
+        CHANGING
+          ex_statustab = gt_statustab.
+    ENDIF.
+  ENDDO.
+<font color ="#8C8C8C">*--&gt Planungslauf entsperren</font>
+  PERFORM dequeue_mrp_run USING cm61x-plobj
+                                cm61x-plscn           "=SPACE
+                                cm61x-werks
+                                SPACE.
+<font color ="#8C8C8C">*--&gt Statistik aufbereiten</font>
+  PERFORM <a href ="javascript:Link('MM61XF88_AUFBEREITEN_STATISTIK.html?id=#000000000396');">aufbereiten_statistik</a>.
+ENDFORM.                    "LOOP_MDVL_FOR_MRP
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

@@ -1,0 +1,377 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZMMR0020_F01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZMMR0020_F01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZMMR1010_F01</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form INITIALIZATION</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000025"></div>
+FORM INITIALIZATION .
+
+  DATA: LS_DYNTXT TYPE SMP_DYNTXT.
+
+  DEFINE _INSRT_FUNC.
+    LS_DYNTXT-ICON_ID   = &1.
+    LS_DYNTXT-ICON_TEXT = &2.
+    LS_DYNTXT-QUICKINFO = &2.
+    SSCRFIELDS-&3 = LS_DYNTXT.
+
+  END-OF-DEFINITION.
+
+  _INSRT_FUNC ICON_XLS TEXT-003 FUNCTXT_01.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form AT_SELECTION_SCREEN</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000026"></div>
+FORM AT_SELECTION_SCREEN .
+
+  CASE SY-UCOMM.
+    WHEN 'FC01'.
+      PERFORM <a href="#000000000028">DOWNLOAD_TEMPLATE</a>.
+
+  ENDCASE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form f4_filepath</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      &lt-- P_FILE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000027"></div>
+FORM F4_FILEPATH  CHANGING PV_FILE TYPE RLGRAP-FILENAME.
+
+  DATA: LT_FILE_TABLE TYPE FILETABLE,
+        LV_RC         TYPE I.
+
+  " 1. ## #### ### ## ### ##
+  CL_GUI_FRONTEND_SERVICES=&gtFILE_OPEN_DIALOG(
+    EXPORTING
+      WINDOW_TITLE            = 'Select Migration Excel File'
+      DEFAULT_EXTENSION       = 'XLSX'
+      " ## ### ### # ### ## ##
+      FILE_FILTER             = 'Excel Files (*.xls, *.xlsx)|*.xls;*.xlsx|All Files (*.*)|*.*'
+    CHANGING
+      FILE_TABLE              = LT_FILE_TABLE
+      RC                      = LV_RC
+    EXCEPTIONS
+      FILE_OPEN_DIALOG_FAILED = 1
+      CNTL_ERROR              = 2
+      ERROR_NO_GUI            = 3
+      NOT_SUPPORTED_BY_GUI    = 4
+      OTHERS                  = 5
+  ).
+
+  " 2. #### ### ##### #### ##
+  IF SY-SUBRC = 0.
+    " ### READ TABLE (# ## ### ## ### ###)
+    READ TABLE LT_FILE_TABLE INTO DATA(LS_FILE_TABLE) INDEX 1.
+    PV_FILE = LS_FILE_TABLE.
+
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form DOWNLOAD_TEMPLATE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000028"></div>
+FORM DOWNLOAD_TEMPLATE .
+
+  DATA: LS_WWWDATA           TYPE WWWDATATAB,
+        LV_OBJID             TYPE WWWDATA-OBJID,
+        LV_FILENAME          TYPE STRING,
+        LV_PATH              TYPE STRING,
+        LV_FULLPATH          TYPE STRING,
+        LV_FULLPATH2         TYPE RLGRAP-FILENAME,
+        LV_DEFAULT_FILE_NAME TYPE STRING,
+        LV_ACTION            TYPE I.
+
+  LV_DEFAULT_FILE_NAME = TEXT-003.
+  LS_WWWDATA-OBJID = 'ZMMR0020'.
+  LS_WWWDATA-RELID = 'MI'.
+
+  SELECT SINGLE OBJID
+    INTO LV_OBJID
+    FROM WWWDATA
+   WHERE RELID = LS_WWWDATA-RELID
+     AND OBJID = LS_WWWDATA-OBJID.
+
+  IF SY-SUBRC &lt&gt 0.
+    "Excel template not found on server. (Check SMW0)
+    MESSAGE S000 WITH TEXT-E03 DISPLAY LIKE 'E'.
+    RETURN.
+
+  ENDIF.
+
+  CL_GUI_FRONTEND_SERVICES=&gtFILE_SAVE_DIALOG(
+    EXPORTING
+      WINDOW_TITLE      = 'Select path to save template'
+      DEFAULT_EXTENSION = 'xlsx'
+      DEFAULT_FILE_NAME = LV_DEFAULT_FILE_NAME
+      FILE_FILTER       = 'Excel Files (*.xlsx)|*.xlsx'
+    CHANGING
+      FILENAME          = LV_FILENAME
+      PATH              = LV_PATH
+      FULLPATH          = LV_FULLPATH
+      USER_ACTION       = LV_ACTION
+    EXCEPTIONS
+      OTHERS            = 1
+  ).
+
+  CHECK LV_ACTION = CL_GUI_FRONTEND_SERVICES=&gtACTION_OK.
+
+  LV_FULLPATH2 = LV_FULLPATH.
+
+  CALL FUNCTION 'DOWNLOAD_WEB_OBJECT'
+    EXPORTING
+      KEY         = LS_WWWDATA
+      DESTINATION = LV_FULLPATH2
+    EXCEPTIONS
+      OTHERS      = 1.
+  IF SY-SUBRC = 0.
+    "Template downloaded successfully.
+    MESSAGE S000 WITH TEXT-S01.
+
+    CL_GUI_FRONTEND_SERVICES=&gtEXECUTE(
+           EXPORTING
+             DOCUMENT               = LV_FULLPATH
+         ).
+
+  ELSE.
+    "Error occurred while downloading the template.
+    MESSAGE S000 WITH TEXT-E04 DISPLAY LIKE 'E'.
+
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form UPLOAD_EXCEL_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000029"></div>
+FORM UPLOAD_EXCEL_DATA .
+
+  DATA: LT_ROW   LIKE TABLE OF ZCMS0020,
+        LS_EXCEL LIKE GS_EXCEL,
+        LT_EXCEL LIKE GT_EXCEL.
+
+  DATA: LV_COL TYPE I,
+        LV_ROW TYPE I,
+        LV_TAB TYPE STRING,
+        LV_STR TYPE STRING.
+
+  FIELD-SYMBOLS: &ltFV_VALUE&gt TYPE ANY,
+                 &ltLS_EXCEL&gt TYPE ANY,
+                 &ltLT_EXCEL&gt TYPE STANDARD TABLE.
+
+  IF P_FILE IS INITIAL.
+    "File path is empty.
+    MESSAGE S000 WITH TEXT-E01 DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+
+  ENDIF.
+
+  DESCRIBE FIELD LS_EXCEL TYPE FINAL(LV_TYPE) COMPONENTS LV_COL.
+
+  CALL FUNCTION <a href ="zmm_set_excel_to_itab/zmm_set_excel_to_itab.html">'ZMM_SET_EXCEL_TO_ITAB'</a>
+    EXPORTING
+      FILENAME    = P_FILE
+      I_BEGIN_COL = 1
+      I_BEGIN_ROW = 3
+      I_END_COL   = LV_COL
+      I_END_ROW   = 99999
+    TABLES
+      ET_TAB      = LT_EXCEL.
+
+  MOVE-CORRESPONDING LT_EXCEL TO GT_DATA.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CHECK_AND_MAKE_DATA_MAT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000030"></div>
+FORM CHECK_AND_MAKE_DATA_MAT.
+
+  DATA LV_MATKL  TYPE MATKL.
+
+  SELECT A~MATNR, A~WERKS
+    FROM @GT_DATA AS A INNER JOIN V_MARC_MD AS B
+                               ON B~MATNR = A~MATNR
+                              AND B~WERKS = A~WERKS
+    INTO TABLE @DATA(LT_MARC).
+  SORT LT_MARC BY MATNR WERKS.
+
+  "####
+  SELECT MATKL
+    FROM T023
+    INTO TABLE @DATA(LT_T023).
+  SORT LT_T023 BY MATKL.
+
+  LOOP AT GT_DATA ASSIGNING FIELD-SYMBOL(&ltLS_DATA&gt).
+    "### 3### #####
+    LV_MATKL = &ltLS_DATA&gt-MATNR+0(3).
+
+
+    READ TABLE LT_T023 TRANSPORTING NO FIELDS
+                       WITH KEY MATKL = LV_MATKL
+                       BINARY SEARCH.
+
+    IF SY-SUBRC &lt&gt 0.
+      &ltLS_DATA&gt-ICON = ICON_LED_RED.
+      &ltLS_DATA&gt-MSG  = TEXT-E06. "Check Material Group
+      CONTINUE.
+
+    ENDIF.
+
+    READ TABLE LT_MARC TRANSPORTING NO FIELDS
+                       WITH KEY MATNR = &ltLS_DATA&gt-MATNR
+                                WERKS = &ltLS_DATA&gt-WERKS
+                       BINARY SEARCH.
+    IF SY-SUBRC = 0.
+      &ltLS_DATA&gt-ICON = ICON_CHANGE.
+
+    ELSE.
+      &ltLS_DATA&gt-ICON = ICON_LED_YELLOW.
+
+    ENDIF.
+
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SAVE_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000031"></div>
+FORM SAVE_DATA .
+
+  DATA: LS_SET    LIKE ZMMS0020,
+        LS_RETURN LIKE BAPIRET2,
+        LT_DATA   LIKE GT_DATA,
+        LT_ROW    TYPE LVC_T_ROW.
+
+  CALL METHOD GO_GRID-&gtGET_SELECTED_ROWS
+    IMPORTING
+      ET_INDEX_ROWS = LT_ROW.
+
+  IF LT_ROW IS INITIAL.
+    MESSAGE S008 DISPLAY LIKE 'E'.
+    RETURN.
+  ENDIF.
+
+  LOOP AT LT_ROW INTO DATA(LS_ROW).
+    READ TABLE GT_DATA INTO DATA(LS_DATA) INDEX LS_ROW-INDEX.
+    CHECK SY-SUBRC = 0 AND LS_DATA-ICON &lt&gt ICON_LED_RED.
+    APPEND LS_DATA TO LT_DATA.
+
+  ENDLOOP.
+
+  IF LT_DATA IS INITIAL.
+    MESSAGE S007 DISPLAY LIKE 'E'.
+    RETURN.
+
+  ENDIF.
+
+  SELECT DISTINCT A~MATNR, A~VKORG
+    FROM @LT_DATA AS A
+   INNER JOIN MVKE AS B ON B~MATNR = A~MATNR
+                       AND B~VKORG = A~VKORG
+   WHERE B~VTWEG &gt 10
+    INTO TABLE @DATA(LT_VTWEG).
+
+  SORT LT_VTWEG BY MATNR VKORG.
+
+  LOOP AT LT_ROW INTO LS_ROW.
+    READ TABLE GT_DATA ASSIGNING FIELD-SYMBOL(&ltLS_DATA&gt) INDEX LS_ROW-INDEX.
+    CHECK SY-SUBRC = 0 AND &ltLS_DATA&gt-ICON &lt&gt ICON_LED_RED.
+
+    READ TABLE LT_VTWEG TRANSPORTING NO FIELDS
+                        WITH KEY MATNR = &ltLS_DATA&gt-MATNR
+                                 VKORG = &ltLS_DATA&gt-VKORG
+                        BINARY SEARCH.
+
+    DATA(LV_CHECK) = XSDBOOL( SY-SUBRC &lt&gt 0 ).
+
+    MOVE-CORRESPONDING &ltLS_DATA&gt TO LS_SET.
+
+    "Batch Entry
+    CASE LS_SET-BKLAS. "###### ##
+      WHEN '2010' OR "Oustside ASS
+           '1010' OR "Parts, Raw Materials
+           '1000' OR
+           '2000'.   "Inside Ass
+        LS_SET-KZECH = '3'.
+
+    ENDCASE.
+
+    CALL FUNCTION <a href ="zbapi_material_save_data/zbapi_material_save_data.html">'ZBAPI_MATERIAL_SAVE_DATA'</a>
+      EXPORTING
+        IS_DATA   = LS_SET
+        IV_CHECK  = LV_CHECK
+      IMPORTING
+        ES_RETURN = LS_RETURN.
+
+    IF LS_RETURN-TYPE = 'E' OR LS_RETURN-TYPE = 'A'.
+      &ltLS_DATA&gt-ICON = ICON_LED_RED.
+      &ltLS_DATA&gt-MSG  = LS_RETURN-MESSAGE.
+
+    ELSE.
+      &ltLS_DATA&gt-ICON = ICON_LED_GREEN.
+
+    ENDIF.
+
+    CLEAR: LS_RETURN, LS_SET.
+
+  ENDLOOP.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

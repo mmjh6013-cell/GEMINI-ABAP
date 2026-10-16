@@ -1,0 +1,93 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XDYN_FCODE_MAMA</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XDYN_FCODE_MAMA</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Absprung auf den Material-Maximalscreen                             *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000148"></div>
+FORM fcode_mama USING meinh LIKE rm61r-meinh.
+
+  DATA: l_nobes(1) TYPE c.
+
+<font color ="#8C8C8C">*--&gt Bestands- und Zugangsreichweite berechnen</font>
+<font color ="#8C8C8C">*--&gt Nicht bei MD/MS 05,06,07 da in MDKP schon vorhanden</font>
+<font color ="#8C8C8C">*    Nicht, wenn sie bereits berechnet wurde</font>
+<font color ="#8C8C8C">*    Nicht bei MD/MS 04, da bereits bei Umterm.pruefung ermittelt 4.6A</font>
+  IF  cm61x-plauf NE anzdl
+  AND cm61x-plauf NE anzds
+  AND cm61x-plauf NE lfrdl
+  AND cm61x-plauf NE lfrds
+  AND cm61x-plauf NE anzbs             "RE 4.6A
+  AND cm61x-plauf NE lfraz             "RE 4.6A
+  AND cm61x-plauf NE anzml
+  AND cm61x-plauf NE lfrml
+  AND mdkp-berw1  IS INITIAL
+  AND mdkp-berw2  IS INITIAL
+  AND mdkp-berw4  IS INITIAL.
+    CALL FUNCTION 'STOCK_COVERAGE_GET'
+         EXPORTING
+              emdkp  = mdkp
+              ecm61w = cm61w
+              ecm61m = cm61m                                "ERP2.0
+         IMPORTING
+              imdkp  = mdkp
+         TABLES
+              mdpsx  = mdpsx.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Statistikfeldleiste aufbauen, wenn noch nicht gefüllt</font>
+  IF mdsta-kzsta NE xflag.
+    CALL FUNCTION 'MDSTA_AUFBAUEN'
+         EXPORTING
+              emdsta = mdsta
+              einitf = xflag
+              emt61d = mt61d
+              ekzdwb = t399d-xfan1
+              ekzumb = t399d-kzumb
+              enfvbc = t399d-nfvbc
+         IMPORTING
+              imdsta = mdsta
+         TABLES
+              mdpsx  = mdpsx.
+
+    MOVE xflag TO mdsta-kzsta.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Bei Dispolisten und Langfristplanung ohne  Bestandsfelder !</font>
+  IF cm61x-plauf EQ anzdl              "Dispoliste
+  OR cm61x-plauf EQ anzds              "Dispoliste Sammel
+  OR cm61x-plauf EQ lfrdl              "LFR-Dispoliste
+  OR cm61x-plauf EQ lfrds              "LFR-Dispoliste Sammel
+  OR cm61x-plauf EQ lfrpl              "LFR-Planung
+  OR cm61x-plauf EQ lfrmp              "LFR-Planung -mehrstufig-
+  OR cm61x-plauf EQ lfrep              "LFR-Planung -einstufig-
+  OR cm61x-plauf EQ lfraz.             "Anzeigen LFR-Planung
+    MOVE xflag TO l_nobes.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Gesamtsicht aufrufen</font>
+  CALL FUNCTION 'MD_MATERIAL_MAXIMALSCREEN'
+       EXPORTING
+            emdkp  = mdkp
+            emt61d = mt61d
+            emdsta = mdsta
+            eplscn = cm61x-plscn
+            emeinh = meinh
+            enobes = l_nobes
+       EXCEPTIONS
+            error  = 01.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

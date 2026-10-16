@@ -1,0 +1,145 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF31_USER_EXIT_001</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF31_USER_EXIT_001</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* User-exit for excluding materials from planning</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000205"></div>
+FORM USER_EXIT_001.
+  CHECK NOT RM61X-UXKEY IS INITIAL.
+  STATICS: NOMRP_COUNT TYPE I.
+  CLEAR: CM61D-NOMRP, CM61X-STOPX.
+  CALL CUSTOMER-FUNCTION '001'
+    EXPORTING
+      user_key      = rm61x-uxkey
+                 USER_PAR      = RM61X-UXPAR
+                 T438A         = T438A
+                 MT61D         = MT61D
+                 CM61B         = CM61B                      "HW 643234
+    IMPORTING
+      no_planning   = cm61d-nomrp
+                 STOP_PLANNING = CM61X-STOPX.
+  IF CM61D-NOMRP = XFLAG.
+    ADD 1 TO NOMRP_COUNT.
+    IF  NOMRP_COUNT = 100
+    AND SY-BINPT IS INITIAL.                     "HW 329104
+      COMMIT WORK.                               "to prevent TIME_OUT
+      CLEAR NOMRP_COUNT.
+    ENDIF.
+  ELSE.
+    CLEAR NOMRP_COUNT.
+  ENDIF.
+ENDFORM.                    "USER_EXIT_001
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  CHECK_USER_EXIT_001_FOR_PREREAD</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtIT_MATNR_WERKS_BERID  text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000206"></div>
+FORM check_user_exit_001_preread
+  USING    io_mat_buffer        TYPE REF TO cl_pph_hana_access_material
+           iv_disst             TYPE disst
+  CHANGING ct_matnr_werks_berid TYPE pph_matnr_werks_berid_sel_tab
+           ct_mdmmx             TYPE mrp_mdmmtab.
+
+<font color ="#8C8C8C">*   User-Exit: Material Master Data necessary for Deselection</font>
+  IF rm61x-uxkey IS NOT INITIAL.
+
+    DATA:   lt_mt61d     TYPE pph_mt61d_tab,
+            lt_cm61b     TYPE pph_m61xcm61b_enh_tab,
+            ls_mt61d     TYPE mt61d,
+            ls_cm61b_enh TYPE pph_m61xcm61b_enh_struc,
+            ls_cm61b     TYPE m61x_cm61b,
+            ls_mdmmx     TYPE mdmm,
+            lt_t438a     TYPE STANDARD TABLE OF t438a,
+            ls_t438a     TYPE t438a,
+            lv_tabix     TYPE sytabix,
+            lv_mdmmx_tabix       TYPE sytabix.
+    DATA:   ls_matnr_werks_berid TYPE pph_matnr_werks_berid_sel.
+
+<font color ="#8C8C8C">*   Get Material Master Data for User-Exit Interface</font>
+    lt_mt61d = io_mat_buffer-&gtget_mt61d_all( ).
+    lt_cm61b = io_mat_buffer-&gtget_cm61b_all( ).
+
+<font color ="#8C8C8C">*   Check individual materials for deselection</font>
+    LOOP AT ct_matnr_werks_berid INTO ls_matnr_werks_berid.
+      lv_tabix = sy-tabix.
+      READ TABLE ct_mdmmx WITH KEY disst = iv_disst
+                                   matnr = ls_matnr_werks_berid-matnr
+                                   plwrk = ls_matnr_werks_berid-werks
+                                   berid = ls_matnr_werks_berid-berid
+                          INTO ls_mdmmx.
+      IF sy-subrc EQ 0.
+        lv_mdmmx_tabix = sy-tabix.
+      ELSE.
+        CLEAR lv_mdmmx_tabix.
+      ENDIF.
+<font color ="#8C8C8C">*           Inits</font>
+      CLEAR ls_mt61d.
+      CLEAR ls_cm61b.
+      CLEAR ls_t438a.
+<font color ="#8C8C8C">*           Material Master MT61D</font>
+      READ TABLE lt_mt61d WITH KEY matnr = ls_matnr_werks_berid-matnr
+                                   werks = ls_matnr_werks_berid-werks
+                          INTO ls_mt61d.
+<font color ="#8C8C8C">*           MRP Area CM61B</font>
+      IF ls_matnr_werks_berid-berid IS NOT INITIAL.
+        READ TABLE lt_cm61b WITH KEY matnr = ls_matnr_werks_berid-matnr
+                                     berid = ls_matnr_werks_berid-berid
+                            INTO ls_cm61b_enh.
+        MOVE-CORRESPONDING ls_cm61b_enh TO ls_cm61b.
+      ELSE.
+        CLEAR ls_cm61b.
+      ENDIF.
+<font color ="#8C8C8C">*           MRP Type customizing T438A</font>
+      IF lt_t438a IS INITIAL.
+        SELECT * FROM t438a
+                 INTO TABLE lt_t438a.
+      ENDIF.
+      READ TABLE lt_t438a WITH KEY dismm = ls_mt61d-dismm
+                          INTO ls_t438a.
+
+      CLEAR: cm61d-nomrp.
+      CALL CUSTOMER-FUNCTION '001'
+        EXPORTING
+          user_key    = rm61x-uxkey
+          user_par    = rm61x-uxpar
+          t438a       = ls_t438a
+          mt61d       = ls_mt61d
+          cm61b       = ls_cm61b                      "HW 643234
+        IMPORTING
+          no_planning = cm61d-nomrp.
+<font color ="#8C8C8C">*           Exclude deselected materials from the Preread of the Planning Situation</font>
+      IF cm61d-nomrp IS NOT INITIAL.
+        DELETE ct_matnr_werks_berid INDEX lv_tabix.
+        IF lv_mdmmx_tabix IS NOT INITIAL.
+          DELETE ct_mdmmx INDEX lv_mdmmx_tabix.
+        ENDIF.
+        CLEAR cm61d-nomrp.
+      ENDIF.
+    ENDLOOP.
+
+  ENDIF.
+
+ENDFORM.                    "CHECK_USER_EXIT_001_FOR_PREREAD
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

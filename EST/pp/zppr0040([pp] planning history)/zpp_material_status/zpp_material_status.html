@@ -1,0 +1,179 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZPP_MATERIAL_STATUS</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZPP_MATERIAL_STATUS</b></font>
+<hr>
+<pre width="100">
+FUNCTION zpp_material_status.
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*"*"Local Interface:</font>
+<font color ="#8C8C8C">*"  EXPORTING</font>
+<font color ="#8C8C8C">*"     REFERENCE(ES_REPLY) TYPE  ZCMS0060</font>
+<font color ="#8C8C8C">*"  TABLES</font>
+<font color ="#8C8C8C">*"      IT_TABLE STRUCTURE  ZPPS0110</font>
+<font color ="#8C8C8C">*"      ET_TABLE STRUCTURE  ZPPS0111</font>
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+
+<font color ="#8C8C8C">*       <a href ="global-zpp_material_status.html">Global data declarations</a></font>
+
+  DATA : es_table TYPE zpps0111.
+
+  IF it_table[] IS INITIAL.
+    es_reply-type    = gc_e.
+    es_reply-message = TEXT-m16.
+    EXIT.
+  ENDIF.
+
+  DATA(lt_matnr) = it_table[].
+
+<font color ="#8C8C8C">*--</font>
+  SELECT a1~werks, a1~matnr,
+         a2~mtart,
+         a3~beskz,
+         a3~sobsl
+<font color ="#8C8C8C">*         a4~bom1, a4~rtg,</font>
+<font color ="#8C8C8C">*         a4~ver,  a4~cest</font>
+    FROM @lt_matnr AS a1 INNER JOIN mara AS a2
+                                 ON a1~matnr EQ a2~matnr
+                         INNER JOIN marc AS a3
+                                 ON a1~matnr EQ a3~matnr
+                                AND a1~werks EQ a3~werks
+<font color ="#8C8C8C">*                          LEFT JOIN zppt0010 AS a4</font>
+<font color ="#8C8C8C">*                                 ON a1~werks EQ a4~werks</font>
+<font color ="#8C8C8C">*                                AND a2~mtart EQ a4~mtart</font>
+<font color ="#8C8C8C">*                                AND a3~beskz EQ a4~beskz</font>
+<font color ="#8C8C8C">*                                AND a3~sobsl EQ a4~sobsl</font>
+   INTO TABLE @DATA(lt_mara).
+
+<font color ="#8C8C8C">*-- "# ## ### GET</font>
+  "*-- ####
+  SELECT DISTINCT
+           a1~werks,
+           a1~matnr
+      FROM @lt_matnr AS a1 INNER JOIN mbew AS a2
+                                   ON a1~werks EQ a2~bwkey
+                                  AND a1~matnr EQ a2~matnr
+     WHERE a2~vprsv EQ @gc_s
+       AND a2~lplpr NE 0
+      INTO TABLE @DATA(lt_cost).
+
+
+  "*-- ####
+  SELECT DISTINCT
+         a1~werks,
+         a1~matnr
+    FROM @lt_matnr AS a1 INNER JOIN mkal AS a2
+                                ON a1~matnr EQ a2~matnr
+                               AND a1~werks EQ a2~werks
+    INTO TABLE @DATA(lt_version).
+
+
+  "*-- M-BOM
+  SELECT DISTINCT
+         a1~werks, a2~matnr
+    FROM @lt_matnr AS a1 INNER JOIN mast AS a2
+                                 ON a1~werks EQ a2~werks
+                                AND a1~matnr EQ a2~matnr
+   WHERE stlan EQ '1'
+    INTO TABLE @DATA(lt_stlan).
+
+
+  "*-- ROUTING
+  SELECT DISTINCT
+         a1~werks, a3~matnr
+    FROM mapl AS a1 INNER JOIN plko AS a2
+                            ON a1~plnty EQ a2~plnty
+                           AND a1~plnnr EQ a2~plnnr
+                           AND a1~plnal EQ a2~plnal
+                    INNER JOIN @lt_matnr AS a3
+                            ON a1~werks EQ a3~werks
+                           AND a1~matnr EQ a3~matnr
+   WHERE a1~plnty = 'N'
+     AND a1~loekz = ''
+    INTO TABLE @DATA(lt_routing).
+
+  SORT : lt_mara     BY werks matnr,
+         lt_matnr    BY werks matnr,
+         lt_cost     BY werks matnr,
+         lt_routing  BY werks matnr,
+         lt_stlan    BY werks matnr,
+         lt_version  BY werks matnr.
+
+  LOOP AT lt_matnr INTO DATA(ls_matnr).
+    MOVE-CORRESPONDING ls_matnr TO es_table.
+
+    READ TABLE lt_mara INTO DATA(ls_mara)
+                       WITH KEY werks = ls_matnr-werks
+                                matnr = ls_matnr-matnr BINARY SEARCH.
+    IF sy-subrc = 0.
+      es_table-mtart = ls_mara-mtart.
+      es_table-beskz = ls_mara-beskz.
+      es_table-sobsl = ls_mara-sobsl.
+
+
+      "M-BOM ###
+      READ TABLE lt_stlan TRANSPORTING NO FIELDS
+                                  WITH KEY werks = ls_matnr-werks
+                                           matnr = ls_matnr-matnr BINARY SEARCH.
+      IF sy-subrc = 0.
+        es_table-m_icon = gc_suc.
+      ELSEIF sy-subrc &lt&gt 0.
+<font color ="#8C8C8C">*        AND ls_mara-bom1 IS NOT INITIAL.</font>
+        es_table-m_icon = gc_err.
+      ENDIF.
+
+      "#### ###
+      READ TABLE lt_version TRANSPORTING NO FIELDS
+                                    WITH KEY werks = ls_matnr-werks
+                                             matnr = ls_matnr-matnr BINARY SEARCH.
+      IF sy-subrc = 0.
+        es_table-p_icon = gc_suc.
+      ELSEIF sy-subrc &lt&gt 0.
+<font color ="#8C8C8C">*        AND ls_mara-ver IS NOT INITIAL.</font>
+        es_table-p_icon = gc_err.
+      ENDIF.
+
+      "### ###
+      READ TABLE lt_routing TRANSPORTING NO FIELDS
+                                    WITH KEY werks = ls_matnr-werks
+                                             matnr = ls_matnr-matnr BINARY SEARCH.
+      IF sy-subrc = 0.
+        es_table-r_icon = gc_suc.
+      ELSEIF sy-subrc &lt&gt 0.
+<font color ="#8C8C8C">*         AND ls_mara-rtg IS NOT INITIAL.</font>
+        es_table-r_icon = gc_err.
+      ENDIF.
+
+      "##### ###
+      READ TABLE lt_cost TRANSPORTING NO FIELDS
+                                 WITH KEY werks = ls_matnr-werks
+                                          matnr = ls_matnr-matnr BINARY SEARCH.
+      IF sy-subrc = 0.
+        es_table-c_icon = gc_suc.
+      ELSEIF sy-subrc &lt&gt 0.
+<font color ="#8C8C8C">*        AND ls_mara-cest IS NOT INITIAL.</font>
+        es_table-c_icon = gc_err.
+      ENDIF.
+    ENDIF.
+
+    APPEND es_table TO et_table.
+    CLEAR es_table.
+  ENDLOOP.
+
+  SORT et_table BY werks matnr.
+
+ENDFUNCTION.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

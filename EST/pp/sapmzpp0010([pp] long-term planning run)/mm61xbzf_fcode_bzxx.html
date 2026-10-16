@@ -1,0 +1,120 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XBZF_FCODE_BZXX</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XBZF_FCODE_BZXX</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Bedarfszusammenfassung, Fcode-Routine                                *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000023"></div>
+FORM FCODE_BZXX USING XCODE RCODE LINES.
+
+  DATA: L_ALINE  LIKE AM61R-ALINE,
+        L_BLINE  LIKE AM61R-BLINE,
+        L_ANKER  LIKE MDEZ-ALINE,
+        LS_LINE  TYPE MRP_LIST_LINE_TYPE,
+        LV_FOUND TYPE BOOL,
+        L_OLDMA  LIKE SY-TABIX.    "alte Zeilenzahl mdezx
+
+<font color ="#8C8C8C">*--&gt Return-Code vorbesetzen</font>
+  RCODE = 1.
+<font color ="#8C8C8C">*--&gt Leere Liste aus SAPMM61R: Raus !</font>
+  IF MDEZX-MLINE EQ 1.
+    READ TABLE MDEZX INDEX 1.
+    IF MDEZX IS INITIAL.
+      CLEAR RCODE.
+      EXIT.
+    ENDIF.
+  ENDIF.
+
+  L_OLDMA = MDEZX-MLINE.
+  CASE XCODE.
+<font color ="#8C8C8C">*--&gt Alle Summen auflösen</font>
+    WHEN 'BZDE'.
+      PERFORM <a href ="javascript:Link('MM61XBZF_GET_STARTZEILE.html?id=#000000000024');">GET_STARTZEILE</a> USING L_ANKER.
+      CLEAR MDST-SBZKZ.
+      PERFORM MDEZX_AUFBAUEN_RX.
+<font color ="#8C8C8C">*--&gt Einzelne Zeile öffnen</font>
+    WHEN 'BZOS'.
+      PERFORM PICKUP CHANGING LS_LINE LV_FOUND.
+      CHECK LV_FOUND = GC_TRUE.
+<font color ="#8C8C8C">*--&gt Zeile ist Summenzeile ==&gt auf Doppelklick Summe explodieren</font>
+      IF LS_LINE-MDEZ-ZLINE &gt LS_LINE-MDEZ-ALINE.
+        MDEZX = LS_LINE-MDEZ.
+        PERFORM <a href ="javascript:Link('MM61XBZF_SUMME_OEFFNEN_MDEZX.html?id=#000000000029');">SUMME_OEFFNEN_MDEZX</a> USING LS_LINE-MDEZ_INDEX.
+        EXIT.    "raus, da weitere Aktionen bereits in der Form-Routine
+      ENDIF.
+<font color ="#8C8C8C">*--&gt Alle Summen bilden</font>
+    WHEN 'BZAL'.
+      PERFORM <a href ="javascript:Link('MM61XBZF_GET_STARTZEILE.html?id=#000000000024');">GET_STARTZEILE</a> USING L_ANKER.
+      MDST-SBZKZ = XFLAG.
+      PERFORM MDEZX_AUFBAUEN_RX.
+<font color ="#8C8C8C">*--&gt Einzelne Summe bilden</font>
+    WHEN 'BZEZ'.
+      PERFORM <a href ="javascript:Link('MM61XBZF_GET_STARTZEILE.html?id=#000000000024');">GET_STARTZEILE</a> USING L_ANKER.
+<font color ="#8C8C8C">*----&gt Nur wenn aufgeklappte Bedarfe vorhanden sind</font>
+      IF MDST-SBZKZ = XFLAG.
+        EXIT.
+      ENDIF.
+<font color ="#8C8C8C">*----&gt Holen ausgewählte Zeile</font>
+      PERFORM PICKUP CHANGING LS_LINE LV_FOUND.
+      CHECK LV_FOUND = GC_TRUE.
+<font color ="#8C8C8C">*----&gt Bereits Summenzeile ? Ja: Raus!</font>
+      IF LS_LINE-MDEZ-ZLINE &gt LS_LINE-MDEZ-ALINE.
+        CLEAR RCODE.
+        EXIT.
+      ENDIF.
+<font color ="#8C8C8C">*----&gt Bilden der Summe zu ausgewähltem Datum und Delkz</font>
+      MDEZX = LS_LINE-MDEZ.  "TODO
+      PERFORM <a href ="javascript:Link('MM61XBZF_SUMME_BILDEN_MDEZX.html?id=#000000000028');">SUMME_BILDEN_MDEZX</a> USING LS_LINE-MDEZ_INDEX.
+    WHEN OTHERS.
+      CLEAR RCODE.
+  ENDCASE.
+  CHECK NOT RCODE IS INITIAL.
+<font color ="#8C8C8C">*--&gt Anzahl Zeilen Mdezx anpassen.</font>
+  DESCRIBE TABLE MDEZX LINES MDEZX-MLINE.
+  MDEZX-BLINE = MDEZX-BLINE + MDEZX-MLINE - L_OLDMA.
+<font color ="#8C8C8C">*--&gt Setzen neue Anfangszeile für Ausgabe</font>
+  PERFORM <a href ="javascript:Link('MM61XBZF_SETZEN_MDEZX_XLINE.html?id=#000000000027');">SETZEN_MDEZX_XLINE</a> USING EZKEY L_ANKER.
+<font color ="#8C8C8C">*--&gt Falls Ansprung aus Split: Mdsux neu aufbauen</font>
+  IF MDSUX-MLINE &gt 0.
+    PERFORM <a href ="javascript:Link('MM61XBZF_MDSUX_AUFBAUEN_RX.html?id=#000000000026');">MDSUX_AUFBAUEN_RX</a>.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt ATP-Mengen anpassen falls zuvor berechnet</font>
+  IF MDST-KZATP = XFLAG.
+<font color ="#8C8C8C">*--&gt ATP-Mengen-Modul aufrufen</font>
+    CALL FUNCTION 'ATP_BERECHNEN_MDEZX'
+        EXPORTING
+                EMT61D = MT61D
+                EMASEL = MASEL
+        IMPORTING
+                IMASEL = MASEL
+        TABLES
+                MDEZX  = MDEZX
+                MDPSX  = MDPSX
+                MDINX  = MDINX
+                MDAUSX = MDAUSX
+                MDDELX = MDDELX.
+<font color ="#8C8C8C">*--&gt Maximale Zeilenanzahl der Indextabelle</font>
+    DESCRIBE TABLE MDINX LINES MDINX_MLINE.
+<font color ="#8C8C8C">*--&gt Bereich fuer Blaettern initialisieren (Maximaler Ausschnitt)</font>
+    MDINX_VLINE = 1.
+    MDINX_BLINE = MDINX_MLINE.
+  ENDIF.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

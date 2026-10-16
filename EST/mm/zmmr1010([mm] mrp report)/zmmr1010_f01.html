@@ -1,0 +1,259 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZMMR1010_F01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZMMR1010_F01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZMMR1010_F01</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form INITIALIZATION</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000005"></div>
+FORM INITIALIZATION .
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form AT_SELECTION_SCREEN_OUTPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000006"></div>
+FORM AT_SELECTION_SCREEN_OUTPUT .
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form AT_SELECTION_SCREEN</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000007"></div>
+FORM AT_SELECTION_SCREEN .
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form GET_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000008"></div>
+FORM GET_DATA .
+
+  DATA: LS_MRP_LIST      LIKE BAPI_MRP_LIST,
+        LT_MRP_IND_LINES LIKE TABLE OF BAPI_MRP_IND_LINES,
+        LS_DATA          LIKE GS_DATA.
+
+  "## ##
+  SELECT A~MATNR, B~MAKTX
+    FROM MARA AS A LEFT OUTER JOIN MAKT AS B
+                                ON B~MATNR = A~MATNR
+                               AND B~SPRAS = @SY-LANGU
+   WHERE A~MATNR IN @S_MATNR
+    INTO TABLE @DATA(LT_LIST).
+
+  IF LT_LIST IS INITIAL.
+    "Check Material
+    MESSAGE S000 WITH TEXT-E02 DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+
+  ENDIF.
+
+  "### ##
+  IF P_WERKS IS NOT INITIAL.
+    SELECT SINGLE WERKS, NAME1
+      FROM T001W
+     WHERE WERKS = @P_WERKS
+      INTO @DATA(LS_WERKS).
+
+    IF LS_WERKS IS INITIAL.
+      "Check Plant
+      MESSAGE S000 WITH TEXT-E04 DISPLAY LIKE 'E'.
+      LEAVE LIST-PROCESSING.
+
+    ENDIF.
+
+  ENDIF.
+
+  "MRP Area ##
+  IF P_BERID IS NOT INITIAL.
+    SELECT SINGLE BERID, WERZG, BERTX
+      FROM MDLV
+     WHERE BERID = @P_BERID
+      INTO @DATA(LS_BERID).
+
+    IF LS_BERID IS INITIAL.
+      "Check MRP Area
+      MESSAGE S000 WITH TEXT-E01 DISPLAY LIKE 'E'.
+      LEAVE LIST-PROCESSING.
+
+    ELSEIF P_WERKS IS INITIAL.
+      "Plant ## x # ####
+      SELECT SINGLE WERKS, NAME1
+        FROM T001W
+       WHERE WERKS = @LS_BERID-WERZG
+        INTO @LS_WERKS.
+
+    ENDIF.
+
+  ELSE.
+    "### ## BERTY = '01'# ##
+    SELECT SINGLE BERID, WERZG, BERTX
+      FROM MDLV
+     WHERE WERZG = @P_WERKS
+       AND BERTY = '01'
+      INTO @LS_BERID.
+
+  ENDIF.
+
+  "EXCEPTION ###
+  SELECT A~AUSKT, B~AUSLT
+    FROM T458A AS A LEFT OUTER JOIN T458B AS B
+                                 ON B~SPRAS = @SY-LANGU
+                                AND B~AUSSL = A~AUSSL
+    INTO TABLE @DATA(LT_TXT_EX).
+  SORT LT_TXT_EX BY AUSKT.
+
+  LOOP AT LT_LIST INTO DATA(LS_LIST).
+    PERFORM <a href="#000000000009">BAPI_MATERIAL_STOCK_REQ_LIST</a> USING LS_LIST-MATNR
+                                               LS_WERKS-WERKS
+                                               LS_BERID-BERID
+                                      CHANGING LS_MRP_LIST
+                                               LT_MRP_IND_LINES.
+
+    LS_DATA-MATNR        = LS_LIST-MATNR.
+    LS_DATA-MAKTX        = LS_LIST-MAKTX.
+    LS_DATA-BERID        = LS_BERID-BERID.
+    LS_DATA-BERTX        = LS_BERID-BERTX.
+    LS_DATA-WERKS        = LS_WERKS-WERKS.
+    LS_DATA-NAME1        = LS_WERKS-NAME1.
+    LS_DATA-DISMM        = LS_MRP_LIST-MRP_TYPE.
+    LS_DATA-MTART        = LS_MRP_LIST-MATL_TYPE.
+    LS_DATA-MEINH        = LS_MRP_LIST-BASE_UOM.
+
+    LOOP AT LT_MRP_IND_LINES INTO DATA(LS_MRP_IND_LINES).
+      LS_DATA-AVAIL_DATE   = LS_MRP_IND_LINES-AVAIL_DATE.
+      LS_DATA-MRP_ELEMNT   = LS_MRP_IND_LINES-MRP_ELEMNT.
+      LS_DATA-ELEMNT_DATA  = LS_MRP_IND_LINES-ELEMNT_DATA.
+      LS_DATA-RESCHED_DATE = LS_MRP_IND_LINES-RESCHED_DATE.
+      LS_DATA-EXCMESSAGE   = LS_MRP_IND_LINES-EXCMESSAGE.
+      LS_DATA-REC_REQD_QTY = LS_MRP_IND_LINES-REC_REQD_QTY.
+      LS_DATA-AVAIL_QTY1   = LS_MRP_IND_LINES-AVAIL_QTY1.
+      LS_DATA-PROD_VERSION = LS_MRP_IND_LINES-PROD_VERSION.
+      LS_DATA-STORAGE_LOC  = LS_MRP_IND_LINES-STORAGE_LOC.
+
+      READ TABLE LT_TXT_EX INTO DATA(LS_TXT_EX)
+                           WITH KEY AUSKT = LS_DATA-EXCMESSAGE
+                           BINARY SEARCH.
+      IF SY-SUBRC = 0.
+        LS_DATA-AUSLT = LS_TXT_EX-AUSLT.
+
+      ENDIF.
+
+      APPEND LS_DATA TO GT_DATA.
+
+    ENDLOOP.
+
+    CLEAR LS_DATA.
+
+  ENDLOOP.
+
+  IF GT_DATA IS INITIAL.
+    "No Data
+    MESSAGE S000 WITH TEXT-E03 DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form BAPI_MATERIAL_STOCK_REQ_LIST</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt LS_LIST_MATNR</font>
+<font color ="#8C8C8C">*&      --&gt LS_LIST_WERKS</font>
+<font color ="#8C8C8C">*&      --&gt LV_BERID</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000009"></div>
+FORM BAPI_MATERIAL_STOCK_REQ_LIST  USING PV_MATNR
+                                         PV_WERKS
+                                         PV_BERID
+                                CHANGING PS_MRP_LIST      TYPE ANY
+                                         PT_MRP_IND_LINES TYPE ANY TABLE.
+
+  DATA: LV_MATNR         LIKE BAPI_MRP_MAT_PARAM-MATERIAL,
+        LV_WERKS         LIKE BAPI_MRP_MAT_PARAM-PLANT,
+        LV_BERID         LIKE BAPI_MRP_MAT_PARAM-MRP_AREA,
+        LS_MRP_LIST      LIKE BAPI_MRP_LIST,
+        LT_MRP_IND_LINES LIKE TABLE OF BAPI_MRP_IND_LINES.
+
+  CLEAR: PS_MRP_LIST, PT_MRP_IND_LINES.
+
+  LV_MATNR = PV_MATNR.
+  LV_WERKS = PV_WERKS.
+  LV_BERID = PV_BERID.
+
+  CALL FUNCTION 'BAPI_MATERIAL_STOCK_REQ_LIST'
+    EXPORTING
+      MATERIAL      = LV_MATNR
+      PLANT         = LV_WERKS
+      MRP_AREA      = LV_BERID
+    IMPORTING
+      MRP_LIST      = LS_MRP_LIST
+    TABLES
+      MRP_IND_LINES = LT_MRP_IND_LINES.
+
+  MOVE-CORRESPONDING: LS_MRP_LIST      TO PS_MRP_LIST,
+                      LT_MRP_IND_LINES TO PT_MRP_IND_LINES.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CHECK_PARAMETER</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000010"></div>
+FORM CHECK_PARAMETER .
+
+  "## ## ## x # ##
+  IF NOT ( ( P_WERKS IS INITIAL     AND P_BERID IS NOT INITIAL ) OR
+           ( P_WERKS IS NOT INITIAL AND P_BERID IS INITIAL ) ).
+    "Require input Plant or MRP Area
+    MESSAGE S000 WITH TEXT-E05 DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+
+  ENDIF.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XFOL_DO_LFR_MATERIAL_OL</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XFOL_DO_LFR_MATERIAL_OL</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Material fuer LPR planen im ONLINE</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000565"></div>
+FORM do_lfr_material_ol.
+<font color ="#8C8C8C">*--&gt Kommunikationsaerea fuer Werk erstellen</font>
+  CALL FUNCTION 'MD_READ_PLANT'
+    EXPORTING
+      ewerks = mt61d-werks
+      ecm61x = cm61x
+    IMPORTING
+      icm61w = cm61w
+      it399d = t399d
+    EXCEPTIONS
+      error  = 1.
+  IF sy-subrc &gt 0.
+    MESSAGE ID sy-msgid TYPE 'E' NUMBER sy-msgno
+            WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Dispositionstabelle aufbauen</font>
+ENHANCEMENT-SECTION     ehp603_mm61xfol_do_lfr_mat_01 SPOTS es_sapmm61x.
+  CALL FUNCTION 'AUFBAUEN_MDPSX_SIMULATION'
+    EXPORTING
+      ecm61x        = cm61x
+      ecm61w        = cm61w
+      ecm61d        = cm61d
+      ecm61b        = cm61b
+      emt61d        = mt61d
+      et399d        = t399d
+      et438a        = t438a
+      eplsc         = plsc
+    IMPORTING
+      imdkp         = mdkp
+      imt61d        = mt61d
+      icm61m        = cm61m
+      imdsta        = mdsta "{ ENHO MD03_SFWS_MRP_02_MM61XFOL PP-MRP-PE MAN_SFWS_SC_MRP_02 }
+    TABLES
+      mdpsx         = mdpsx
+      mdpso         = mdpso
+      equkx         = equkx
+      equpx         = equpx
+      equmx         = equmx
+    EXCEPTIONS
+      error_message = 02
+      error         = 01.
+END-ENHANCEMENT-SECTION.
+  IF sy-subrc NE 0.
+    PERFORM send_error_message.
+  ENDIF.
+
+"{ Begin ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+<font color ="#8C8C8C">*--&gt PIC : Generate merged MDPSX fpr SUS+MPN  (46a)</font>
+  IF NOT CM61M-PICID IS INITIAL.
+    PERFORM PIC_MERGE_MDPSX CHANGING SY-SUBRC.
+    IF SY-SUBRC NE 0.
+      PERFORM <a href ="javascript:Link('MM61XF34_SEND_ERROR_MESSAGE.html?id=#000000000221');">SEND_ERROR_MESSAGE</a>.
+    ENDIF.
+  ENDIF.
+"{ End ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+
+ENHANCEMENT-POINT do_lfr_material_ol_01 SPOTS es_sapmm61x.
+<font color ="#8C8C8C">*--&gt Planungsrechnung</font>
+  CALL FUNCTION 'DO_PLANUNGSRECHNUNG'
+    EXPORTING
+      ecm61x        = cm61x
+      ecm61w        = cm61w
+      ecm61m        = cm61m
+      ecm61d        = cm61d
+      ecm61b        = cm61b
+      emdkp         = mdkp
+      emt61d        = mt61d
+      et399d        = t399d
+    IMPORTING
+      imdkp         = mdkp
+    TABLES
+      mdpsx         = mdpsx
+      mdpso         = mdpso
+      equkx         = equkx
+      equpx         = equpx
+      equmx         = equmx
+    EXCEPTIONS
+      error_message = 01.
+  IF sy-subrc NE 0.
+    PERFORM send_error_message.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt BOM explosion, scheduling via routing</font>
+  PERFORM bom_explosion CHANGING am61x-rcode.
+  IF am61x-rcode = char1.
+    PERFORM send_error_message.
+  ENDIF.
+  PERFORM scheduling_mrp CHANGING am61x-rcode.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

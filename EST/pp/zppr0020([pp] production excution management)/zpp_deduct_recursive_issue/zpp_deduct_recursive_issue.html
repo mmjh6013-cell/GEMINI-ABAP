@@ -1,0 +1,121 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZPP_DEDUCT_RECURSIVE_ISSUE</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZPP_DEDUCT_RECURSIVE_ISSUE</b></font>
+<hr>
+<pre width="100">
+FUNCTION ZPP_DEDUCT_RECURSIVE_ISSUE.
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*"*"Local Interface:</font>
+<font color ="#8C8C8C">*"  TABLES</font>
+<font color ="#8C8C8C">*"      T_INPUT STRUCTURE  ZPPS0030</font>
+<font color ="#8C8C8C">*"      T_OUTPUT STRUCTURE  ZPPS0020</font>
+<font color ="#8C8C8C">*"  EXCEPTIONS</font>
+<font color ="#8C8C8C">*"      NO_DATA</font>
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+
+<font color ="#8C8C8C">*       <a href ="global-zpp_deduct_recursive_issue.html">Global data declarations</a></font>
+
+  DATA lt_input LIKE TABLE OF zpps0030 WITH HEADER LINE.
+
+  DATA : BEGIN OF ls_output.
+           include structure <a href ="zpps0020/dictionary-zpps0020.html">zpps0020</a>.
+  DATA :   meins       LIKE aufm-meins,
+           zissue_qty1 LIKE zpps0020-zissue_qty,
+           zissue_qty2 LIKE zpps0020-zissue_qty,
+         END OF ls_output,
+         lt_output LIKE TABLE OF ls_output.
+
+  MOVE-CORRESPONDING t_input[] TO lt_input[].
+
+  LOOP AT lt_input.
+<font color ="#8C8C8C">* SELECT A~DWERK, A~AUFNR, A~MATNR, A~PSMNG, A~WEMNG,</font>
+<font color ="#8C8C8C">* B~MEINS,</font>
+<font color ="#8C8C8C">* SUM( CASE WHEN B~BWART EQ '261' AND B~MEINS EQ 'MT'</font>
+<font color ="#8C8C8C">* THEN B~MENGE</font>
+<font color ="#8C8C8C">* WHEN B~BWART EQ '262' AND B~MEINS EQ 'MT'</font>
+<font color ="#8C8C8C">* THEN B~MENGE * -1</font>
+<font color ="#8C8C8C">* ELSE 0 END ) AS ZISSUE_QTY1,</font>
+<font color ="#8C8C8C">* SUM( CASE WHEN B~BWART EQ '261' AND B~MEINS NE 'MT'</font>
+<font color ="#8C8C8C">* THEN B~ERFMG</font>
+<font color ="#8C8C8C">* WHEN B~BWART EQ '262' AND B~MEINS NE 'MT'</font>
+<font color ="#8C8C8C">* THEN B~ERFMG * -1</font>
+<font color ="#8C8C8C">* ELSE 0 END ) AS ZISSUE_QTY2</font>
+<font color ="#8C8C8C">* FROM AFPO AS A</font>
+<font color ="#8C8C8C">* INNER JOIN AUFM AS B</font>
+<font color ="#8C8C8C">* ON A~AUFNR EQ B~AUFNR</font>
+<font color ="#8C8C8C">* AND A~MATNR EQ B~MATNR</font>
+<font color ="#8C8C8C">* APPENDING CORRESPONDING FIELDS OF TABLE @LT_OUTPUT</font>
+<font color ="#8C8C8C">* WHERE A~DWERK EQ @LT_INPUT-WERKS</font>
+<font color ="#8C8C8C">* AND A~AUFNR EQ @LT_INPUT-AUFNR</font>
+<font color ="#8C8C8C">* GROUP BY A~DWERK, A~AUFNR, A~MATNR, A~PSMNG, A~WEMNG, B~MEINS.</font>
+
+    " ## ## ## - Reblending Qty ## #, ## #### ## ## #### ## ( SR ####   E00220250903-0001 )
+    " AUFM# ### ### ####, ##-I, ##-D # #### ### ## ##. 2025.09.05
+
+    SELECT a~dwerk, a~aufnr, a~matnr, a~psmng, a~wemng,
+           b~meins,
+           SUM( CASE WHEN b~bwart EQ '261' AND b~meins EQ 'MT'
+                          THEN b~menge
+                     WHEN b~bwart EQ '262' AND b~meins EQ 'MT'
+                          THEN b~menge * -1
+                     ELSE 0 END ) AS zissue_qty1,
+           SUM( CASE WHEN b~bwart EQ '261' AND b~meins NE 'MT'
+                          THEN b~erfmg
+                     WHEN b~bwart EQ '262' AND b~meins NE 'MT'
+                          THEN b~erfmg * -1
+                     ELSE 0 END ) AS zissue_qty2
+      FROM afpo AS a INNER JOIN aufm AS b
+                             ON a~aufnr EQ b~aufnr
+                     INNER JOIN mbew AS c
+                             ON b~matnr EQ c~matnr
+                            AND c~bklas EQ '7920'
+                            AND c~bwkey EQ @lt_input-werks
+     APPENDING CORRESPONDING FIELDS OF TABLE @lt_output
+     WHERE a~dwerk EQ @lt_input-werks
+       AND a~aufnr EQ @lt_input-aufnr
+     GROUP BY a~dwerk, a~aufnr, a~matnr, a~psmng, a~wemng, b~meins.
+
+  ENDLOOP.
+
+  DATA(lt_collect) = lt_output.
+  CLEAR lt_collect.
+
+  IF lt_output IS NOT INITIAL.
+    LOOP AT lt_output INTO ls_output.
+      IF ls_output-meins EQ 'MT'.
+        ls_output-zissue_qty = ls_output-zissue_qty1.
+      ELSE.
+        ls_output-zissue_qty = ls_output-zissue_qty2 / 1000.
+      ENDIF.
+      COLLECT ls_output INTO lt_collect.
+    ENDLOOP.
+  ENDIF.
+
+  IF lt_collect IS NOT INITIAL.
+    LOOP AT lt_collect INTO DATA(ls_collect).
+      MOVE-CORRESPONDING ls_collect TO t_output.
+      t_output-zadjust_qty = t_output-wemng - t_output-zissue_qty.
+      APPEND t_output.
+    ENDLOOP.
+  ENDIF.
+
+  IF t_output[] IS INITIAL.
+    RAISE no_data.
+  ENDIF.
+
+ENDFUNCTION.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

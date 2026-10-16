@@ -1,0 +1,241 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZPPR0020_TOP</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZPPR0020_TOP</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZPPR0020_TOP</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+TYPE-POOLS: icon.
+
+TABLES : aufk, afpo, afko, sscrfields.
+
+DATA gv_bukrs TYPE bukrs .
+
+DATA : gv_okcode TYPE sy-ucomm .
+
+RANGES : gr_date FOR sy-datum OCCURS 0.
+
+DATA :
+  gt_fcat TYPE lvc_t_fcat,
+  gs_fcat TYPE lvc_s_fcat.
+
+" ## #### / ## ###
+TYPES : BEGIN OF ts_main,
+          werks      TYPE afpo-dwerk,      " ###
+          dgltp      TYPE afpo-dgltp,      " ####
+          dauat      TYPE afpo-dauat,      " ####
+          stat       TYPE tj02t-txt04 ,    " #### - JEST &gt&gt ZPPDV0010~STAT
+          psmng      TYPE afpo-psmng,      " ####
+          amein      TYPE afpo-amein,      " ####
+          aufnr      TYPE aufk-aufnr,      " ####
+<font color ="#8C8C8C">*--- cbo field 0811</font>
+<font color ="#8C8C8C">*          zzaufnr    TYPE aufk-zzaufnr,    " BULK ##</font>
+<font color ="#8C8C8C">*          zzblender  TYPE aufk-zzblender,  " ###</font>
+          charg      TYPE afpo-charg,      " BATCH No.
+          dispo      TYPE marc-dispo,      " ####
+          dsnam      TYPE t024d-dsnam,     " #### - text
+          matnr      TYPE mara-matnr,      " ####
+          maktx      TYPE makt-maktx,      " ##
+<font color ="#8C8C8C">*          zziso      TYPE aufk-zziso,      " ISO Code</font>
+<font color ="#8C8C8C">*          zzisolot   TYPE aufk-zzisolot,   " ISO Lot No.</font>
+<font color ="#8C8C8C">*          zzvbeln    TYPE aufk-zzvbeln,    " Sales Order</font>
+<font color ="#8C8C8C">*          zzposnr    TYPE aufk-zzposnr,    " Sales Order Item No.</font>
+          name1      TYPE kna1-name1,      " Sales - Customer Name
+<font color ="#8C8C8C">*          zzbulktype TYPE aufk-zzbulktype, " BulkType( S / F )</font>
+<font color ="#8C8C8C">*--- end</font>
+          bulktype_t TYPE dd07t-ddtext,    " BulkType( Semi / Finished )
+          wemng      TYPE afpo-wemng,      " ## ## ##
+          lgort      TYPE afpo-lgort,      "    --&gt Storage Location
+          budat      TYPE aufm-budat,      "   ## ###
+          labst      TYPE mard-labst,      " ###
+
+          hsdat      TYPE mcha-hsdat,      " ##  ###
+          vfdat      TYPE mcha-vfdat,      " ##  ###
+          amenge     TYPE afpo-psmng,      " Adjusted ##
+
+          smbln      TYPE mseg-smbln,
+          sjahr      TYPE mseg-sjahr,
+
+          ico_consm  TYPE icon-id,  " ### - ####
+          ico_cnfrm  TYPE icon-id,  " ### - ####
+          ico_recpt  TYPE icon-id,  " ### - ####
+          ico_order  TYPE icon-id,  " Open : Order Sheet
+          color(4)   TYPE c,
+          b201       TYPE c,
+          b202       TYPE c,
+          b203       TYPE c,
+          b301       TYPE c,
+          b302       TYPE c,
+          b303       TYPE c,
+          tm         TYPE c,
+          dm         TYPE c,
+          rd         TYPE c,
+          vm         TYPE c,
+          vd         TYPE c,
+          vn         TYPE c,
+          bts        TYPE c,   " BulkType : S
+          btf        TYPE c,   " BulkType : F
+        END OF ts_main .
+
+TYPES : BEGIN OF ts_0200 ,
+          rsnum      TYPE resb-rsnum,      " ## ## ##
+          rspos      TYPE resb-rspos,      " ## ## ##
+          matnr      TYPE mara-matnr,      " ## ## ##
+          maktx      TYPE makt-maktx,      " ##
+          menge      TYPE afpo-psmng,      " ## ##
+          erfmg      TYPE aufm-erfmg,      " ## ##
+          meins      TYPE afpo-amein,      " ## ##
+          meins_base TYPE afpo-amein,      " Base Unit of Measure
+          lgort      TYPE marc-lgpro,      "    --&gt Storage Location
+          charg      TYPE afpo-charg,      " BATCH No.
+          mblnr      TYPE mseg-mblnr,      " Material Doc. No.
+          mjahr      TYPE mseg-mjahr,      " Material Doc. Year
+          zeile      TYPE mseg-zeile,      "     Line No.
+          budat      TYPE mkpf-budat,      "     Posting Date( GI Date )
+          rvsed      TYPE char60,          " Mat Doc. Reversed or Not( REVERSED / ' ' )
+          txt30      TYPE tj02t-txt30,     " ## ##( Reserved / User Input )
+          bwart      TYPE mseg-bwart,      " Movement Type
+          smbln      TYPE mseg-smbln,      " Material Doc. No.
+          sjahr      TYPE mseg-sjahr,      "     Reversed MJAHR
+          kzear      TYPE resb-kzear,      "     Cleared
+          xchpf      TYPE marc-xchpf,      " Batch Requirement Indicator
+          schgt      TYPE resb-schgt,      " Indicator: bulk material
+          wempf      TYPE mseg-wempf,      " Goods Recipient
+          chcks      TYPE c ,              " Check Box
+          color(4)   TYPE c ,              " Color
+          celltab    TYPE lvc_t_styl ,     " CellTab
+          dropdown   TYPE char04 ,         " dropdown handle
+        END OF ts_0200 .
+
+DATA gt_main TYPE TABLE OF ts_main.
+DATA gs_order TYPE ts_main .
+
+DATA BEGIN OF gs_exec_gr .
+DATA wemng TYPE afpo-psmng .
+DATA menge TYPE afpo-psmng .
+DATA amenge TYPE afpo-psmng . " Adjusted Qty.
+DATA meins TYPE afpo-amein .
+DATA edate TYPE dats .
+DATA budat TYPE dats .
+DATA hsdat TYPE dats .
+DATA vfdat TYPE dats .
+DATA bhsdat TYPE dats .
+DATA bvfdat TYPE dats .
+DATA gitot TYPE afpo-psmng .
+DATA water TYPE afpo-psmng .
+DATA total TYPE afpo-psmng .
+DATA END OF gs_exec_gr .
+
+DATA old_exec_gr LIKE gs_exec_gr .
+
+DATA gt_200 TYPE TABLE OF ts_0200 .
+
+DATA gv_checked TYPE string .
+
+DATA c_kzear TYPE c .
+DATA c_cancel TYPE c .
+
+DATA gv_charg_exist TYPE mcha-charg .
+
+DATA gv_aufnr TYPE aufk-aufnr .
+DATA but_lot TYPE string .
+
+" ------- ALV Manager for Screen 0100
+DATA o TYPE REF TO zcl_pp_alv_handler .
+
+" ------- ALV Manager for Screen 0200
+DATA o2 TYPE REF TO zcl_pp_alv_handler .
+
+" ------- ALV Manager for Stock Popup
+DATA o3 TYPE REF TO zcl_pp_alv_handler .
+
+" ----- for Field Title on Screen -----------------------------------
+DATA fld_werks TYPE string .
+DATA gv_skip(1) VALUE ' ' .
+
+DATA gv_gidate TYPE dats .
+
+DATA gv_meins1 TYPE meins .
+DATA gv_meins2 TYPE meins .
+DATA gv_meins3 TYPE meins .
+DATA gv_meins4 TYPE meins .
+DATA gv_meins5 TYPE meins .
+
+DATA gv_row_idx TYPE i .
+
+TYPES BEGIN OF ts_stock .
+include structure <a href ="zpps0010/dictionary-zpps0010.html">zpps0010</a>.
+TYPES lwedt TYPE mch1-lwedt.
+TYPES vfdat TYPE mch1-vfdat.
+TYPES color(4) TYPE c . " Color
+TYPES celltab TYPE lvc_t_styl . " CellTab
+TYPES END OF ts_stock .
+DATA gt_stock TYPE TABLE OF ts_stock .
+
+DATA gv_target_qty TYPE zpps0010-stock .
+DATA gv_sum_qty TYPE zpps0010-stock .
+
+
+
+TYPES : BEGIN OF ts_order_items ,
+          rsnum      TYPE resb-rsnum,      " ## ## ##
+          rspos      TYPE resb-rspos,      " ## ## ##
+          matnr      TYPE mara-matnr,      " ## ## ##
+          maktx      TYPE makt-maktx,      " ##
+          menge      TYPE afpo-psmng,      " ## ##
+          erfmg      TYPE aufm-erfmg,      " ## ##
+          meins      TYPE afpo-amein,      " ## ##
+          meins_base TYPE afpo-amein,      " Base Unit of Measure
+          lgort      TYPE marc-lgpro,      "    --&gt Storage Location
+          charg      TYPE afpo-charg,      " BATCH No.
+          mblnr      TYPE mseg-mblnr,      " Material Doc. No.
+          mjahr      TYPE mseg-mjahr,      " Material Doc. Year
+          zeile      TYPE mseg-zeile,      "     Line No.
+          budat      TYPE mkpf-budat,      "     Posting Date( GI Date )
+          smbln      TYPE mseg-smbln,      " Material Doc. No.
+          sjahr      TYPE mseg-sjahr,      "     Reversed MJAHR
+          sortf      TYPE resb-sortf,      "     Tolerance : MX
+          kzear      TYPE resb-kzear,      "     Cleared
+          mtart      TYPE mara-mtart,      " Material Type
+          bklas      TYPE mbew-bklas,      " Valuation Class
+        END OF ts_order_items .
+DATA gt_order_item TYPE TABLE OF ts_order_items .
+
+DATA gc_dispo_bulk TYPE marc-dispo VALUE '100' .
+DATA gc_dispo_drum TYPE marc-dispo VALUE '110' .
+DATA gc_dispo_ibc TYPE marc-dispo VALUE '120' .
+
+DATA gr_bukrs TYPE RANGE OF bukrs .
+DATA gr_werks TYPE RANGE OF marc-werks .
+
+DEFINE __conv_unit__ .
+
+  CALL FUNCTION 'MD_CONVERT_MATERIAL_UNIT'
+    EXPORTING
+      i_matnr                    = &1
+      i_in_me                    = &2
+      i_out_me                   = &3
+      i_menge                    = &4
+   IMPORTING
+      e_menge                    = &5  .
+  IF sy-subrc &lt&gt 0.
+<font color ="#8C8C8C">* Implement suitable error handling here</font>
+  ENDIF.
+
+END-OF-DEFINITION .
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

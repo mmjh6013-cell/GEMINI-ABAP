@@ -1,0 +1,150 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF34_CHECK_MDVM_EP</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF34_CHECK_MDVM_EP</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Materialvormerkung bei Einzelplanung ueberpruefen</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*- Änderungen</font>
+<font color ="#8C8C8C">*- Marke Datum    Rel. Autor       Text</font>
+<font color ="#8C8C8C">*- @002  26.08.98 99A  Doneyer Leo Warnung für Dispodatum in der Zukunft</font>
+<font color ="#8C8C8C">*-                                 einblenden.</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+
+<div id="000000000220"></div>
+FORM check_mdvm_ep.
+<font color ="#8C8C8C">*@001-Begin</font>
+  DATA :
+    memo_aufrufende_ta LIKE sy-tcode,
+    memo_id(4)         TYPE c VALUE 'MRD2',
+    c_vendor_mrp(4)    TYPE c VALUE 'MDW1'.
+<font color ="#8C8C8C">*@001-End</font>
+  DATA :
+    vm_gsaen LIKE dbvm-gsaen,
+    vm_akken LIKE dbvm-akken,
+    vm_resal LIKE dbvm-resal,
+    vm_resdt LIKE dbvm-resdt,
+    vm_rhytd LIKE dbvm-rhytd.
+
+<font color ="#8C8C8C">*--&gt Hilfsfelder initialisieren.</font>
+  CLEAR vm_gsaen.
+  CLEAR vm_akken.
+  CLEAR vm_resal.
+  CLEAR vm_resdt.
+  CLEAR vm_rhytd.
+<font color ="#8C8C8C">**--&gt Werk oder Dispobereich</font>
+<font color ="#8C8C8C">*  IF T000MD-UDBVM IS INITIAL.</font>
+<font color ="#8C8C8C">**--&gt Werk</font>
+<font color ="#8C8C8C">**--&gt Key fuer MDVM aufbauen</font>
+<font color ="#8C8C8C">*    CALL FUNCTION  'MDVMKEY_AUFBAUEN'</font>
+<font color ="#8C8C8C">*       EXPORTING MAFID = CM61X-MDMAF</font>
+<font color ="#8C8C8C">*                 MATNR = MT61D-MATNR</font>
+<font color ="#8C8C8C">*                 WERKS = MT61D-WERKS</font>
+<font color ="#8C8C8C">*                 DISST = MT61D-DISST</font>
+<font color ="#8C8C8C">*       IMPORTING MDVMKEY = AM61X-MDKEY.</font>
+<font color ="#8C8C8C">**--&gt Materialvormerkung lesen und ueberpruefen</font>
+<font color ="#8C8C8C">*    PERFORM READ_MDVM USING CM61X-MDMAF AM61X-MDKEY.</font>
+<font color ="#8C8C8C">*    IF SY-SUBRC EQ 0.</font>
+<font color ="#8C8C8C">*      MOVE MDVM-GSAEN          TO VM_GSAEN.</font>
+<font color ="#8C8C8C">*      MOVE MDVM-AKKEN          TO VM_AKKEN.</font>
+<font color ="#8C8C8C">*      MOVE MDVM-RESAL          TO VM_RESAL.</font>
+<font color ="#8C8C8C">*      MOVE MDVM-RESDT          TO VM_RESDT.</font>
+<font color ="#8C8C8C">*      MOVE MDVM-RHYTD          TO VM_RHYTD.</font>
+<font color ="#8C8C8C">*    ENDIF.</font>
+<font color ="#8C8C8C">**--&gt Werk oder Dispobereich</font>
+<font color ="#8C8C8C">*  ELSE.</font>
+<font color ="#8C8C8C">*--&gt Materialvormerkung lesen und ueberpruefen</font>
+  PERFORM <a href ="javascript:Link('MM61XMDV_READ_DBVM.html?id=#000000000702');">read_dbvm</a> USING cm61x-mdmaf mt61d-disst mt61d-matnr
+                          cm61d-berid mt61d-werks.
+  IF sy-subrc EQ 0.
+    MOVE dbvm-gsaen          TO vm_gsaen.
+    MOVE dbvm-akken          TO vm_akken.
+    MOVE dbvm-resal          TO vm_resal.
+    MOVE dbvm-resdt          TO vm_resdt.
+    MOVE dbvm-rhytd          TO vm_rhytd.
+  ENDIF.
+<font color ="#8C8C8C">* ENDIF.</font>
+<font color ="#8C8C8C">*--&gt Dispobereich</font>
+  IF sy-subrc EQ 0.
+    IF vm_resdt EQ xflag.
+      MOVE vm_resdt TO cm61d-resdt.
+    ENDIF.
+    IF vm_resal EQ xflag.
+      MOVE vm_resal TO cm61d-resal.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Pruefen Einzelplanung</font>
+    IF cm61x-plauf EQ mpskd
+    OR cm61x-plauf EQ mpspr.
+      EXIT.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Setzen UPDATE-KZ fuer die MDVM</font>
+    CASE cm61x-vrart.
+      WHEN netvr.
+        MOVE char1 TO cm61d-vmupd.
+      WHEN nplvr.
+        MOVE char2 TO cm61d-vmupd.
+    ENDCASE.
+<font color ="#8C8C8C">*--&gt Merken Rhytmusdatum</font>
+    MOVE vm_rhytd TO cm61d-rhytd.
+<font color ="#8C8C8C">*--&gt Warnung, wenn Rhytmusdatum in der Zukunft liegt</font>
+<font color ="#8C8C8C">*@002-Anfang</font>
+<font color ="#8C8C8C">*   IF CM61M-RHDAT GT CM61X-DISPD.</font>
+    IF cm61d-rhytd GT cm61x-dispd.
+<font color ="#8C8C8C">*@002-Ende</font>
+      IF cm61x-vrart EQ netvr AND vm_gsaen EQ space.
+        IF cm61x-plauf EQ mrpep
+        OR cm61x-plauf EQ mpsep
+        OR cm61x-plauf EQ mpsip.
+<font color ="#8C8C8C">*@001-Begin</font>
+<font color ="#8C8C8C">*            MESSAGE W182 WITH CM61M-RHDAT.</font>
+          IMPORT memo_aufrufende_ta FROM MEMORY ID memo_id.
+          IF memo_aufrufende_ta NE c_vendor_mrp.
+<font color ="#8C8C8C">*@002-Anfang</font>
+<font color ="#8C8C8C">*               MESSAGE W182 WITH CM61M-RHDAT.</font>
+            IF t438a-disvf EQ disvfr.                       "832518
+              MESSAGE w182 WITH cm61d-rhytd.
+            ENDIF.
+<font color ="#8C8C8C">*@002-Ende</font>
+          ENDIF.
+<font color ="#8C8C8C">*@001-End</font>
+        ENDIF.
+      ENDIF.
+      IF cm61x-vrart EQ nplvr AND vm_akken EQ space.
+        IF cm61x-plauf EQ mrpep
+        OR cm61x-plauf EQ mpsep
+        OR cm61x-plauf EQ mpsip.
+<font color ="#8C8C8C">*@001-Begin</font>
+<font color ="#8C8C8C">*            MESSAGE W182 WITH CM61M-RHDAT.</font>
+          IMPORT memo_aufrufende_ta FROM MEMORY ID memo_id.
+          IF memo_aufrufende_ta NE c_vendor_mrp.
+<font color ="#8C8C8C">*@002-Anfang</font>
+<font color ="#8C8C8C">*               MESSAGE W182 WITH CM61M-RHDAT.</font>
+            IF t438a-disvf EQ disvfr.                       "832518
+              MESSAGE w182 WITH cm61d-rhytd.
+            ENDIF.
+<font color ="#8C8C8C">*@002-Ende</font>
+          ENDIF.
+<font color ="#8C8C8C">*@001-End</font>
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ELSE.
+    MOVE space TO cm61d-vmupd.
+  ENDIF.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

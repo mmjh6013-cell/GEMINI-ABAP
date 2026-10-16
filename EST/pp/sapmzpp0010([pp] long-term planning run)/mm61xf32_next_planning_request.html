@@ -1,0 +1,310 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF32_NEXT_PLANNING_REQUEST</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF32_NEXT_PLANNING_REQUEST</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  Nächstes Material bei mehrstufiger Planung bestimmen</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000212"></div>
+FORM NEXT_PLANNING_REQUEST.
+  DATA: LV_MDMM  LIKE MDMM,
+        LV_BERTX LIKE MDLV-BERTX,                          "dummy
+        LV_MDMM1 LIKE MDMM.
+  STATICS: lv_replanned_counter TYPE I.
+
+  DATA:
+    lv_new_mrp_level     TYPE flag,
+    lv_buffer_result     TYPE char1,
+    lt_matnr_werks_berid TYPE pph_matnr_werks_berid_sel_tab,
+    lo_mat_buffer        TYPE REF TO cl_pph_hana_access_material.
+
+<font color ="#8C8C8C">*--&gt Loopbeginn</font>
+  DO.
+<font color ="#8C8C8C">*--&gt Naechste Planungsvormerkung ermitteln</font>
+    CALL FUNCTION 'MD_POP_PLANNING_REQUEST'
+      EXPORTING
+        iv_rekmt                  = rekmt-matnr
+      IMPORTING
+        es_mdmm                   = lv_mdmm
+        et_matnr_werks_berid      = lt_matnr_werks_berid
+        ev_new_mrp_level          = lv_new_mrp_level
+      EXCEPTIONS
+        no_more_planning_requests = 1.
+    IF sy-subrc &gt 0.
+      MOVE char1 TO am61x-rcode. EXIT.
+    ENDIF.
+
+<font color ="#8C8C8C">* note 2761677</font>
+<font color ="#8C8C8C">* move HANA pre-read after locking of material</font>
+
+<font color ="#8C8C8C">*--&gt Daten sichern</font>
+  CLEAR CM61D.
+  MOVE LV_MDMM-DISST TO CM61D-DISST.
+  MOVE LV_MDMM-MATNR TO CM61D-MATNR.
+  MOVE LV_MDMM-PLWRK TO CM61D-WERKS.
+  MOVE LV_MDMM-BERID TO CM61D-BERID.
+<font color ="#8C8C8C">*--&gt sicherheitshalber: Bei Dispobereichspl. evtl. fehlenden DB setzen</font>
+  IF  T000MD-DISFG EQ XFLAG                          "TODO check del??
+  AND LV_MDMM-BERID IS INITIAL.
+    PERFORM <a href ="javascript:Link('MM61XDBR_BERID_FOR_WERKS.html?id=#000000000131');">BERID_FOR_WERKS</a> USING CM61D-WERKS
+                            CHANGING CM61D-BERID LV_BERTX.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Rekursität bei Umlagerung überprüfen                   "TODO</font>
+    IF cm61d-matnr EQ rekmt-matnr.
+      READ TABLE rekwk
+           WITH KEY berid = cm61d-berid
+                    werks = cm61d-werks
+           BINARY SEARCH.
+      IF sy-subrc NE 0.
+        MOVE cm61d-berid TO rekwk-berid.
+        MOVE cm61d-werks TO rekwk-werks.
+        INSERT rekwk INDEX sy-tabix.
+      ELSE.
+        lv_replanned_counter = lv_replanned_counter + 1.
+        IF lv_replanned_counter &gt 1.
+          CONTINUE.
+        ENDIF.
+      ENDIF.
+    ELSE.
+      REFRESH rekwk.
+      CLEAR lv_replanned_counter.
+      MOVE cm61d-matnr TO rekmt-matnr.
+      MOVE cm61d-berid TO rekwk-berid.
+      MOVE cm61d-werks TO rekwk-werks.
+      APPEND rekwk.
+    ENDIF.
+
+"{ Begin ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+<font color ="#8C8C8C">*--&gt PIC : Check material master for interchangability</font>
+<font color ="#8C8C8C">*--&gt View Materialstamm lesen</font>
+  DATA : LV_PIC_RC LIKE AM61X-RCODE.
+
+"{ End ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+
+
+"{ Begin ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+PERFORM <a href ="javascript:Link('MM61XC02_READ_MT61D.html?id=#000000000059');">READ_MT61D</a> USING CM61D-MATNR CM61D-WERKS CM61D-BERID.
+  IF SY-SUBRC NE 0.
+    MOVE CHAR1 TO AM61X-RCODE.
+    EXIT.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt PIC : material check for MPN+SUS</font>
+  PERFORM PIC_MATERIAL_CHECK_BT
+                    USING     RM61X MT61D
+                    CHANGING  LV_PIC_RC GT_PIC_PARTS[].
+  IF LV_PIC_RC NE 0.
+    MOVE CHAR1 TO AM61X-RCODE.
+    EXIT.
+  ENDIF.
+
+"{ End ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+
+ENHANCEMENT-POINT NEXT_PLANNING_REQUEST_01 SPOTS ES_SAPMM61X STATIC.
+ENHANCEMENT-POINT NEXT_PLANNING_REQUEST_02 SPOTS ES_SAPMM61X.
+<font color ="#8C8C8C">*--&gt Material für Einzelplanung sperren</font>
+  AM61X-RCODE = CHAR0.
+ENHANCEMENT-SECTION     NEXT_PLANNING_REQUEST_03 SPOTS ES_SAPMM61X.
+<font color ="#8C8C8C">*  IF CM61X-PLOBJ EQ MDOBJL.</font>
+<font color ="#8C8C8C">*    IF CM61X-PLAUF NE LFRKD AND CM61X-PLAUF NE LFRPR.</font>
+<font color ="#8C8C8C">*      PERFORM SPERREN_LFR_ML USING CM61X-PLSCN</font>
+<font color ="#8C8C8C">*                                     cm61d-werks</font>
+<font color ="#8C8C8C">*                                     cm61d-berid</font>
+<font color ="#8C8C8C">*                                     cm61d-matnr.</font>
+<font color ="#8C8C8C">*      ELSE.                                                 "HW 324982</font>
+<font color ="#8C8C8C">*        PERFORM sperren_lfr_shared USING cm61x-plscn        "</font>
+<font color ="#8C8C8C">*                                         cm61d-werks        "</font>
+<font color ="#8C8C8C">*                                         cm61d-berid        "</font>
+<font color ="#8C8C8C">*                                         cm61d-matnr.       "HW 324982</font>
+<font color ="#8C8C8C">*    ENDIF.</font>
+<font color ="#8C8C8C">*  ELSE.</font>
+<font color ="#8C8C8C">*    IF CM61X-PLAUF NE MPSKD AND CM61X-PLAUF NE MPSPR.</font>
+<font color ="#8C8C8C">*       PERFORM sperren_mrp_mp USING cm61d-werks</font>
+<font color ="#8C8C8C">*                                    cm61d-berid</font>
+<font color ="#8C8C8C">*                                    cm61d-matnr.</font>
+<font color ="#8C8C8C">*      ELSE.                                                 "HW 324982</font>
+<font color ="#8C8C8C">*        PERFORM sperren_mrp_shared USING cm61d-werks        "</font>
+<font color ="#8C8C8C">*                                         cm61d-berid        "</font>
+<font color ="#8C8C8C">*                                         cm61d-matnr.       "HW 324982</font>
+<font color ="#8C8C8C">*    ENDIF.</font>
+<font color ="#8C8C8C">*  ENDIF.</font>
+
+
+
+"{ Begin ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+DATA: LV_COUNT TYPE i VALUE IS INITIAL.
+IF GT_PIC_PARTS[] IS INITIAL.
+"Build table for buffering in the same Low level code after Lock is successful
+  LOOP at LT_MATNR_WERKS_BERID into data(WA_MATNR_WERKS_BERID). "3352595
+
+   LV_COUNT = LV_COUNT + 1.
+   MOVE WA_MATNR_WERKS_BERID-MATNR TO CM61D-MATNR.
+   MOVE WA_MATNR_WERKS_BERID-WERKS TO CM61D-WERKS.
+   MOVE WA_MATNR_WERKS_BERID-BERID TO CM61D-BERID.
+
+   MOVE CM61D-MATNR   TO LV_MDMM1-MATNR.
+   MOVE CM61D-WERKS   TO LV_MDMM1-PLWRK.
+   MOVE CM61D-BERID   TO LV_MDMM1-BERID.
+   MOVE LV_MDMM-DISST TO LV_MDMM1-DISST.
+
+  IF CM61X-PLOBJ EQ MDOBJL.
+    IF CM61X-PLAUF NE LFRKD AND CM61X-PLAUF NE LFRPR.
+      PERFORM <a href ="javascript:Link('MM61XC02_SPERREN_LFR_ML.html?id=#000000000067');">SPERREN_LFR_ML</a> USING CM61X-PLSCN
+                                      WA_MATNR_WERKS_BERID-WERKS
+                                      WA_MATNR_WERKS_BERID-BERID
+                                      WA_MATNR_WERKS_BERID-MATNR.
+      IF AM61X-RCODE EQ CHAR1.
+        DELETE LT_MATNR_WERKS_BERID INDEX LV_COUNT.
+        IF sy-subrc EQ 0.
+            LV_COUNT = LV_COUNT - 1.
+        ENDIF.
+        CALL FUNCTION 'MD_RESET_PLANNING_REQ_SINGLE'
+          EXPORTING
+            is_mdmm       = lv_mdmm1.
+        PERFORM <a href ="javascript:Link('MM61XF32_CHECK_RESET_HALTEPUNK.html?id=#000000000211');">CHECK_RESET_HALTEPUNKT</a>.
+        PERFORM <a href ="javascript:Link('MM61XF88_WRITE_MATERIAL_IGNORE.html?id=#000000000412');">WRITE_MATERIAL_IGNORE</a>.
+      ENDIF.
+    ELSE.                                                 "HW 324982
+      PERFORM <a href ="javascript:Link('MM61XC02_SPERREN_LFR_ML.html?id=#000000000068');">sperren_lfr_shared</a> USING CM61X-PLSCN        "
+                                          WA_MATNR_WERKS_BERID-WERKS        "
+                                          WA_MATNR_WERKS_BERID-BERID        "
+                                          WA_MATNR_WERKS_BERID-MATNR.       "HW 324982
+      IF AM61X-RCODE EQ CHAR1.
+        DELETE LT_MATNR_WERKS_BERID INDEX LV_COUNT.
+        IF sy-subrc EQ 0.
+            LV_COUNT = LV_COUNT - 1.
+        ENDIF.
+        CALL FUNCTION 'MD_RESET_PLANNING_REQ_SINGLE'
+          EXPORTING
+            is_mdmm       = lv_mdmm1.
+        PERFORM <a href ="javascript:Link('MM61XF32_CHECK_RESET_HALTEPUNK.html?id=#000000000211');">CHECK_RESET_HALTEPUNKT</a>.
+        PERFORM <a href ="javascript:Link('MM61XF88_WRITE_MATERIAL_IGNORE.html?id=#000000000412');">WRITE_MATERIAL_IGNORE</a>.
+      ENDIF.
+    ENDIF.
+  ELSE.
+    IF CM61X-PLAUF NE MPSKD AND CM61X-PLAUF NE MPSPR.
+        PERFORM sperren_mrp_mp USING WA_MATNR_WERKS_BERID-WERKS
+                                     WA_MATNR_WERKS_BERID-BERID
+                                     WA_MATNR_WERKS_BERID-MATNR.
+        IF AM61X-RCODE EQ CHAR1.
+          DELETE LT_MATNR_WERKS_BERID INDEX LV_COUNT.
+          IF sy-subrc EQ 0.
+            LV_COUNT = LV_COUNT - 1.
+          ENDIF.
+          CALL FUNCTION 'MD_RESET_PLANNING_REQ_SINGLE'
+          EXPORTING
+            is_mdmm       = lv_mdmm1.
+          PERFORM <a href ="javascript:Link('MM61XF32_CHECK_RESET_HALTEPUNK.html?id=#000000000211');">CHECK_RESET_HALTEPUNKT</a>.
+          PERFORM <a href ="javascript:Link('MM61XF88_WRITE_MATERIAL_IGNORE.html?id=#000000000412');">WRITE_MATERIAL_IGNORE</a>.
+        ENDIF.
+    ELSE.                                                 "HW 324982
+        PERFORM <a href ="javascript:Link('MM61XC02_SPERREN_MRP_MP.html?id=#000000000071');">sperren_mrp_shared</a> USING WA_MATNR_WERKS_BERID-WERKS        "
+                                          WA_MATNR_WERKS_BERID-BERID        "
+                                          WA_MATNR_WERKS_BERID-MATNR.       "HW 324982
+        IF AM61X-RCODE EQ CHAR1.
+          DELETE LT_MATNR_WERKS_BERID INDEX LV_COUNT.
+          IF sy-subrc EQ 0.
+            LV_COUNT = LV_COUNT - 1.
+          ENDIF.
+          CALL FUNCTION 'MD_RESET_PLANNING_REQ_SINGLE'
+          EXPORTING
+            is_mdmm       = lv_mdmm1.
+          PERFORM <a href ="javascript:Link('MM61XF32_CHECK_RESET_HALTEPUNK.html?id=#000000000211');">CHECK_RESET_HALTEPUNKT</a>.
+          PERFORM <a href ="javascript:Link('MM61XF88_WRITE_MATERIAL_IGNORE.html?id=#000000000412');">WRITE_MATERIAL_IGNORE</a>.
+        ENDIF.
+    ENDIF.
+   ENDIF.
+  CLEAR: CM61D, LV_MDMM1.
+  ENDLOOP.
+  CLEAR: CM61D, LV_COUNT.
+  MOVE CHAR0 TO AM61X-RCODE.
+  MOVE LV_MDMM-DISST TO CM61D-DISST.
+  MOVE LV_MDMM-MATNR TO CM61D-MATNR.
+  MOVE LV_MDMM-PLWRK TO CM61D-WERKS.
+  MOVE LV_MDMM-BERID TO CM61D-BERID.
+  IF CM61X-PLOBJ EQ MDOBJL.
+    IF CM61X-PLAUF NE LFRKD AND CM61X-PLAUF NE LFRPR.
+      PERFORM <a href ="javascript:Link('MM61XC02_SPERREN_LFR_ML.html?id=#000000000067');">SPERREN_LFR_ML</a> USING CM61X-PLSCN
+                                     cm61d-werks
+                                     cm61d-berid
+                                     cm61d-matnr.
+      ELSE.                                                 "HW 324982
+        PERFORM <a href ="javascript:Link('MM61XC02_SPERREN_LFR_ML.html?id=#000000000068');">sperren_lfr_shared</a> USING cm61x-plscn        "
+                                         cm61d-werks        "
+                                         cm61d-berid        "
+                                         cm61d-matnr.       "HW 324982
+    ENDIF.
+  ELSE.
+    IF CM61X-PLAUF NE MPSKD AND CM61X-PLAUF NE MPSPR.
+       PERFORM sperren_mrp_mp USING cm61d-werks
+                                    cm61d-berid
+                                    cm61d-matnr.
+      ELSE.                                                 "HW 324982
+        PERFORM <a href ="javascript:Link('MM61XC02_SPERREN_MRP_MP.html?id=#000000000071');">sperren_mrp_shared</a> USING cm61d-werks        "
+                                         cm61d-berid        "
+                                         cm61d-matnr.       "HW 324982
+    ENDIF.
+  ENDIF.
+  ENDIF.
+"{ End ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+
+
+END-ENHANCEMENT-SECTION.
+<font color ="#8C8C8C">* begin of note 2761677</font>
+<font color ="#8C8C8C">* only buffer material of lock has been successful</font>
+<font color ="#8C8C8C">* HANA pre read for materials on same MRP level</font>
+    IF NOT lt_matnr_werks_berid[] IS INITIAL.
+
+<font color ="#8C8C8C">* Pre-Read for Material Master</font>
+      lo_mat_buffer = cl_pph_hana_access_material=&gtget_instance( ).
+<font color ="#8C8C8C">* Refresh Material Master Buffer for new low level code</font>
+      IF lv_new_mrp_level IS NOT INITIAL.
+        lo_mat_buffer-&gtrefresh_mt61d_and_cm61b( ).
+      ENDIF.
+      lo_mat_buffer-&gtprepare_mt61d_bulk_opensql( lt_matnr_werks_berid ).
+
+<font color ="#8C8C8C">* if no new MRP level materials were added ==&gt keep buffered results (mode P)</font>
+      IF lv_new_mrp_level IS INITIAL.
+        lv_buffer_result = cl_pph_mdpsx_selection=&gtgc_buffer_mode_p.
+      ELSE.
+<font color ="#8C8C8C">* or buffer results in new buffer</font>
+        lv_buffer_result = cl_pph_mdpsx_selection=&gtgc_buffer_mode_x.
+      ENDIF.
+
+<font color ="#8C8C8C">* for display of MRP list use non-aggregated mode</font>
+      IF rm61x-anzdl = abap_true.
+        CALL METHOD cl_pph_mdpsx_selection=&gtsel_matnr_werks_berid_noag_s4h
+          EXPORTING
+            it_matnr_werks_berid = lt_matnr_werks_berid
+            iv_buffer_result     = lv_buffer_result.
+<font color ="#8C8C8C">* ... else use aggregated mode</font>
+      ELSE.
+        CALL METHOD cl_pph_mdpsx_selection=&gtsel_matnr_werks_berid_agg_s4h
+          EXPORTING
+            it_matnr_werks_berid = lt_matnr_werks_berid
+            iv_buffer_result     = lv_buffer_result.
+      ENDIF.
+    ENDIF.
+<font color ="#8C8C8C">* end of note 2761677</font>
+  IF AM61X-RCODE EQ CHAR0.                 "Sperrung erfolgreich
+    PERFORM <a href ="javascript:Link('MM61XF32_CHECK_NEW_HALTEPUNKT.html?id=#000000000209');">CHECK_NEW_HALTEPUNKT</a>. EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Endloop</font>
+  ENDDO.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

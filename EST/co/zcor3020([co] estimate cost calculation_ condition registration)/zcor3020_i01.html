@@ -1,0 +1,194 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZCOR3020_I01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZCOR3020_I01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZCOR9030_I01</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Module  EXIT_COMMAND_0100  INPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000037"></div>
+MODULE exit_command_0100 INPUT.
+
+  CASE ok_code.
+    WHEN 'BACK' OR 'EXIT' OR 'CANC'.
+      CLEAR gs_item.
+      READ TABLE gt_item INTO gs_item WITH KEY cflag = abap_on.
+      IF sy-subrc EQ 0.
+        DATA lv_answer.
+
+        PERFORM <a href ="javascript:Link('ZCOR3020_F01.html?id=#000000000035');">popup_to_confirm_step</a> USING TEXT-p01
+                                            TEXT-p02
+                                            TEXT-p03
+                                   CHANGING lv_answer.
+
+        CHECK lv_answer = 'J'.
+      ENDIF.
+<font color ="#8C8C8C">*      SET PARAMETER ID 'KK1' FIELD SPACE.</font>
+<font color ="#8C8C8C">*      SET PARAMETER ID 'KK2' FIELD SPACE.</font>
+<font color ="#8C8C8C">*      SET PARAMETER ID 'KK3' FIELD SPACE.</font>
+<font color ="#8C8C8C">*      SET PARAMETER ID 'KK4' FIELD SPACE.</font>
+<font color ="#8C8C8C">*      SET PARAMETER ID 'KK5' FIELD SPACE.</font>
+      LEAVE TO SCREEN 0.
+  ENDCASE.
+
+ENDMODULE.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Module  USER_COMMAND_0100  INPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000038"></div>
+MODULE user_command_0100 INPUT.
+
+  CASE ok_code.
+    WHEN 'REFRESH'.
+      PERFORM <a href ="javascript:Link('ZCOR3020_F01.html?id=#000000000013');">get_data</a>.
+
+    WHEN 'SAVE'.
+      PERFORM <a href ="javascript:Link('ZCOR3020_F01.html?id=#000000000026');">save_data</a>.
+
+    WHEN 'DELETE'.
+      PERFORM <a href ="javascript:Link('ZCOR3020_F01.html?id=#000000000027');">delete_data</a>.
+
+    WHEN 'ZCOR3030'.
+      PERFORM <a href ="javascript:Link('ZCOR3020_F01.html?id=#000000000021');">call_program</a>.
+
+  ENDCASE.
+
+ENDMODULE.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Module  CHECK_KOKRS  INPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000039"></div>
+MODULE check_kokrs INPUT.
+
+  SELECT SINGLE bezei
+    FROM tka01
+   WHERE kokrs EQ @gs_head-kokrs
+    INTO @gs_head-bezei.
+
+  IF sy-subrc EQ 0.
+    SELECT SINGLE bukrs
+      FROM tka02
+     WHERE kokrs EQ @gs_head-kokrs
+      INTO @gs_head-bukrs.
+
+    SELECT SINGLE butxt, waers
+      FROM t001
+     WHERE bukrs EQ @gs_head-bukrs
+      INTO ( @gs_head-butxt, @gv_waers ).
+  ELSE.
+    CLEAR: gs_head-bezei,
+           gs_head-bukrs,
+           gs_head-butxt.
+    MESSAGE s010 DISPLAY LIKE 'E' WITH TEXT-f17.
+  ENDIF.
+
+ENDMODULE.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Module  F4_ZESTID  INPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000040"></div>
+MODULE f4_zestid INPUT.
+
+  DATA: lt_dynpfields TYPE TABLE OF dynpread,
+        lt_return     TYPE TABLE OF ddshretval,
+        lt_mapping    TYPE TABLE OF dselc.
+
+  CALL FUNCTION 'DYNP_VALUES_READ'
+    EXPORTING
+      dyname             = sy-cprog       " Program Name
+      dynumb             = sy-dynnr       " Screen Number
+      translate_to_upper = 'X'            " Conversion of upper case for field contents
+      request            = 'A'            " Return ready-for-input
+    TABLES
+      dynpfields         = lt_dynpfields. " Table for Reading Current Screen Values
+
+  " Controlling Area on screen
+  READ TABLE lt_dynpfields INTO DATA(ls_dynpfields) WITH KEY fieldname = 'GS_HEAD-KOKRS'.
+
+  " Company Code
+  SELECT SINGLE bukrs
+    FROM tka02
+   WHERE kokrs EQ @ls_dynpfields-fieldvalue
+    INTO @gs_head-bukrs.
+
+  " Estimated ID ##
+  SELECT DISTINCT zestid, zestdat, zestcmt
+    FROM zcot3000
+   WHERE kokrs  EQ @ls_dynpfields-fieldvalue
+     AND bukrs  EQ @gs_head-bukrs
+    INTO TABLE @DATA(lt_3000).
+
+  lt_mapping = VALUE #( ( fldname = 'F0001' dyfldname = 'GS_HEAD-ZESTID' )
+                        ( fldname = 'F0002' dyfldname = 'GS_HEAD-ZESTDAT' )
+                        ( fldname = 'F0003' dyfldname = 'GS_HEAD-ZESTCMT' ) ).
+
+  CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = 'ZESTID'          " ## ##
+      dynpprog        = sy-repid          " ## ####
+      dynpnr          = sy-dynnr          " ## ###
+      dynprofield     = 'GS_HEAD-ZESTID'  " ### ###
+      value_org       = 'S'               " ## ### ##
+    TABLES
+      value_tab       = lt_3000
+      return_tab      = lt_return
+      dynpfld_mapping = lt_mapping.          " F4 ##
+
+ENDMODULE.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Module  GET_DATA  INPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000041"></div>
+MODULE get_data INPUT.
+
+  CASE ok_code.
+    WHEN 'SAVE' OR 'DELETE' OR 'ZCOR3030'.
+
+    WHEN OTHERS.
+      PERFORM <a href ="javascript:Link('ZCOR3020_F01.html?id=#000000000013');">get_data</a>.
+  ENDCASE.
+
+
+ENDMODULE.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Module  EXIT_COMMAND_0200  INPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000042"></div>
+MODULE exit_command_0200 INPUT.
+
+  CASE ok_code.
+    WHEN 'CLOSE'.
+      LEAVE TO SCREEN 0.
+  ENDCASE.
+
+ENDMODULE.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

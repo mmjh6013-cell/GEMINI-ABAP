@@ -1,0 +1,455 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XMDV_CHECK_LISTUNG</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XMDV_CHECK_LISTUNG</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* @001 20.11.1999 LDO Korrektur Listungsprüfung bei Planungsumfang    *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       Retail: Listungsprüfung                                       *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000688"></div>
+FORM CHECK_LISTUNG CHANGING KZGELISTET TYPE C.
+
+<font color ="#8C8C8C">* NUR für Handelsbetriebe Listungsprüfung durchführen</font>
+  CHECK NOT T001W-VLFKZ IS INITIAL.
+
+<font color ="#8C8C8C">* CALL-Ergebnisse</font>
+  DATA: L_KZ_ITEM_LISTING  LIKE WTDY-TYP01.
+  DATA: L_KZLIK_NOT_IN_USE LIKE WTDY-TYP01.
+
+<font color ="#8C8C8C">* Lokale Valiable für den Artikeltyp</font>
+  DATA: L_ATTYP            LIKE MARA-ATTYP.
+  DATA: L_BFLME            LIKE MARA-BFLME.
+  DATA: L_HEADFL           LIKE TWZLA-KZKSN.
+  DATA: L_COMP             LIKE WSOS_STULI OCCURS 0 WITH HEADER LINE.
+  DATA: L_ST_SPLITT        LIKE WSOS_MATNR.
+
+  CALL FUNCTION 'WLK1_CHECK'
+       EXPORTING
+            DATE                        = CM61X-DISPD
+            ITEM                        = AM61X-MATNR
+            SHOP_LOCNR                  = T001W-KUNNR
+            SHOP_WERKS                  = T001W-WERKS
+            SHOP_MUST_BE_LOCATION       = XFLAG
+            WRF1_KZLIK_CHECK            = XFLAG
+            DISPOFL                     = XFLAG
+<font color ="#8C8C8C">* Note 921381 - Begin</font>
+            COMPONENT_CHECK             = XFLAG
+<font color ="#8C8C8C">* Note 921381 - End</font>
+       IMPORTING
+            NO_UNIT_BUT_ITEM_LISTING    = L_KZ_ITEM_LISTING
+            WRF1_KZLIK_NOT_IN_USE       = L_KZLIK_NOT_IN_USE
+            P_ATTYP                     = L_ATTYP
+            P_BFLME                     = L_BFLME
+       EXCEPTIONS
+            NO_LISTING                  = 01
+            NO_LISTING_IN_TIME          = 02
+            EXISTING_EXCLUSION_LISTING  = 03
+            WRONG_PARAMETERS            = 04
+            NO_OPEN_TIME_SHOP_IN_TIME   = 05
+            NO_LISTING_FOR_PROMOTION    = 06
+            WRONG_LOCATION              = 07
+            NO_COMPLETE_LISTING_IN_TIME = 08
+            OTHERS                      = 99.
+
+  IF SY-SUBRC &lt&gt 0.
+<font color ="#8C8C8C">*   Material ist nicht gelistet;</font>
+<font color ="#8C8C8C">*   Planungsvormerkung könnte jetzt gelöscht werden, zumindest</font>
+<font color ="#8C8C8C">*   sollten das Rhythmusdatum und die Änderungskennzeichen</font>
+<font color ="#8C8C8C">*   zurückgesetzt werden.</font>
+    CLEAR KZGELISTET.
+  ELSE.
+    IF L_ATTYP = C_MAT_SAMMEL.
+      CLEAR KZGELISTET.
+    ELSE.
+<font color ="#8C8C8C">*     ist das Material/Artikel gelistet, so wird für strukturierte</font>
+<font color ="#8C8C8C">*     Artikel geprüft, ob sie aufgelöst (= Bestandsführung</font>
+<font color ="#8C8C8C">*     auf Ebene der Komponenten) werden.</font>
+
+      IF L_ATTYP = C_MAT_SET
+      OR L_ATTYP = C_MAT_LOT
+      OR L_ATTYP = C_MAT_DISPLAY
+      OR L_BFLME = C_BFLME_KOLLI.
+        CALL FUNCTION 'STRUC_ART_KEY_TODO'
+                    EXPORTING
+                         PI_MATNR       = AM61X-MATNR
+                         PI_WERKS       = AM61X-WERKS
+<font color ="#8C8C8C">*                        PI_LOCNR       =</font>
+                         PI_ATTYP       = L_ATTYP
+                         PI_KEY         = '200'
+                    IMPORTING
+                         PE_HEADFL      = L_HEADFL
+                    EXCEPTIONS
+                         NO_TWZLA_FOUND = 1
+                         OTHERS         = 99.
+        IF SY-SUBRC = 0.
+          IF L_HEADFL = '1'.
+<font color ="#8C8C8C">*           Material/Artikel wird aufgelöst, dann Prüfung</font>
+<font color ="#8C8C8C">*           ob eine Komponente seperat disponierbar wird.</font>
+            CLEAR L_ST_SPLITT.
+            L_ST_SPLITT-MATNR = AM61X-MATNR.
+            L_ST_SPLITT-ATTYP = L_ATTYP.
+            L_ST_SPLITT-WERKS = AM61X-WERKS.
+            L_ST_SPLITT-DATAB = CM61X-DISPD.
+            L_ST_SPLITT-DATBI = CM61X-DISPD.
+            L_ST_SPLITT-BFLME = L_BFLME.
+            CALL FUNCTION 'STRUC_ARTICLE_SPLITTING'
+                 EXPORTING
+                      ST_SPLIT                = L_ST_SPLITT
+                 TABLES
+                      BILL_OF_MATERIAL        = L_COMP
+                 EXCEPTIONS
+                      NO_HEAD_FOUND           = 1
+                      NO_COMPONENTS_FOUND     = 2
+                      NO_RANGE_FOUND          = 3
+                      NO_RETAIL_MAT           = 4
+                      NO_LISTING_AS_COMPONENT = 5
+                      OTHERS                  = 99.
+            IF SY-SUBRC &lt&gt 0.
+<font color ="#8C8C8C">*             Mindestens eine Komponente wird seperat</font>
+<font color ="#8C8C8C">*             disponierbar, somit wird der Kopfartikel NICHT</font>
+<font color ="#8C8C8C">*             disponiert.</font>
+              CLEAR KZGELISTET.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  CHECK_LISTUNG_EN_BLOCK</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000689"></div>
+FORM CHECK_LISTUNG_EN_BLOCK.
+
+<font color ="#8C8C8C">* Kennung, ob Material gelistet ist</font>
+  DATA L_KZGELISTET TYPE C.
+
+  DATA L_T_MARA LIKE MARA OCCURS 0 WITH HEADER LINE.
+  DATA L_T_WRS1 LIKE WRS1 OCCURS 0 WITH HEADER LINE.
+
+<font color ="#8C8C8C">* note 441303 - B</font>
+  DATA L_T001W  LIKE T001W.
+  DATA L_WRS1   LIKE WRS1.
+<font color ="#8C8C8C">* note 441303 - E</font>
+  DATA: lt_art_site_date TYPE wsor_art_site_date_tty, "begin note
+        ls_art_site_date TYPE wsor_art_site_date_sty, "begin note
+        l_info_add  TYPE int4,
+        l_listed TYPE flag.
+  LOOP AT MDMMX.
+<font color ="#8C8C8C">* Begin note 2617969</font>
+"    L_T_MARA-MATNR = MDMMX-MATNR.
+"* note 368933 - B
+"*   APPEND L_T_MARA.
+"    COLLECT L_T_MARA.
+<font color ="#8C8C8C">* note 368933 - E</font>
+
+<font color ="#8C8C8C">* note 441303 - B</font>
+<font color ="#8C8C8C">*   L_T_WRS1-ASORT = MDMMX-PLWRK.</font>
+
+<font color ="#8C8C8C">*   Gepuffertes Lesen von T001W ...</font>
+<font color ="#8C8C8C">*    IF L_T001W-WERKS &lt&gt MDMMX-PLWRK.         " End note 2617969</font>
+      CALL FUNCTION 'T001W_SINGLE_READ'
+           EXPORTING
+<font color ="#8C8C8C">*               KZRFB       = ' '</font>
+                T001W_WERKS = MDMMX-PLWRK
+           IMPORTING
+                WT001W      = L_T001W
+           EXCEPTIONS
+                NOT_FOUND   = 1
+                OTHERS      = 99.
+
+<font color ="#8C8C8C">*      IF SY-SUBRC &lt&gt 0.                     " note 2756525</font>
+       IF sy-subrc IS INITIAL.               " note 2756525
+        IF l_T001W-KUNNR IS NOT INITIAL.          " begin note 2617969
+          ls_art_site_date-artnr               = MDMMX-MATNR.
+           ls_art_site_date-locnr              = l_t001w-kunnr.
+           ls_art_site_date-date_to_be_checked = CM61X-DISPD.
+           INSERT ls_art_site_date INTO TABLE lt_art_site_date.
+         ENDIF.                                   " end note 2617969
+      ENDIF.
+     "     CLEAR L_T001W.                                  " begin note 2617969
+"        L_T_WRS1-ASORT = MDMMX-PLWRK.
+"        COLLECT L_T_WRS1.
+"        CONTINUE.
+"      ENDIF.
+
+"*     Gepuffertes Lesen des Sortiments ...
+"      CALL FUNCTION 'ASSORTMENT_GET_ASORT_OF_USER'
+"           EXPORTING
+"*               VALID_PER_DATE       = SY-DATUM
+"*               SELECT_INVALID_ASORT = ' '
+"                USER                 = L_T001W-KUNNR
+"                USER_TYPE            = L_T001W-VLFKZ
+"*               VKORG                = ' '
+"*               VTWEG                = ' '
+"           IMPORTING
+"                ASORT_DEFAULT        = L_WRS1
+"*          TABLES
+"*               ASSORTMENT_DATA      =
+"*               ASSORTMENT_CONNECTS  =
+"           EXCEPTIONS
+"                NO_ASORT_FOUND       = 1
+"                OTHERS               = 99.
+
+"      IF SY-SUBRC &lt&gt 0.
+"        CLEAR L_T001W.
+"        L_T_WRS1-ASORT = MDMMX-PLWRK.
+"        COLLECT L_T_WRS1.
+"        CONTINUE.
+"      ENDIF.
+"    ENDIF.
+
+"    L_T_WRS1-ASORT = L_WRS1-ASORT.
+"* note 441303 - E
+
+"* note 368933 - B
+"*   APPEND L_T_WRS1.
+"    COLLECT L_T_WRS1.
+"* note 368933 - E                          " end note 2617969
+
+  ENDLOOP.
+ DELETE ADJACENT DUPLICATES FROM lt_art_site_date.      " begin note 2617969
+<font color ="#8C8C8C">* Lesen der WLK1 in den Puffer ...</font>
+ " CALL FUNCTION 'WLK1_READ_INTO_BUFFER'
+"       EXPORTING
+"            SORTIERUNG = '3'
+"       TABLES
+"            T_MARA     = L_T_MARA
+"            T_WRS1     = L_T_WRS1.
+
+<font color ="#8C8C8C">* note 368933 - B</font>
+<font color ="#8C8C8C">** note 310060 - B</font>
+<font color ="#8C8C8C">*  CLEAR G_MDMMX_DEL.</font>
+<font color ="#8C8C8C">** note 310060 - E</font>
+<font color ="#8C8C8C">*  LOOP AT MDMMX.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*    MOVE XFLAG TO L_KZGELISTET.</font>
+<font color ="#8C8C8C">*    PERFORM CHECK_LISTUNG_2 USING    MDMMX-PLWRK</font>
+<font color ="#8C8C8C">*                                     MDMMX-MATNR</font>
+<font color ="#8C8C8C">*                            CHANGING L_KZGELISTET.</font>
+<font color ="#8C8C8C">*    IF L_KZGELISTET IS INITIAL.</font>
+<font color ="#8C8C8C">** note 310060 - B</font>
+<font color ="#8C8C8C">*      G_MDMMX_DEL = MDMMX.</font>
+<font color ="#8C8C8C">** note 310060 - E</font>
+<font color ="#8C8C8C">*      DELETE MDMMX.</font>
+<font color ="#8C8C8C">*    ENDIF.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*  ENDLOOP.</font>
+  cl_listing_check=&gtfill_buffer_for_listing_check(
+        EXPORTING
+          it_art_site_date = lt_art_site_date
+        EXCEPTIONS
+          wrong_call       = 1
+          OTHERS           = 2
+      ).
+  IF sy-subrc IS INITIAL.
+  LOOP AT MDMMX.
+
+"    PERFORM CHECK_LISTUNG_3 USING    MDMMX-PLWRK
+"                                     MDMMX-MATNR
+"                                     CM61X-DISPD
+"                            CHANGING L_KZGELISTET.
+CLEAR l_listed.
+CLEAR l_info_add.
+     cl_listing_check=&gtcheck_single_listing(
+      EXPORTING
+        i_werks         =     MDMMX-PLWRK
+        i_artnr         =     MDMMX-MATNR
+        i_date          =     CM61X-DISPD
+      IMPORTING
+        e_listed        =     l_listed " indicates, if article site combination is listed or not
+        e_info_code     =     l_info_add
+      EXCEPTIONS
+        wrong_call      = 1
+        OTHERS          = 2
+    ).
+<font color ="#8C8C8C">*      IF l_listed IS NOT INITIAL.          " note 2756525</font>
+    IF l_listed IS INITIAL.          " note 2756525
+<font color ="#8C8C8C">*      IF L_KZGELISTET IS INITIAL.</font>
+      MDMMX-NOLST = XFLAG.
+      MODIFY MDMMX.
+    ENDIF.
+
+  ENDLOOP.
+ ENDIF.                                         " end note 2617969
+<font color ="#8C8C8C">* note 368933 - E</font>
+
+ENDFORM.                               " CHECK_LISTUNG_EN_BLOCK
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       Retail: Listungsprüfung                                       *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000690"></div>
+FORM CHECK_LISTUNG_2 USING    P_WERKS    LIKE AM61X-WERKS
+                              P_MATNR    LIKE AM61X-MATNR
+                     CHANGING KZGELISTET TYPE C.
+
+<font color ="#8C8C8C">*@001-Begin - Note 184936</font>
+<font color ="#8C8C8C">* Bemerkung : Beim aufruf von CHECK_LISTUNG_EN_BLOCK nehmen wir, an daß</font>
+<font color ="#8C8C8C">* es nur VZ/Filialen oder nur Werke geben kann, s.d. die Abfrage auf das</font>
+<font color ="#8C8C8C">* VFLKZ richtig zieht.</font>
+  IF T001W-WERKS &lt&gt P_WERKS.
+    SELECT SINGLE * FROM T001W WHERE WERKS = P_WERKS.
+  ENDIF.
+<font color ="#8C8C8C">*@001-Ende  - Note 184936</font>
+
+<font color ="#8C8C8C">* NUR für Handelsbetriebe Listungsprüfung durchführen</font>
+  CHECK NOT T001W-VLFKZ IS INITIAL.
+
+<font color ="#8C8C8C">* CALL-Ergebnisse</font>
+  DATA: L_KZ_ITEM_LISTING  LIKE WTDY-TYP01.
+  DATA: L_KZLIK_NOT_IN_USE LIKE WTDY-TYP01.
+
+<font color ="#8C8C8C">* Lokale Valiable für den Artikeltyp</font>
+  DATA: L_ATTYP            LIKE MARA-ATTYP.
+  DATA: L_BFLME            LIKE MARA-BFLME.
+  DATA: L_HEADFL           LIKE TWZLA-KZKSN.
+  DATA: L_COMP             LIKE WSOS_STULI OCCURS 0 WITH HEADER LINE.
+  DATA: L_ST_SPLITT        LIKE WSOS_MATNR.
+
+  CALL FUNCTION 'WLK1_CHECK'
+       EXPORTING
+            DATE                        = CM61X-DISPD
+            ITEM                        = P_MATNR
+            SHOP_LOCNR                  = T001W-KUNNR
+            SHOP_WERKS                  = T001W-WERKS
+            SHOP_MUST_BE_LOCATION       = XFLAG
+            WRF1_KZLIK_CHECK            = XFLAG
+            DISPOFL                     = XFLAG
+<font color ="#8C8C8C">* Note 921381 - Begin</font>
+            COMPONENT_CHECK             = XFLAG
+<font color ="#8C8C8C">* Note 921381 - End</font>
+       IMPORTING
+            NO_UNIT_BUT_ITEM_LISTING    = L_KZ_ITEM_LISTING
+            WRF1_KZLIK_NOT_IN_USE       = L_KZLIK_NOT_IN_USE
+            P_ATTYP                     = L_ATTYP
+            P_BFLME                     = L_BFLME
+       EXCEPTIONS
+            NO_LISTING                  = 01
+            NO_LISTING_IN_TIME          = 02
+            EXISTING_EXCLUSION_LISTING  = 03
+            WRONG_PARAMETERS            = 04
+            NO_OPEN_TIME_SHOP_IN_TIME   = 05
+            NO_LISTING_FOR_PROMOTION    = 06
+            WRONG_LOCATION              = 07
+            NO_COMPLETE_LISTING_IN_TIME = 08
+            OTHERS                      = 99.
+
+  IF SY-SUBRC &lt&gt 0.
+<font color ="#8C8C8C">*   Material ist nicht gelistet;</font>
+<font color ="#8C8C8C">*   Planungsvormerkung könnte jetzt gelöscht werden, zumindest</font>
+<font color ="#8C8C8C">*   sollten das Rhythmusdatum und die Änderungskennzeichen</font>
+<font color ="#8C8C8C">*   zurückgesetzt werden.</font>
+    CLEAR KZGELISTET.
+  ELSE.
+    IF L_ATTYP = C_MAT_SAMMEL.
+      CLEAR KZGELISTET.
+    ELSE.
+<font color ="#8C8C8C">*     ist das Material/Artikel gelistet, so wird für strukturierte</font>
+<font color ="#8C8C8C">*     Artikel geprüft, ob sie aufgelöst (= Bestandsführung</font>
+<font color ="#8C8C8C">*     auf Ebene der Komponenten) werden.</font>
+
+      IF L_ATTYP = C_MAT_SET
+      OR L_ATTYP = C_MAT_LOT
+      OR L_ATTYP = C_MAT_DISPLAY
+      OR L_BFLME = C_BFLME_KOLLI.
+        CALL FUNCTION 'STRUC_ART_KEY_TODO'
+                    EXPORTING
+                         PI_MATNR       = P_MATNR
+                         PI_WERKS       = P_WERKS
+<font color ="#8C8C8C">*                        PI_LOCNR       =</font>
+                         PI_ATTYP       = L_ATTYP
+                         PI_KEY         = '200'
+                    IMPORTING
+                         PE_HEADFL      = L_HEADFL
+                    EXCEPTIONS
+                         NO_TWZLA_FOUND = 1
+                         OTHERS         = 99.
+        IF SY-SUBRC = 0.
+          IF L_HEADFL = '1'.
+<font color ="#8C8C8C">*           Material/Artikel wird aufgelöst, dann Prüfung</font>
+<font color ="#8C8C8C">*           ob eine Komponente seperat disponierbar wird.</font>
+            CLEAR L_ST_SPLITT.
+            L_ST_SPLITT-MATNR = P_MATNR.
+            L_ST_SPLITT-ATTYP = L_ATTYP.
+            L_ST_SPLITT-WERKS = P_WERKS.
+            L_ST_SPLITT-DATAB = CM61X-DISPD.
+            L_ST_SPLITT-DATBI = CM61X-DISPD.
+            L_ST_SPLITT-BFLME = L_BFLME.
+            CALL FUNCTION 'STRUC_ARTICLE_SPLITTING'
+                 EXPORTING
+                      ST_SPLIT                = L_ST_SPLITT
+                 TABLES
+                      BILL_OF_MATERIAL        = L_COMP
+                 EXCEPTIONS
+                      NO_HEAD_FOUND           = 1
+                      NO_COMPONENTS_FOUND     = 2
+                      NO_RANGE_FOUND          = 3
+                      NO_RETAIL_MAT           = 4
+                      NO_LISTING_AS_COMPONENT = 5
+                      OTHERS                  = 99.
+            IF SY-SUBRC &lt&gt 0.
+<font color ="#8C8C8C">*             Mindestens eine Komponente wird seperat</font>
+<font color ="#8C8C8C">*             disponierbar, somit wird der Kopfartikel NICHT</font>
+<font color ="#8C8C8C">*             disponiert.</font>
+              CLEAR KZGELISTET.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">* note 325216 - B</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  SET_DATE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       Dispodatum bei MDW1 aus globalem Memory übernehmen</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      &lt--P_RM61X_DISPD  text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000691"></div>
+FORM SET_DATE CHANGING P_RM61X_DISPD.
+
+  DATA: MEMO_AUFRUFENDE_TA         LIKE SY-TCODE,
+        MEMO_ID(4)                 TYPE C VALUE 'MRD2',
+        MEMO_DISPO_DATUM           LIKE RM61X-DISPD,
+        DATE_ID(4)                 TYPE C VALUE 'MDR2'.
+
+  IMPORT MEMO_AUFRUFENDE_TA FROM MEMORY ID MEMO_ID.
+
+  IF MEMO_AUFRUFENDE_TA = 'MDW1'.
+    IMPORT MEMO_DISPO_DATUM FROM MEMORY ID DATE_ID.
+    IF SY-SUBRC = 0.
+      P_RM61X_DISPD = MEMO_DISPO_DATUM.
+    ENDIF.
+    IF P_RM61X_DISPD IS INITIAL.
+      MOVE SY-DATLO TO P_RM61X_DISPD.
+    ENDIF.
+  ELSE.
+    MOVE SY-DATLO TO P_RM61X_DISPD.
+  ENDIF.
+
+ENDFORM.                               " SET_DATE
+<font color ="#8C8C8C">* note 325216 - E</font>
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

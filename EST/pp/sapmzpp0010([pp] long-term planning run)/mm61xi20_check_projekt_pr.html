@@ -1,0 +1,88 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XI20_CHECK_PROJEKT_PR</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XI20_CHECK_PROJEKT_PR</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Pruefen Projekt fuer Kundeneinzelplanung</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000605"></div>
+MODULE CHECK_PROJEKT_PR.
+<font color ="#8C8C8C">*--&gt Pruefen Projekt und PSP-Element</font>
+   CALL FUNCTION 'CN_WB_CHECK_PROJECT'
+       EXPORTING
+            projn              = rm61x-pspid
+            pspnr              = rm61x-pspel
+       EXCEPTIONS
+            insufficient_input = 01
+                   NOT_ALLOWED        = 02
+                   NOT_FOUND          = 03.
+        CASE SY-SUBRC.
+          WHEN 01. MESSAGE E260.
+          WHEN 02. MESSAGE E261.
+          WHEN 03. MESSAGE E262.
+        ENDCASE.
+<font color ="#8C8C8C">*--&gt PSP-Element für Einzelplanung sperren            "HW 325853</font>
+  PERFORM <a href="#000000000606">sperren_psp_ep</a> USING rm61x-pspid            "
+                               rm61x-pspel.           "HW 325853
+
+ENDMODULE.
+
+
+<font color ="#8C8C8C">* &gt&gt&gt&gt&gt&gt&gt BEGIN OF INSERTION - NOTE 325853 &lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       FORM SPERREN_PSP_EP                                           *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       Sperre für Projekteinzelplanung setzen                        *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  IPSPID                                                        *</font>
+<font color ="#8C8C8C">*  --&gt  IPSPEL                                                        *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000606"></div>
+FORM sperren_psp_ep USING ipspid LIKE rm61x-pspid
+                          ipspel LIKE rm61x-pspel.
+
+  DATA: LV_LOCKUSER    LIKE SY-MSGV1,
+        LV_SUBRC       LIKE SY-SUBRC.
+
+<font color ="#8C8C8C">*--&gt Projekt für Einzelplanung sperren</font>
+  DO 5 TIMES.                          "Maximal 5 Versuche
+    CALL FUNCTION 'ENQUEUE_EPROPLA'
+         EXPORTING
+              pspid          = ipspid
+              pspel          = ipspel
+         EXCEPTIONS
+              foreign_lock   = 1
+              system_failure = 2.
+    lv_subrc = sy-subrc.
+    CASE lv_subrc.
+      WHEN 0. EXIT.
+      WHEN 1. CALL FUNCTION 'RZL_SLEEP'.     "1 Sekunde schlafen
+      WHEN 2. EXIT.
+    ENDCASE.
+  ENDDO.
+
+  IF lv_subrc = 1.
+    MOVE sy-msgv1 TO lv_lockuser.
+    MESSAGE e011(md) WITH ipspid ipspel lv_lockuser.
+  ELSEIF lv_subrc = 2.
+    MESSAGE e898.
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">* &gt&gt&gt&gt&gt&gt&gt END   OF INSERTION - NOTE 325853 &lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt</font>
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

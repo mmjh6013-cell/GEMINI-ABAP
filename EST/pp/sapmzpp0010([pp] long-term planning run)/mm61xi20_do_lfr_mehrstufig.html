@@ -1,0 +1,122 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XI20_DO_LFR_MEHRSTUFIG</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XI20_DO_LFR_MEHRSTUFIG</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* LPR-Planung -mehrstufig-</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000608"></div>
+MODULE DO_LFR_MEHRSTUFIG INPUT.
+
+<font color ="#8C8C8C">*--&gt Kommunikationsarea Transaktion</font>
+  PERFORM ERSTELLEN_CM61X.
+<font color ="#8C8C8C">*--&gt ATP initialisieren bzw. Puffer deaktivieren, falls cm61x-atpda = x</font>
+  PERFORM ATP_INITIALIZE.
+<font color ="#8C8C8C">*--&gt Statistik initialisieren</font>
+  PERFORM <a href ="javascript:Link('MM61XF88_BEGINN_STATISTIK.html?id=#000000000397');">BEGINN_STATISTIK</a>.
+
+<font color ="#8C8C8C">*--&gt Planung im Hauptspeicher</font>
+  IF RM61X-INMEM = XFLAG.
+    IF RM61X-PRGKZ EQ XFLAG.                            "TL: P4DK092013
+      PERFORM <a href ="javascript:Link('MM61XMEM_MRP_IN_MEMORY_PG.html?id=#000000000718');">MRP_IN_MEMORY_PG</a> USING RM61X-MATNR RM61X-WERKS.
+    ELSE.
+      PERFORM <a href ="javascript:Link('MM61XMEM_MRP_IN_MEMORY.html?id=#000000000717');">MRP_IN_MEMORY</a> USING RM61X-MATNR RM61X-WERKS RM61X-BERID.
+    ENDIF.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Lesen Produktgruppe</font>
+  IF RM61X-PRGKZ EQ XFLAG.
+<font color ="#8C8C8C">*--&gt Clear Eingabefelder</font>
+    CLEAR RM61X-MATNR.
+    CLEAR RM61X-WERKS.
+    CLEAR RM61X-BERID.                    "note 642065
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Eingabematerial disponieren</font>
+  IF RM61X-PRGKZ NE XFLAG.
+ENHANCEMENT-SECTION     DO_LFR_MEHRSTUFIG_01 SPOTS ES_SAPMM61X.
+
+"{ Begin ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+<font color ="#8C8C8C">*--&gt PIC : Processing SUS-Chain / MPN MRP SET</font>
+  IF NOT gt_pic_parts[] IS INITIAL.
+    PERFORM PIC_SET_REKWK .
+    PERFORM PIC_DO_LFR_MEHRSTUFIG .
+  ELSE.
+
+<font color ="#8C8C8C">*--&gt Material für Einzelplanung sperren</font>
+    PERFORM <a href ="javascript:Link('MM61XF34_SPERREN_LFR_EL.html?id=#000000000223');">SPERREN_LFR_EL</a> USING RM61X-PLSCN
+                                 RM61X-WERKS RM61X-BERID RM61X-MATNR.
+<font color ="#8C8C8C">*--&gt Send Message</font>
+<font color ="#8C8C8C">*   PERFORM send_message_900 USING rm61x-matnr rm61x-werks rm61x-berid.</font>
+<font color ="#8C8C8C">*--&gt Eingabematerial disponieren</font>
+    GET_START_TIME TIME3.
+    PERFORM <a href ="javascript:Link('MM61XF32_BEARBEITEN_MATERIAL_M.html?id=#000000000208');">BEARBEITEN_MATERIAL_ML</a> USING SPACE.
+    CLEAR TDIFF.
+    run_time tdiff time4 time3.
+<font color ="#8C8C8C">*--&gt Statistik erfassen</font>
+    perform erfassen_statistik using tdiff.
+<font color ="#8C8C8C">*--&gt Material für Einzelplanung entsperren</font>
+    PERFORM <a href ="javascript:Link('MM61XC02_ENTSPERREN_LFR.html?id=#000000000045');">ENTSPERREN_LFR</a> USING RM61X-PLSCN
+                                 RM61X-WERKS RM61X-BERID RM61X-MATNR.
+<font color ="#8C8C8C">*--&gt Werk für Rekursivitätsprüfung merken</font>
+    REFRESH REKWK.
+    MOVE CM61D-MATNR TO REKMT-MATNR.
+    MOVE CM61D-BERID TO REKWK-BERID.
+    MOVE CM61D-WERKS TO REKWK-WERKS.
+    APPEND REKWK.
+  ENDIF. " PIC : Processing SUS-Chain / MPN MRP SET*
+
+"{ End ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+
+END-ENHANCEMENT-SECTION.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Materialvormerkungen abarbeiten</font>
+  DO.
+<font color ="#8C8C8C">*--&gt Naechste Vormerkung ermitteln</font>
+    PERFORM <a href ="javascript:Link('MM61XF32_NEXT_PLANNING_REQUEST.html?id=#000000000212');">NEXT_PLANNING_REQUEST</a>.
+    IF AM61X-RCODE NE CHAR0.
+      EXIT.
+    ENDIF.
+
+"{ Begin ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+
+<font color ="#8C8C8C">*--&gt PIC : Processing SUS-Chain / MPN MRP SET                      "46a</font>
+    IF NOT gt_pic_parts[] IS INITIAL.
+       PERFORM PIC_DO_LFR_MEHRSTUFIG .
+       CONTINUE.
+    ENDIF.
+
+"{ End ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+
+ENHANCEMENT-POINT DO_LFR_MEHRSTUFIG_02 SPOTS ES_SAPMM61X.
+<font color ="#8C8C8C">*--&gt Material bearbeiten</font>
+    GET_START_TIME TIME3.
+    PERFORM <a href ="javascript:Link('MM61XF32_BEARBEITEN_MATERIAL_M.html?id=#000000000208');">BEARBEITEN_MATERIAL_ML</a> USING XFLAG.
+    CLEAR TDIFF.
+    run_time tdiff time4 time3.
+<font color ="#8C8C8C">*--&gt Statistik erfassen</font>
+    perform erfassen_statistik using tdiff.
+<font color ="#8C8C8C">*--&gt Material für Einzelplanung entsperren</font>
+    PERFORM <a href ="javascript:Link('MM61XC02_ENTSPERREN_LFR.html?id=#000000000045');">ENTSPERREN_LFR</a> USING RM61X-PLSCN
+                                 CM61D-WERKS CM61D-BERID CM61D-MATNR.
+  ENDDO.
+<font color ="#8C8C8C">*--&gt Statistik aufbereiten</font>
+  PERFORM AUFBEREITEN_STATISTIK.
+<font color ="#8C8C8C">*--&gt Statistik anzeigen</font>
+  PERFORM <a href ="javascript:Link('MM61XF88_ANZEIGEN_STATISTIK.html?id=#000000000395');">ANZEIGEN_STATISTIK</a>.
+ENDMODULE.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF50_HELP_LGORT</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF50_HELP_LGORT</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">***INCLUDE MM61XF50_HELP_LGORT .</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  HELP_LGORT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtP_MPPA_PLWRK  text</font>
+<font color ="#8C8C8C">*      --&gtP_MPPA_LGORT  text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000272"></div>
+FORM help_lgort  USING pv_plwrk LIKE mppa-plwrk
+                       pv_lgort LIKE mppa-lgort.
+
+  DATA: l_titel LIKE sy-title,
+        l_lgort LIKE t001l-lgort.
+
+  DATA: BEGIN OF l_mdlgort OCCURS 0.
+          include structure <a href ="mdlgort/dictionary-mdlgort.html">mdlgort</a>.
+  DATA: END OF l_mdlgort.
+
+  DATA: BEGIN OF l_mard OCCURS 0.
+          include structure <a href ="mard/dictionary-mard.html">mard</a>.
+  DATA: END OF l_mard.
+
+  DATA: BEGIN OF l_valuetab OCCURS 0,
+         string(40),
+       END OF l_valuetab.
+
+  DATA: BEGIN OF l_sel_vals OCCURS 0.
+          INCLUDE STRUCTURE help_vtab.
+  DATA: END OF l_sel_vals.
+
+  DATA: BEGIN OF l_fields OCCURS 0.
+          INCLUDE STRUCTURE help_value.
+  DATA: END OF l_fields.
+
+<font color ="#8C8C8C">*--&gt Tabelle l_fields mit den anzuzeigenden Feldern fuellen</font>
+  REFRESH l_fields.
+  l_fields-tabname    = 'MDLGORT'.
+  l_fields-fieldname  = 'LGORT'.
+  l_fields-selectflag = xflag.
+  APPEND l_fields.
+  l_fields-tabname    = 'MDLGORT'.
+  l_fields-fieldname  = 'LGOBE'.
+  l_fields-selectflag = space.
+  APPEND l_fields.
+  l_fields-tabname    = 'MDLGORT'.
+  l_fields-fieldname  = 'HERKT'.
+  l_fields-selectflag = space.
+  APPEND l_fields.
+
+<font color ="#8C8C8C">*--&gt ohne Material und Werks tue gar nichts</font>
+  CHECK NOT mt61d-matnr IS INITIAL.
+  CHECK NOT mppa-plwrk IS INITIAL.
+<font color ="#8C8C8C">*--&gt Lagerorttabelle fuellen</font>
+<font color ="#8C8C8C">*--&gt Lagerort aus Version uebernehmen, falls eine Version angegeben</font>
+<font color ="#8C8C8C">*--&gt und in der Version der Lagerort gepflegt ist</font>
+  IF  NOT mppa-verid IS INITIAL.
+    PERFORM read_mkal USING mt61d-matnr mppa-pwwrk mppa-verid.
+    IF  NOT mkal-alort IS INITIAL
+    AND sy-subrc EQ 0.
+      CLEAR l_mdlgort.
+      MOVE mkal-alort TO l_mdlgort-lgort.
+      PERFORM <a href ="javascript:Link('MM61XF50_CHECK_LGORT_T001W.html?id=#000000000267');">read_t001l</a> USING mppa-pwwrk
+                               l_mdlgort-lgort
+                               l_mdlgort-lgobe.
+      MOVE text-913 TO l_mdlgort-herkt.
+      APPEND l_mdlgort.
+    ENDIF.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Lagerort aus MT61D des Planungswerkes uebernehmen</font>
+<font color ="#8C8C8C">*    MT61D deckz im Unterschied zur MARC auch Dispobereiche ab</font>
+<font color ="#8C8C8C">*  PERFORM read_mt61d USING mt61d-matnr mppa-plwrk mppa-berid.</font>
+  IF  NOT mt61d-lgpro IS INITIAL.
+    CLEAR l_mdlgort.
+    MOVE mt61d-lgpro TO l_mdlgort-lgort.
+    PERFORM <a href ="javascript:Link('MM61XF50_CHECK_LGORT_T001W.html?id=#000000000267');">read_t001l</a> USING mppa-plwrk
+                             l_mdlgort-lgort
+                             l_mdlgort-lgobe.
+    MOVE text-914 TO l_mdlgort-herkt.
+    APPEND l_mdlgort.
+  ENDIF.
+  IF  NOT mt61d-lgfsb IS INITIAL.
+    CLEAR l_mdlgort.
+    MOVE mt61d-lgfsb TO l_mdlgort-lgort.
+    PERFORM <a href ="javascript:Link('MM61XF50_CHECK_LGORT_T001W.html?id=#000000000267');">read_t001l</a> USING mppa-plwrk
+                             l_mdlgort-lgort
+                             l_mdlgort-lgobe.
+    MOVE text-916 TO l_mdlgort-herkt.
+    APPEND l_mdlgort.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Lagerortsegmente zur Material und Werk ermitteln</font>
+  PERFORM <a href="#000000000273">read_mard_generic</a> TABLES l_mard
+                            USING  mppa-plwrk
+                                   mt61d-matnr.
+  LOOP AT l_mard.
+    CLEAR l_mdlgort.
+    MOVE l_mard-lgort TO l_mdlgort-lgort.
+    PERFORM <a href ="javascript:Link('MM61XF50_CHECK_LGORT_T001W.html?id=#000000000267');">read_t001l</a> USING mppa-plwrk
+                             l_mdlgort-lgort
+                             l_mdlgort-lgobe.
+    MOVE text-915 TO l_mdlgort-herkt.
+    APPEND l_mdlgort.
+  ENDLOOP.
+
+<font color ="#8C8C8C">*--&gt Wertetabelle fuer Popup fuellen (jeder Wert ein Eintrag in der</font>
+<font color ="#8C8C8C">*--&gt Wertetabelle); Bezeichnungen der Aktionen ergaenzen</font>
+  LOOP AT l_mdlgort.
+    CLEAR l_valuetab-string.
+    MOVE l_mdlgort-lgort TO l_valuetab-string.
+    APPEND l_valuetab.
+    CLEAR l_valuetab-string.
+    MOVE l_mdlgort-lgobe TO l_valuetab-string.
+    APPEND l_valuetab.
+    CLEAR l_valuetab-string.
+    MOVE l_mdlgort-herkt TO l_valuetab-string.
+    APPEND l_valuetab.
+  ENDLOOP.
+
+<font color ="#8C8C8C">*--&gt Titel fuer Popup</font>
+  MOVE text-911 TO l_titel.
+
+<font color ="#8C8C8C">*--&gt Funktionsbaustein fuer Popup aufrufen</font>
+  CALL FUNCTION 'HELP_VALUES_GET_WITH_TABLE_EXT'
+    EXPORTING
+      display       = space
+      titel         = l_titel
+    IMPORTING
+      select_value  = l_lgort
+    TABLES
+      fields        = l_fields
+      select_values = l_sel_vals
+      valuetab      = l_valuetab.
+
+<font color ="#8C8C8C">*--&gt Uebernahme der Daten in Plaf</font>
+  MOVE l_lgort TO mppa-lgort.
+
+ENDFORM.                    " HELP_LGORT
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  READ_MARD_GENERIC</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Lesen Lagerorte zu Material und Werk                                 *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000273"></div>
+FORM read_mard_generic
+  TABLES p_mard  STRUCTURE mard
+  USING  p_werks LIKE mard-werks
+         p_matnr LIKE mard-matnr.
+
+  REFRESH: p_mard.
+
+  CALL FUNCTION 'MARD_GENERIC_READ_MATNR_PLANT'
+    EXPORTING
+      matnr    = p_matnr
+      werks    = p_werks
+    TABLES
+      mard_tab = p_mard
+    EXCEPTIONS
+      OTHERS   = 1.
+
+  IF  NOT sy-subrc IS INITIAL.
+    REFRESH: p_mard.
+  ENDIF.
+
+ENDFORM.                    " READ_MARD_GENERIC
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

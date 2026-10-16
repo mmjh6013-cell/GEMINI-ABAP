@@ -1,0 +1,383 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZMMR0550_F01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZMMR0550_F01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZMMR1010_F01</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form INITIALIZATION</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000032"></div>
+FORM INITIALIZATION .
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form AT_SELECTION_SCREEN_OUTPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000033"></div>
+FORM AT_SELECTION_SCREEN_OUTPUT .
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form AT_SELECTION_SCREEN</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000034"></div>
+FORM AT_SELECTION_SCREEN .
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form GET_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000035"></div>
+FORM GET_DATA .
+
+  TYPES: BEGIN OF TY_STOCK,
+           MATNR TYPE MATNR,
+           WERKS TYPE WERKS_D,
+           CHARG TYPE CHARG_D,
+           LABST TYPE LABST,
+
+         END OF TY_STOCK.
+
+  DATA: LT_TOTAL TYPE HASHED TABLE OF TY_STOCK
+                 WITH UNIQUE KEY MATNR WERKS CHARG,
+        LS_STOCK TYPE TY_STOCK.
+
+  " 1. ## ##
+  SELECT MATNR, WERKS, CHARG,
+         SUM( CLABS + CUMLM + CEINM + CSPEM + CRETM ) AS LABST
+    FROM NSDM_E_MCHB
+   WHERE WERKS = @P_WERKS
+     AND MATNR IN @S_MATNR
+   GROUP BY MATNR, WERKS, CHARG
+    INTO TABLE @DATA(LT_MCHB).
+
+  LOOP AT LT_MCHB INTO DATA(LS_MCHB).
+    LS_STOCK = CORRESPONDING #( LS_MCHB ).
+    COLLECT LS_STOCK INTO LT_TOTAL. " Hashed Table# ##### ## ##
+  ENDLOOP.
+
+  " 2. Customer ##
+  SELECT MATNR, WERKS, CHARG,
+         SUM( KULAB + KUINS ) AS LABST
+    FROM NSDM_E_MSKU
+   WHERE WERKS = @P_WERKS
+     AND MATNR IN @S_MATNR
+   GROUP BY MATNR, WERKS, CHARG
+    INTO TABLE @DATA(LT_MSKU).
+
+  LOOP AT LT_MSKU INTO DATA(LS_MSKU).
+    LS_STOCK = CORRESPONDING #( LS_MSKU ).
+    COLLECT LS_STOCK INTO LT_TOTAL.
+  ENDLOOP.
+
+  " 3. Vendor ##
+  SELECT MATNR, WERKS, CHARG,
+         SUM( LBLAB + LBINS ) AS LABST
+    FROM NSDM_E_MSLB
+   WHERE WERKS = @P_WERKS
+     AND MATNR IN @S_MATNR
+   GROUP BY MATNR, WERKS, CHARG
+    INTO TABLE @DATA(LT_MSLB).
+
+  LOOP AT LT_MSLB INTO DATA(LS_MSLB).
+    LS_STOCK = CORRESPONDING #( LS_MSLB ).
+    COLLECT LS_STOCK INTO LT_TOTAL.
+  ENDLOOP.
+
+  GT_DATA = CORRESPONDING #( LT_TOTAL ).
+
+  IF SY-BATCH = SPACE.
+    SELECT A~MATNR, B~MEINS
+      FROM @GT_DATA AS A INNER JOIN MARA AS B
+                                 ON B~MATNR = A~MATNR
+      INTO TABLE @DATA(LT_MEINS).
+    SORT LT_MEINS BY MATNR.
+
+  ENDIF.
+
+  LOOP AT GT_DATA ASSIGNING FIELD-SYMBOL(&ltLS_DATA&gt).
+    PERFORM <a href="#000000000038">BAPI_OBJCL_GETDETAIL</a> CHANGING &ltLS_DATA&gt.
+
+    READ TABLE LT_MEINS INTO DATA(LS_MEINS)
+                        WITH KEY MATNR = &ltLS_DATA&gt-MATNR
+                        BINARY SEARCH.
+    IF SY-SUBRC = 0.
+      &ltLS_DATA&gt-MEINS = LS_MEINS-MEINS.
+
+    ENDIF.
+
+  ENDLOOP.
+
+  IF GT_DATA IS INITIAL.
+    CASE SY-BATCH.
+      WHEN ABAP_TRUE.
+        MESSAGE S000 WITH TEXT-E01.
+
+      WHEN SPACE.
+        "No Data
+        MESSAGE S000 WITH TEXT-E01 DISPLAY LIKE 'E'.
+
+    ENDCASE.
+
+    LEAVE LIST-PROCESSING.
+
+  ENDIF.
+
+  DESCRIBE TABLE GT_DATA LINES DATA(LV_LINE).
+  MESSAGE S012 WITH LV_LINE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SEND_DATA_QMS</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000036"></div>
+FORM SEND_DATA_QMS.
+
+  DATA: LS_RETURN LIKE ZMMS0501,
+        LT_DATA   LIKE TABLE OF ZMMS0520.
+
+  MOVE-CORRESPONDING GT_DATA TO LT_DATA.
+
+  CALL FUNCTION <a href ="zmm_set_material_master_qms/zmm_set_material_master_qms.html">'ZMM_SET_MATERIAL_MASTER_QMS'</a>
+    IMPORTING
+      ES_RETURN = LS_RETURN
+    TABLES
+      IT_DATA   = LT_DATA.
+
+  "### S ### F (### ## ## # E)
+  CASE LS_RETURN-STATUS.
+    WHEN 'F' OR 'E'.
+      MESSAGE S000 WITH LS_RETURN-MESSAGE DISPLAY LIKE 'E'.
+
+    WHEN 'S'.
+      MESSAGE S000 WITH LS_RETURN-MESSAGE.
+
+  ENDCASE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SEND_DATA_MES</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000037"></div>
+FORM SEND_DATA_MES .
+
+  DATA: LS_RETURN LIKE ZMMS0501,
+        LT_TAB    LIKE TABLE OF ZMMS0521.
+
+  MOVE-CORRESPONDING GT_DATA TO LT_TAB.
+
+  CALL FUNCTION <a href ="zmm_set_material_master_qms/zmm_set_material_master_qms.html">'ZMM_SET_MATERIAL_MASTER_QMS'</a>
+    IMPORTING
+      ES_RETURN = LS_RETURN
+    TABLES
+      IT_TAB    = LT_TAB.
+
+  "### S ### F (### ## ## # E)
+  CASE LS_RETURN-STATUS.
+    WHEN 'F' OR 'E'.
+      MESSAGE S000 WITH LS_RETURN-MESSAGE DISPLAY LIKE 'E'.
+
+    WHEN 'S'.
+      MESSAGE S000 WITH LS_RETURN-MESSAGE.
+
+  ENDCASE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form BAPI_OBJCL_GETDETAIL</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      &lt-- &ltLS_DATA&gt</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000038"></div>
+FORM BAPI_OBJCL_GETDETAIL  CHANGING PS_DATA LIKE GS_DATA.
+
+  DATA: LV_OBJKEY     TYPE BAPI1003_KEY-OBJECT,
+        LT_ALLOC_CHAR TYPE STANDARD TABLE OF BAPI1003_ALLOC_VALUES_CHAR,
+        LT_ALLOC_NUM  TYPE STANDARD TABLE OF BAPI1003_ALLOC_VALUES_NUM,
+        LT_ALLOC_CURR TYPE STANDARD TABLE OF BAPI1003_ALLOC_VALUES_CURR,
+        LT_RETURN     LIKE TABLE OF BAPIRET2.
+
+  DATA: LV_DATE LIKE SY-DATUM.
+
+  FIELD-SYMBOLS &ltLV_VALUE&gt.
+
+  LV_OBJKEY+0(18)  = PS_DATA-MATNR.
+  LV_OBJKEY+18(10) = PS_DATA-CHARG.
+
+  CALL FUNCTION 'BAPI_OBJCL_GETDETAIL'
+    EXPORTING
+      OBJECTKEY       = LV_OBJKEY
+      OBJECTTABLE     = 'MCH1'
+      CLASSNUM        = 'ZBATCH_CL'
+      CLASSTYPE       = '023'
+    TABLES
+      ALLOCVALUESNUM  = LT_ALLOC_NUM
+      ALLOCVALUESCHAR = LT_ALLOC_CHAR
+      ALLOCVALUESCURR = LT_ALLOC_CURR
+      RETURN          = LT_RETURN.
+
+  LOOP AT LT_ALLOC_NUM INTO DATA(LS_ALLOC_NUM).
+    ASSIGN COMPONENT LS_ALLOC_NUM-CHARACT OF STRUCTURE PS_DATA TO &ltLV_VALUE&gt.
+    CHECK SY-SUBRC = 0.
+
+    CASE LS_ALLOC_NUM-CHARACT.
+      WHEN 'ZHSDAT' OR 'ZBUDAT' OR 'ZVFDAT' OR 'ZLWEDT' OR 'ZNDATE'.
+        CLEAR LV_DATE.
+        PERFORM <a href ="javascript:Link('LZFGMM02F01.html?id=#000000000022');">CTCV_CONVERT_FLOAT_TO_DATE</a> USING LS_ALLOC_NUM-VALUE_FROM
+                                        CHANGING LV_DATE.
+        &ltLV_VALUE&gt = LV_DATE.
+
+      WHEN OTHERS.
+        &ltLV_VALUE&gt = LS_ALLOC_NUM-VALUE_FROM.
+
+    ENDCASE.
+
+  ENDLOOP.
+
+  LOOP AT LT_ALLOC_CHAR INTO DATA(LS_ALLOC_CHAR).
+    ASSIGN COMPONENT LS_ALLOC_CHAR-CHARACT OF STRUCTURE PS_DATA TO &ltLV_VALUE&gt.
+    IF SY-SUBRC = 0.
+      &ltLV_VALUE&gt = LS_ALLOC_CHAR-VALUE_CHAR.
+
+    ENDIF.
+
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SEND_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000039"></div>
+FORM SEND_DATA .
+
+  DATA: LS_RETURN LIKE ZMMS0501,
+        LT_DATA_F   LIKE TABLE OF ZMMS0550,
+        LS_DATA_F LIKE ZMMS0550.
+
+  DATA: LT_ROW TYPE LVC_T_ROW.
+
+  CASE SY-BATCH.
+    WHEN SPACE.
+      CALL METHOD GO_GRID-&gtGET_SELECTED_ROWS
+        IMPORTING
+          ET_INDEX_ROWS = LT_ROW.
+
+      IF LT_ROW IS INITIAL.
+        MESSAGE S008 DISPLAY LIKE 'E'.
+        RETURN.
+
+      ENDIF.
+
+      LOOP AT LT_ROW INTO DATA(LS_ROW).
+        READ TABLE GT_DATA INTO DATA(LS_DATA) INDEX LS_ROW-INDEX.
+        CHECK SY-SUBRC = 0.
+        MOVE-CORRESPONDING LS_DATA TO LS_DATA_F.
+        APPEND LS_DATA_F TO LT_DATA_F.
+
+      ENDLOOP.
+
+    WHEN ABAP_TRUE.
+      LOOP AT GT_DATA INTO LS_DATA.
+        MOVE-CORRESPONDING LS_DATA TO LS_DATA_F.
+        APPEND LS_DATA_F TO LT_DATA_F.
+
+      ENDLOOP.
+
+  ENDCASE.
+  CALL FUNCTION <a href ="zmm_set_batch_view/zmm_set_batch_view.html">'ZMM_SET_BATCH_VIEW'</a>
+    IMPORTING
+      ES_RETURN = LS_RETURN
+    TABLES
+      IT_DATA   = LT_DATA_F.
+
+  "### S ### F (### ## ## # E)
+  CASE LS_RETURN-STATUS.
+    WHEN 'F' OR 'E'.
+      MESSAGE S000 WITH LS_RETURN-MESSAGE DISPLAY LIKE 'E'.
+
+    WHEN 'S'.
+      MESSAGE S000 WITH LS_RETURN-MESSAGE.
+
+  ENDCASE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CTCV_CONVERT_FLOAT_TO_DATE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt PS_DATA_ZHSDAT</font>
+<font color ="#8C8C8C">*&      &lt-- LV_FLOAT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000022"></div>
+FORM CTCV_CONVERT_FLOAT_TO_DATE  USING    PV_FLOAT
+                                 CHANGING PV_DATE.
+
+  DATA: LV_DATE  LIKE CAWN-ATWRT,
+        LV_FLOAT LIKE CAWN-ATFLV.
+
+  LV_FLOAT = PV_FLOAT.
+  CALL FUNCTION 'CTCV_CONVERT_FLOAT_TO_DATE'
+    EXPORTING
+      FLOAT = LV_FLOAT
+    IMPORTING
+      DATE  = LV_DATE.
+
+  PV_DATE = LV_DATE.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XFOL_DISPONIEREN_MATERIAL_</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XFOL_DISPONIEREN_MATERIAL_</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Material disponieren -ONLINE-     (Einzelplanung einstufig)</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000564"></div>
+FORM DISPONIEREN_MATERIAL_OL.
+<font color ="#8C8C8C">*--&gt Kommunikationsaerea fuer Werk erstellen</font>
+  CALL FUNCTION 'MD_READ_PLANT'
+       EXPORTING  EWERKS  = MT61D-WERKS
+                  ECM61X  = CM61X
+       IMPORTING  ICM61W  = CM61W
+                  IT399D  = T399D
+       EXCEPTIONS ERROR   = 1.
+  IF SY-SUBRC &gt 0.
+    MESSAGE ID SY-MSGID TYPE 'E' NUMBER SY-MSGNO
+            WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Dispositionstabelle aufbauen</font>
+  CALL FUNCTION 'AUFBAUEN_MDPSX_DISPOSITION'
+       EXPORTING  ECM61X        = CM61X
+                  ECM61W        = CM61W
+                  ECM61D        = CM61D
+                  ECM61B        = CM61B
+                  EMT61D        = MT61D
+                  ET399D        = T399D
+                  ET438A        = T438A
+       IMPORTING  IMDKP         = MDKP
+                  IMT61D        = MT61D
+                  ICM61M        = CM61M
+                  ICM61D        = CM61D
+                  IMDSTA        = MDSTA
+       TABLES     MDPSX         = MDPSX
+                  MDPSO         = MDPSO
+                  MDPSL         = MDPSL
+                  MDLPY         = MDLPY
+                  EQUKX         = EQUKX
+                  EQUPX         = EQUPX
+                  EQUMX         = EQUMX
+                  LORTX         = LORTX
+       EXCEPTIONS ERROR_MESSAGE = 02
+                  ERROR         = 01.
+  IF SY-SUBRC NE 0.
+    PERFORM <a href ="javascript:Link('MM61XF34_SEND_ERROR_MESSAGE.html?id=#000000000221');">SEND_ERROR_MESSAGE</a>.
+  ENDIF.
+
+"{ Begin ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+<font color ="#8C8C8C">*--&gt PIC : Generate merged MDPSX fpr SUS+MPN  (46a)</font>
+<font color ="#8C8C8C">*N_2914970 When performed MRP run through MD03 and if the leading material has status 96 i.e Blocked from creating PR and MRP message as error,</font>
+<font color ="#8C8C8C">*          it should not interrupt process and continue with MRP planning. Hence error handling is rewritten same as in MD02.</font>
+<font color ="#8C8C8C">*  IF NOT CM61M-PICID IS INITIAL.</font>
+<font color ="#8C8C8C">*    PERFORM PIC_MERGE_MDPSX CHANGING SY-SUBRC.</font>
+<font color ="#8C8C8C">*    IF SY-SUBRC NE 0.</font>
+<font color ="#8C8C8C">*      PERFORM SEND_ERROR_MESSAGE.</font>
+<font color ="#8C8C8C">*    ENDIF.</font>
+<font color ="#8C8C8C">*  ENDIF.</font>
+  IF NOT CM61M-PICID IS INITIAL.
+    PERFORM PIC_MERGE_MDPSX CHANGING SY-SUBRC.
+    IF SY-SUBRC NE 0.
+      PERFORM ERROR_HANDLING.
+      MOVE CHAR1 TO AM61X-RCODE.
+      EXIT.
+    ENDIF.
+  ENDIF.
+"{ End ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+
+<font color ="#8C8C8C">* Note 2341056: Check MRP type again in case it was changed in BADI above</font>
+  IF MDKP-DISVF = DISVFN.
+    MESSAGE E008 WITH MT61D-MATNR MT61D-WERKS RM61X-BERID.
+  ENDIF.
+
+ENHANCEMENT-POINT DISPONIEREN_MATERIAL_OL_01 SPOTS ES_SAPMM61X.
+<font color ="#8C8C8C">*--&gt Dispositionsrechnung</font>
+  CALL FUNCTION 'DO_DISPOSITIONSRECHNUNG'
+       EXPORTING
+            ECM61X        = CM61X
+            ECM61W        = CM61W
+            ECM61M        = CM61M
+            ECM61D        = CM61D
+            EMDKP         = MDKP
+            EMT61D        = MT61D
+            ET399D        = T399D
+            ECM61B        = CM61B
+       IMPORTING
+            IMDKP         = MDKP
+       TABLES
+            MDPSX         = MDPSX
+            MDPSO         = MDPSO
+            MDPSL         = MDPSL
+            EQUKX         = EQUKX
+            EQUPX         = EQUPX
+            EQUMX         = EQUMX
+            LORTX         = LORTX
+       EXCEPTIONS
+            ERROR_MESSAGE = 01.
+  IF SY-SUBRC NE 0.
+    PERFORM <a href ="javascript:Link('MM61XF34_SEND_ERROR_MESSAGE.html?id=#000000000221');">SEND_ERROR_MESSAGE</a>.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt BOM explosion, scheduling via routing</font>
+  PERFORM <a href ="javascript:Link('MM61XC02_BOM_EXPLOSION.html?id=#000000000033');">BOM_EXPLOSION</a> CHANGING AM61X-RCODE.
+  IF AM61X-RCODE = CHAR1.
+    PERFORM <a href ="javascript:Link('MM61XF34_SEND_ERROR_MESSAGE.html?id=#000000000221');">SEND_ERROR_MESSAGE</a>.
+  ENDIF.
+  PERFORM <a href ="javascript:Link('MM61XC02_SCHEDULING_MRP.html?id=#000000000065');">SCHEDULING_MRP</a> CHANGING AM61X-RCODE.
+<font color ="#8C8C8C">*--&gt Anzeige-ME in Steuerungsfeld</font>
+  MOVE MDKP-MEINS TO MDST-MEINH.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

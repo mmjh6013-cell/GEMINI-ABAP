@@ -1,0 +1,275 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>LZFGCO02F01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: LZFGCO02F01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">***INCLUDE LZFGCO02F01.</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form check_required_field_redoc_01</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt E_MSG</font>
+<font color ="#8C8C8C">*&      --&gt LS_DATA_ZRETY</font>
+<font color ="#8C8C8C">*&      --&gt LS_DATA_KOKRS</font>
+<font color ="#8C8C8C">*&      --&gt TEXT_F01</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000001"></div>
+FORM check_required_field_redoc_01  CHANGING p_msg   LIKE zcms0060
+                                             ps_data TYPE zcos0010.
+
+  PERFORM <a href="#000000000002">get_init_data</a>.
+
+  " Employee Number
+  SELECT kokrs, bukrs, zemple
+    FROM zcmt0050
+    INTO TABLE @DATA(lt_empl).
+
+  " Cost Center
+  SELECT kokrs, bukrs, kostl
+    FROM csks
+   WHERE datbi EQ '99991231'
+   ORDER BY kostl
+    INTO TABLE @DATA(lt_csks).
+
+  " Currency
+  SELECT waers
+    FROM tcurc
+    INTO TABLE @DATA(lt_tcurc).
+
+  " Controlling Area
+  IF ps_data-kokrs IS INITIAL.
+    p_msg-type    = 'E'.
+    MESSAGE s007 WITH TEXT-f01 INTO p_msg-message.
+    EXIT.
+  ELSEIF NOT line_exists( gt_tka01[ kokrs = ps_data-kokrs ] ).
+    p_msg-type    = 'E'.
+    p_msg-message = |Invaild { TEXT-f01 } : { ps_data-kokrs }|.
+    EXIT.
+  ENDIF.
+
+  " Company Code
+  IF ps_data-bukrs IS INITIAL.
+    p_msg-type    = 'E'.
+    MESSAGE s007 WITH TEXT-f02 INTO p_msg-message.
+    EXIT.
+  ELSEIF NOT line_exists( gt_tka02[ kokrs = ps_data-kokrs
+                                    bukrs = ps_data-bukrs ] ).
+    p_msg-type    = 'E'.
+    p_msg-message = |Invaild { TEXT-f02 } : { ps_data-bukrs }|.
+    EXIT.
+  ENDIF.
+
+  " Employee Number
+  IF ps_data-zemple IS INITIAL.
+    p_msg-type    = 'E'.
+    MESSAGE s007 WITH TEXT-f03 INTO p_msg-message.
+    EXIT.
+  ELSEIF NOT line_exists( lt_empl[ kokrs  = ps_data-kokrs
+                                   bukrs  = ps_data-bukrs
+                                   zemple = ps_data-zemple ] ).
+    p_msg-type    = 'E'.
+    p_msg-message = |Invaild { TEXT-f03 } : { ps_data-zemple }|.
+    EXIT.
+  ENDIF.
+
+  " Request Type
+  IF ps_data-zrety IS INITIAL.
+    p_msg-type    = 'E'.
+    MESSAGE s007 WITH TEXT-f04 INTO p_msg-message.
+    EXIT.
+  ELSEIF ps_data-zrety EQ 'A'.  " A : Additional Budget Request
+    ps_data-versi = 'B01'.
+  ELSEIF ps_data-zrety EQ 'B'.  " B : Budget Transfer Request
+    ps_data-versi = 'B03'.
+  ELSEIF ps_data-zrety EQ 'C'.  " C : Budget Carryforward Request
+    ps_data-versi = 'B04'.
+  ELSE.
+    p_msg-type    = 'E'.
+    p_msg-message = |Invaild { TEXT-f04 } : { ps_data-zrety }|.
+    EXIT.
+  ENDIF.
+
+  " User Cost Center
+  IF ps_data-kostl IS INITIAL.
+<font color ="#8C8C8C">*      p_msg-type    = 'E'.</font>
+<font color ="#8C8C8C">*      MESSAGE s007 WITH TEXT-f03 INTO p_msg-message.</font>
+<font color ="#8C8C8C">*      EXIT.</font>
+  ELSEIF NOT line_exists( lt_csks[ kokrs = ps_data-kokrs
+                                   bukrs = ps_data-bukrs
+                                   kostl = ps_data-kostl ] ).
+    p_msg-type    = 'E'.
+    p_msg-message = |Invaild User { TEXT-f05 } : { ps_data-kostl }|.
+    EXIT.
+  ENDIF.
+
+  " Deduction Year/Month
+  IF ps_data-spbup_fr IS INITIAL.
+    p_msg-type = 'E'.
+    MESSAGE s007 WITH TEXT-f07 INTO p_msg-message.
+    EXIT.
+  ENDIF.
+
+  " Deduction Year/Month
+  IF ps_data-spbup_to IS INITIAL.
+    p_msg-type = 'E'.
+    MESSAGE s007 WITH TEXT-f08 INTO p_msg-message.
+    EXIT.
+  ENDIF.
+
+  " Currency
+  IF ps_data-waers IS INITIAL.
+    p_msg-type    = 'E'.
+    MESSAGE s007 WITH TEXT-f11 INTO p_msg-message.
+    EXIT.
+  ELSEIF NOT line_exists( lt_tcurc[ waers = ps_data-waers ] ).
+    p_msg-type    = 'E'.
+    p_msg-message = |Invaild { TEXT-f11 } : { ps_data-waers }|.
+    EXIT.
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form get_init_data</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000002"></div>
+FORM get_init_data .
+
+  " ######
+  SELECT kokrs, waers
+    FROM tka01
+    INTO TABLE @gt_tka01.
+
+  " ###### - ####
+  SELECT kokrs, bukrs
+    FROM tka02
+    INTO TABLE @gt_tka02.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form check_required_field_reqlist</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt I_DATA</font>
+<font color ="#8C8C8C">*&      &lt-- E_MSG</font>
+<font color ="#8C8C8C">*&      &lt-- LV_WHERE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000003"></div>
+FORM check_required_field_reqlist  USING    p_data TYPE zcos0050
+                                   CHANGING p_msg  TYPE zcms0060
+                                            pv_where.
+
+  PERFORM <a href="#000000000002">get_init_data</a>.
+
+  " Controlling Area
+  IF p_data-kokrs IS INITIAL.
+    p_msg-type    = 'E'.
+    MESSAGE s007 WITH TEXT-f01 INTO p_msg-message.
+    EXIT.
+  ELSEIF NOT line_exists( gt_tka01[ kokrs = p_data-kokrs ] ).
+    p_msg-type    = 'E'.
+    p_msg-message = |Invaild { TEXT-f01 } : { p_data-kokrs }|.
+    EXIT.
+  ELSE.
+    pv_where = |kokrs = @i_data-kokrs|.
+  ENDIF.
+
+  " Company Code
+  IF p_data-bukrs IS INITIAL.
+    p_msg-type    = 'E'.
+    MESSAGE s007 WITH TEXT-f02 INTO p_msg-message.
+    EXIT.
+  ELSEIF NOT line_exists( gt_tka02[ kokrs = p_data-kokrs
+                                    bukrs = p_data-bukrs ] ).
+    p_msg-type    = 'E'.
+    p_msg-message = |Invaild { TEXT-f02 } : { p_data-bukrs }|.
+    EXIT.
+  ELSE.
+    pv_where = |{ pv_where } AND bukrs = @i_data-bukrs|.
+  ENDIF.
+
+  " Request Date
+  IF p_data-zwrda_fr IS NOT INITIAL AND p_data-zwrda_to IS NOT INITIAL
+    AND p_data-zwrda_fr &gt p_data-zwrda_to.
+    p_msg-type    = 'E'.
+    p_msg-message = TEXT-e03.
+    EXIT.
+  ELSE.
+    IF p_data-zwrda_fr IS NOT INITIAL AND p_data-zwrda_to IS NOT INITIAL.
+      pv_where = |{ pv_where } AND zwrda BETWEEN @i_data-zwrda_fr AND @i_data-zwrda_to|.
+    ELSEIF p_data-zwrda_fr IS NOT INITIAL.
+      pv_where = |{ pv_where } AND zwrda = @i_data-zwrda_fr|.
+    ELSEIF p_data-zwrda_to IS NOT INITIAL.
+      pv_where = |{ pv_where } AND zwrda = @i_data-zwrda_to|.
+    ENDIF.
+  ENDIF.
+
+  " Request Type
+  IF p_data-zrety IS NOT INITIAL.
+    pv_where = |{ pv_where } AND zrety = @i_data-zrety|.
+  ENDIF.
+
+  " Employee Number
+  IF p_data-zemple IS NOT INITIAL.
+    SELECT SINGLE kokrs, bukrs, zemple
+      FROM zcmt0050
+     WHERE kokrs  = @p_data-kokrs
+       AND bukrs  = @p_data-bukrs
+       AND zemple = @p_data-zemple
+      INTO @DATA(lt_empl).
+    IF sy-subrc EQ 0.
+      pv_where = |{ pv_where } AND zemple = @i_data-zemple|.
+    ELSE.
+      p_msg-type    = 'E'.
+      p_msg-message = |Invaild { TEXT-f03 } : { p_data-zemple }|.
+      EXIT.
+    ENDIF.
+  ENDIF.
+
+  " Approval Status
+  IF p_data-zdocst IS NOT INITIAL.
+    pv_where = |{ pv_where } AND zdocst = @i_data-zdocst|.
+  ENDIF.
+
+  " Request Number
+  IF p_data-zreno IS NOT INITIAL.
+    SELECT SINGLE kokrs, bukrs, zreno
+      FROM zcot2020
+     WHERE kokrs = @p_data-kokrs
+       AND bukrs = @p_data-bukrs
+       AND zreno = @p_data-zreno
+      INTO @DATA(ls_reno).
+
+    IF sy-subrc EQ 0.
+      pv_where = |{ pv_where } AND zreno = @i_data-zreno|.
+    ELSE.
+      p_msg-type    = 'E'.
+      p_msg-message = |Invaild { TEXT-f12 } : { p_data-zreno }|.
+      EXIT.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

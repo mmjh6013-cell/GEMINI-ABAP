@@ -1,0 +1,201 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF92_FCODE_PRDL</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF92_FCODE_PRDL</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* FCODE: Print Dispositionsliste                                       *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000468"></div>
+FORM fcode_prdl.
+  sy-lsind = 0.
+  LEAVE TO LIST-PROCESSING.
+  EXPORT mdkp mt61d mdpsx mdezx cm61x-plauf
+         am61r-umren am61r-umrez rm61r-meinh cm61b
+         TO MEMORY ID id_druc_ez.
+  PERFORM ergebnis_drucken(rmdldr00).
+<font color ="#8C8C8C">*  LEAVE.                                          "SL HW 134389</font>
+ENDFORM.                    "FCODE_PRDL
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  FCODE_PVAR</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       Variable Druckausgabe des Planungsergebnisses</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000469"></div>
+FORM fcode_pvar.
+
+  DATA: mdezh LIKE mdez.                                    "HW 669983
+  DATA: mdezp LIKE mdey OCCURS 0 WITH HEADER LINE.
+
+<font color ="#8C8C8C">*--&gt Reset Statistics without end date</font>
+<font color ="#8C8C8C">*  IF NOT mdsta-cutdt IS INITIAL.</font>
+<font color ="#8C8C8C">*--&gt New Calculation of Statistics Data with cutoff-date</font>
+  CALL FUNCTION 'MDSTA_AUFBAUEN'
+    EXPORTING
+      emdsta = mdsta
+      einitf = xflag
+      emt61d = mt61d
+      ekzdwb = t399d-xfan1
+      ekzumb = t399d-kzumb
+      enfvbc = t399d-nfvbc
+      edefdt = xflag               "Set or delete cutoff-date
+    IMPORTING
+      imdsta = mdsta
+    TABLES
+      mdpsx  = mdpsx.
+<font color ="#8C8C8C">*  ENDIF.</font>
+<font color ="#8C8C8C">*--&gt Adapt MDEZX</font>
+  LOOP AT mdezx INTO mdezh.                                 "HW 669983
+    CLEAR mdezp.
+    MOVE-CORRESPONDING mdezh TO mdezp.
+<font color ="#8C8C8C">*--&gt Bestandszeilen</font>
+    IF mdezp-fbyte IS INITIAL.
+      MOVE mdst-meinh TO mdezp-meind.
+    ELSE.
+      CLEAR mdezp-meind.
+      CLEAR mdezp-mng01.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Verfügbarkeit</font>
+    IF NOT mdezp-vrfkz IS INITIAL.
+      MOVE mdst-meinh TO mdezp-meinv.
+    ELSE.
+      CLEAR mdezp-meinv.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Bestandszeilen markieren</font>
+    IF  mdezp-plumi EQ charb
+    AND NOT mdezp-delkz EQ shbst.
+      mdezp-info = 'C10'.
+    ELSE.
+      CLEAR mdezp-info.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Verfügbarkeitstermin = WE-Termin ?</font>
+    IF      mdezp-plumi EQ plusx
+    AND     mdst-vrfwe EQ xflag
+    AND NOT mdezp-dat01 IS INITIAL.
+      MOVE mdezp-dat01 TO mdezp-dat00.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Bedarfsvorlauf abziehen ?</font>
+    IF      mdezp-plumi EQ minus
+    AND     mdst-bedvl EQ xflag
+    AND NOT mdezp-dat01 IS INITIAL.
+      MOVE mdezp-dat01 TO mdezp-dat00.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Mengenumrechnung</font>
+    PERFORM menge_umrechnen USING mdezp-mng01.
+    PERFORM menge_umrechnen USING mdezp-mng02.
+    PERFORM menge_umrechnen USING mdezp-mnaus.
+    PERFORM menge_umrechnen USING mdezp-tramg.
+    IF mdst-wirak IS INITIAL           " Bei Wirkstoffabwicklung
+    OR  ( cm61x-plauf NE anzbs         " nicht in MD04 und MD07
+      AND cm61x-plauf NE anzml
+      AND cm61x-plauf NE lfraz         " auch nicht in MS04 und MS07
+      AND cm61x-plauf NE lfrml ).
+      PERFORM menge_umrechnen2 USING mdezp-univ1.
+      PERFORM menge_umrechnen2 USING mdezp-univ2.
+    ENDIF.
+    APPEND mdezp.
+  ENDLOOP.
+
+  DATA: exp_key_n LIKE moni-srtfd,
+        exp_key_t LIKE moni-srtfd,
+        akt_modus LIKE sy-modno.
+<font color ="#8C8C8C">* Strukturen Table-Control und Header</font>
+  DATA:  tabcontrol_cols
+         TYPE TABLE OF cxtab_column WITH HEADER LINE.
+  DATA:  header_scrtab
+         TYPE screentab WITH HEADER LINE.
+<font color ="#8C8C8C">* Bezeichner für Strukturen und int. Tab. Table Control und Header</font>
+  DATA:  header_structure(30),
+         tc_structure(30),
+         tc_int_tabname(30),
+         tc_int_table(30).
+<font color ="#8C8C8C">* Aufrufmodus ALV-Druck</font>
+  DATA:  pmode TYPE c.
+<font color ="#8C8C8C">* Feldsymbol für interne Tabelle - Generischer Export</font>
+  FIELD-SYMBOLS: &ltfs_tc_int_table&gt TYPE STANDARD TABLE,
+                 &ltfs_header_struct&gt.
+
+<font color ="#8C8C8C">*--&gt Export für Kopfdaten des Materials</font>
+  EXPORT mdkp mt61d cm61x-plauf
+         rm61r-meinh cm61b
+         mdsta
+      TO MEMORY ID id_druc_ez.
+<font color ="#8C8C8C">*--&gt Key für Memory-Export Bezeichner aufbauen</font>
+  MOVE 'MD_ALV_N' TO exp_key_n.
+  akt_modus = sy-modno + 1.
+  MOVE akt_modus TO exp_key_n+10.
+  MOVE rm61r-werks TO exp_key_n+12.
+<font color ="#8C8C8C">*--&gt Übergabe der Struktur- und int. Tabellen</font>
+<font color ="#8C8C8C">*  header_scrtab[]   = MDEZ_SCRTAB[].</font>
+  CLEAR header_scrtab[].
+  tabcontrol_cols[] =  tc_mdez_col[].
+  tc_structure      = 'MDEY'.
+  header_structure  = 'RM61R'.
+  tc_int_table      = 'MDEZP[]'.
+
+<font color ="#8C8C8C">*--&gt Bezeichnungen ins Memory</font>
+  EXPORT tc_structure tc_int_table header_structure
+         TO MEMORY ID exp_key_n.
+
+<font color ="#8C8C8C">*--&gt Key für Memory-Export Tabellen / Strukturen aufbauen</font>
+  MOVE 'MD_ALV_T' TO exp_key_t.
+  akt_modus = sy-modno + 1.
+  MOVE akt_modus TO exp_key_t+10.
+  MOVE rm61r-werks TO exp_key_t+12.
+<font color ="#8C8C8C">* Feldsymbol und Name für int. Tabelle / Callback-Programm</font>
+  ASSIGN (tc_int_table)     TO &ltfs_tc_int_table&gt.
+  ASSIGN (header_structure) TO &ltfs_header_struct&gt.
+
+<font color ="#8C8C8C">*--&gt Tabellen für Darstellung TC und Kopf ins Memory</font>
+  EXPORT &ltfs_tc_int_table&gt &ltfs_header_struct&gt
+         tabcontrol_cols header_scrtab
+         TO MEMORY ID exp_key_t.
+<font color ="#8C8C8C">*--&gt Fehlerbehandlung                                         "TODO</font>
+
+<font color ="#8C8C8C">*--&gt Aufrufmodus festlegen</font>
+  IF cm61x-plauf EQ anzbs
+  OR cm61x-plauf EQ lfraz
+  OR cm61x-plauf EQ anzml
+  OR cm61x-plauf EQ lfrml.
+<font color ="#8C8C8C">*  IF ( sy-tcode EQ 'MD04'</font>
+<font color ="#8C8C8C">*      OR sy-tcode EQ 'MS04'</font>
+<font color ="#8C8C8C">*      OR sy-tcode EQ 'MD07'</font>
+<font color ="#8C8C8C">*      OR sy-tcode EQ 'MS07' ).</font>
+    pmode = pmod_det_bbl.              "Einzelne BBL
+  ELSEIF cm61x-plauf EQ anzdl
+      OR cm61x-plauf EQ lfrdl
+      OR cm61x-plauf EQ anzds
+      OR cm61x-plauf EQ lfrds.
+<font color ="#8C8C8C">*  ELSEIF ( sy-tcode EQ 'MD05'</font>
+<font color ="#8C8C8C">*      OR sy-tcode EQ 'MS05'</font>
+<font color ="#8C8C8C">*      OR sy-tcode EQ 'MD06'</font>
+<font color ="#8C8C8C">*      OR sy-tcode EQ 'MS06' ).</font>
+    pmode = pmod_det_dl.               "Einzelne DL
+  ELSE.
+    pmode = pmod_det_pl.               "Einzelnes Pl.erg.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Sprung auf ALV-Report fürs Drucken</font>
+  SUBMIT rmdtcalv
+  WITH memkey_n EQ exp_key_n
+  WITH memkey_t EQ exp_key_t
+  WITH pmode EQ pmode
+  AND RETURN.
+
+ENDFORM.                    " FCODE_PVAR
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

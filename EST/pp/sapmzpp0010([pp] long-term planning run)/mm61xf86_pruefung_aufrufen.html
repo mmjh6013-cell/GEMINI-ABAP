@@ -1,0 +1,118 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF86_PRUEFUNG_AUFRUFEN</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF86_PRUEFUNG_AUFRUFEN</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Aufruf der Verfuegbarkeitspruefung</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000391"></div>
+FORM PRUEFUNG_AUFRUFEN USING L_ANWDG LIKE CM61A-ANWDG
+                             L_TEILP LIKE CM61A-TEILP
+                             L_AZERG LIKE CM61A-AZERG
+                             L_FKOBS LIKE CM61M-FKOBS.
+<font color ="#8C8C8C">*--&gt local data for ATP-Server</font>
+  DATA: L_ATPCA      LIKE ATPCA,
+        L_ATPCB      LIKE ATPCB,
+        L_ATPCC      LIKE ATPCC,
+        L_MDVAX_LEN  LIKE SY-TABIX,
+        L_MDVAX_LINE LIKE SY-TABIX,
+        L_ATPCSX     LIKE ATPCS  OCCURS 0 WITH HEADER LINE,
+        L_ATPMATX    LIKE ATPMAT OCCURS 0 WITH HEADER LINE,
+        L_MDVEX      LIKE MDVE   OCCURS 0 WITH HEADER LINE,
+        L_ATPMSGX    LIKE ATPMSG OCCURS 0 WITH HEADER LINE.
+<font color ="#8C8C8C">*--&gt Lokale Daten</font>
+  CLEAR: L_ATPCA, L_ATPCB, L_ATPCC.
+
+<font color ="#8C8C8C">*--&gt fill import parameter for availability check</font>
+  L_ATPCA-ANWDG = L_ANWDG.
+  IF L_TEILP IS INITIAL.
+    IF L_FKOBS EQ XFLAG.
+      L_ATPCA-EGSBS = CHARY.
+    ELSE.
+      L_ATPCA-EGSBS = CHARX.
+    ENDIF.
+  ENDIF.
+  L_ATPCA-RDMOD = CHARA.                        "Lesemodus: Summensätze
+  L_ATPCB-FABKL = CM61W-FABKL.
+  L_ATPCB-MEINS = MDKP-MEINS.
+  L_ATPCC-GSMNG = MPPA-GSMNG - MPPA-WAMNG.                      "TL 46A
+  L_ATPCC-PEDTR = MPPA-PEDTR.
+
+<font color ="#8C8C8C">*--&gt generate ATPCSX from MDVAX</font>
+  LOOP AT MDVAX.
+    MOVE-CORRESPONDING MDVAX TO L_ATPCSX.
+    MOVE mdvax-aufnr TO l_atpcsx-del12.                      "HW 420931
+    L_ATPCSX-TRTYP = CHARE.
+    L_ATPCSX-IDXATP = 1.
+    L_ATPCSX-CHKFLG = XFLAG.
+    IF NOT MDVAX-SIMKZ IS INITIAL
+    OR L_TEILP = CHARX.
+      CLEAR L_ATPCSX-ENQFLG.
+    ENDIF.
+    IF NOT MDVAX-KORKZ IS INITIAL.
+      CLEAR L_ATPCSX-CHKFLG.
+      L_ATPCSX-ENQFLG = XFLAG.
+      L_ATPCSX-CORFLG = XFLAG.
+    ENDIF.
+    APPEND L_ATPCSX.
+  ENDLOOP.
+<font color ="#8C8C8C">*--&gt perpare dialog</font>
+  CASE L_AZERG.
+    WHEN CHAR1
+    OR   CHAR2
+    OR   CHAR3.
+      MOVE L_AZERG TO L_ATPCA-AZERG.
+    WHEN OTHERS.
+      MOVE CHAR3 TO L_ATPCA-AZERG.
+  ENDCASE.
+<font color ="#8C8C8C">*--&gt call availability check controller</font>
+  CALL FUNCTION 'AVAILABILITY_CHECK_CONTROLLER'
+       TABLES
+            P_ATPCSX  = L_ATPCSX
+            P_MDVEX   = L_MDVEX
+            P_ATPMATX = L_ATPMATX
+       CHANGING
+            P_ATPCA   = L_ATPCA
+            P_ATPCB   = L_ATPCB
+            P_ATPCC   = L_ATPCC
+       EXCEPTIONS
+            ERROR   = 1.
+
+  IF SY-SUBRC NE 0.
+    CALL FUNCTION 'MESSAGE_HANDLING'
+         EXPORTING
+             P_FCODE   = 'GET'
+         TABLES
+             P_ATPMSGX = L_ATPMSGX.
+<font color ="#8C8C8C">*--&gt Notlösung: Solange von ATP keine vernünftigen Bausteine zum</font>
+<font color ="#8C8C8C">*    Message-Handling (ATP-Protokolle) zur Verfügung gestellt werden,</font>
+<font color ="#8C8C8C">*    wird nur der erste Fehler ausgegeben</font>
+    LOOP AT L_ATPMSGX WHERE MSGTY EQ 'E'.
+      MESSAGE ID     L_ATPMSGX-MSGID
+              TYPE   L_ATPMSGX-MSGTY
+              NUMBER L_ATPMSGX-MSGNO
+              WITH   L_ATPMSGX-MSGV1
+                     L_ATPMSGX-MSGV2
+                     L_ATPMSGX-MSGV3
+                     L_ATPMSGX-MSGV4.
+      EXIT.
+    ENDLOOP.
+  ENDIF.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

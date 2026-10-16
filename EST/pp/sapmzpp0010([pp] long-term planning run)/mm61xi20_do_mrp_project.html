@@ -1,0 +1,129 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XI20_DO_MRP_PROJECT</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XI20_DO_MRP_PROJECT</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       FORM DO_MRP_PROJECT                                           *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       ........                                                      *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000613"></div>
+FORM do_mrp_project.
+  DATA: lt_mdmm LIKE mdmm OCCURS 0 WITH HEADER LINE.
+  PERFORM <a href ="javascript:Link('MM61XDBR_READ_T000MD.html?id=#000000000138');">read_t000md</a>.                                    "Note 1178621
+<font color ="#8C8C8C">*--&gt Verarbeitungsschluessel lesen</font>
+  PERFORM read_t457a USING rm61x-versl.
+  IF sy-subrc NE 0.
+    MESSAGE e001 WITH rm61x-versl am61x-tbnam.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Kommunikationsaerea fuer Transaktion erstellen</font>
+  PERFORM <a href ="javascript:Link('MM61XF30_ERSTELLEN_CM61X.html?id=#000000000193');">erstellen_cm61x</a>.
+<font color ="#8C8C8C">*--&gt Statistik initialisieren</font>
+  PERFORM beginn_statistik.
+<font color ="#8C8C8C">*--&gt ATP initialisieren bzw. Puffer deaktivieren, falls CM61X-ATPDA = X</font>
+  PERFORM <a href ="javascript:Link('MM61XF31_ATP_INITIALIZE.html?id=#000000000196');">atp_initialize</a>.
+<font color ="#8C8C8C">*--&gt Materialien Zum Projekt ermitteln</font>
+  CALL FUNCTION 'CN_WB_MATERIAL_GET_TO_PROJECT'
+    EXPORTING
+      projn              = rm61x-pspid
+      pspnr              = rm61x-pspel
+      with_hierarchy     = rm61x-pshir
+    TABLES
+      mdmm_tab           = lt_mdmm
+    EXCEPTIONS
+      insufficient_input = 01.
+  IF sy-subrc NE 00.
+    EXIT.
+  ENDIF.
+  PERFORM grpg_set_buffer IN PROGRAM saplgrpg. "{ ENHO AD_GPD_SAPMM61X IS-AD-GPD AD_GPD }
+
+"{ Begin ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+<font color ="#8C8C8C">*  &gt A&D 3.0 : IM-MPN : Herausfiltern eventueller Non Leading Parts</font>
+<font color ="#8C8C8C">*  CALL FUNCTION 'MPN15_DELETE_NONLP_FOR_PROJECT'</font>
+<font color ="#8C8C8C">*     TABLES</font>
+<font color ="#8C8C8C">*          LT_MDMM = LT_MDMM .</font>
+<font color ="#8C8C8C">*  &gt End of A&D 3.0 Insert</font>
+
+<font color ="#8C8C8C">* NEW 4.6 : PIC Delete all non Lparts of MPN MRP Sets</font>
+  CALL FUNCTION 'PIC10_DELETE_NONLP_FOR_PROJECT'
+     TABLES
+          LT_MDMM = LT_MDMM.
+<font color ="#8C8C8C">* End of 4.6 PIC</font>
+"{ End ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+
+ENHANCEMENT-POINT do_mrp_project_01 SPOTS es_sapmm61x.
+<font color ="#8C8C8C">*--&gt Planungsvormerkungen erzeugen</font>
+  LOOP AT lt_mdmm.
+<font color ="#8C8C8C">*--&gt Textpositionen ausschliessen</font>
+    IF lt_mdmm-matnr IS INITIAL.
+      CONTINUE.
+    ELSE.
+      CALL FUNCTION 'MD_PLAN_THIS_MATERIAL_NEXT'
+        EXPORTING
+          iv_material = lt_mdmm-matnr
+          iv_plant    = lt_mdmm-plwrk
+          iv_disst    = lt_mdmm-disst
+          iv_berid    = lt_mdmm-berid
+          iv_berty    = lt_mdmm-berty
+          iv_sobkz    = sobkzq
+          iv_plauf    = cm61x-plauf.
+    ENDIF.
+  ENDLOOP.
+<font color ="#8C8C8C">*--&gt Sonderbestandskennzeichen vorbesetzen</font>
+  MOVE knttpq TO rm61x-knttp.
+  MOVE sobkzq TO rm61x-sobkz.
+  MOVE kzvbrp TO rm61x-kzvbr.
+<font color ="#8C8C8C">*--&gt Materialvormerkungen abarbeiten</font>
+  DO.
+<font color ="#8C8C8C">*--&gt Naechste Vormerkung ermitteln</font>
+    PERFORM next_planning_request.
+    IF am61x-rcode NE char0.
+      EXIT.
+    ENDIF.
+    "{ Begin ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+<font color ="#8C8C8C">*--&gt PIC : Processing SUS-Chain / MPN MRP SET</font>
+    IF SY-TCODE EQ 'MD51' and NOT gt_pic_parts[] IS INITIAL.  "N_2981786
+     PERFORM PIC_DO_MRP_MEHRSTUFIG .
+    ELSE.
+<font color ="#8C8C8C">*--&gt Material bearbeiten</font>
+    get_start_time time3.
+    PERFORM bearbeiten_material_mp USING xflag.
+    CLEAR tdiff.
+    run_time tdiff time4 time3.
+<font color ="#8C8C8C">*--&gt Statistik erfassen</font>
+    PERFORM erfassen_statistik USING tdiff.
+<font color ="#8C8C8C">*--&gt Material für Einzelplanung entsperren</font>
+    PERFORM <a href ="javascript:Link('MM61XC02_SPERREN_MRP_MP.html?id=#000000000072');">entsperren_mrp_shared</a> USING cm61d-werks         "HW 324982
+                                        cm61d-berid         "
+                                        cm61d-matnr.        "HW 324982
+    ENDIF." PIC : Processing SUS-Chain / MPN MRP SET
+  ENDDO.
+<font color ="#8C8C8C">*--&gt Statistik aufbereiten</font>
+  PERFORM grpg_clear_buffer IN PROGRAM saplgrpg. "{ ENHO AD_GPD_SAPMM61X IS-AD-GPD AD_GPD } "N_2981786
+
+ENHANCEMENT-POINT do_mrp_project_02 SPOTS es_sapmm61x .
+  PERFORM <a href ="javascript:Link('MM61XF88_AUFBEREITEN_STATISTIK.html?id=#000000000396');">aufbereiten_statistik</a>.
+<font color ="#8C8C8C">*--&gt Statistik anzeigen</font>
+  PERFORM anzeigen_statistik.
+<font color ="#8C8C8C">*--&gt Dequeue PSP-/WBS-Element                                "HW 325853</font>
+  CALL FUNCTION 'DEQUEUE_EPROPLA'                            "
+    EXPORTING
+      pspid = rm61x-pspid               "
+      pspel = rm61x-pspel.              "HW 325853
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

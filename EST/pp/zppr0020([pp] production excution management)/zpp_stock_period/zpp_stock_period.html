@@ -1,0 +1,183 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZPP_STOCK_PERIOD</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZPP_STOCK_PERIOD</b></font>
+<hr>
+<pre width="100">
+FUNCTION ZPP_STOCK_PERIOD.
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*"*"Local Interface:</font>
+<font color ="#8C8C8C">*"  IMPORTING</font>
+<font color ="#8C8C8C">*"     VALUE(IV_DATUM) TYPE  DATUM DEFAULT SY-DATUM</font>
+<font color ="#8C8C8C">*"     VALUE(IV_ZERO) TYPE  CHAR1 OPTIONAL</font>
+<font color ="#8C8C8C">*"     VALUE(IV_SHOW_POPUP) TYPE  XFELD DEFAULT ABAP_FALSE</font>
+<font color ="#8C8C8C">*"     VALUE(IV_WERKS) TYPE  WERKS_D OPTIONAL</font>
+<font color ="#8C8C8C">*"     VALUE(IV_MEINS) TYPE  MEINS OPTIONAL</font>
+<font color ="#8C8C8C">*"  TABLES</font>
+<font color ="#8C8C8C">*"      IT_MAT STRUCTURE  TAB_MATNR OPTIONAL</font>
+<font color ="#8C8C8C">*"      ET_STOCK STRUCTURE  ZPPS0010</font>
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+
+<font color ="#8C8C8C">*       <a href ="global-zpp_stock_period.html">Global data declarations</a></font>
+
+  DATA : lr_matnr TYPE RANGE OF mard-matnr.
+  DATA lt_stock TYPE TABLE OF zpps0010 .
+
+  REFRESH et_stock[] .
+  REFRESH lt_stock[] .
+
+  IF it_mat[] IS NOT INITIAL.
+    lr_matnr = VALUE #( FOR ls_opt IN it_mat ( sign = 'I'
+                                               option = 'EQ'
+                                               low = ls_opt-matnr ) ).
+  ENDIF.
+
+<font color ="#8C8C8C">**- ## ##</font>
+<font color ="#8C8C8C">*- 01 ## ##</font>
+<font color ="#8C8C8C">*- 02 ## ## # ##</font>
+<font color ="#8C8C8C">*- 03 ##</font>
+<font color ="#8C8C8C">*- 04 ## ##(## ##)</font>
+<font color ="#8C8C8C">*- 05 ## ##(###)</font>
+<font color ="#8C8C8C">*- 06 ## # ##</font>
+<font color ="#8C8C8C">*- 07 ## ##</font>
+<font color ="#8C8C8C">*- 08 ## ## ##</font>
+  SELECT
+        a~material AS matnr,
+        a~plant AS werks,
+        a~storagelocation AS lgort,
+        a~inventorystocktype AS ibbsa,
+        a~inventoryspecialstocktype AS sobkz,
+        a~materialbaseunit AS meins,
+        a~batch AS charg,
+        a~supplier AS lifnr,
+        a~suppliername AS lifnr_txt,
+        a~customer AS kunnr,
+        SUM( a~matlwrhsstkqtyinmatlbaseunit ) AS stock
+     FROM cmatstocktimeser( p_periodtype = 'D',   " cmatstocktimeser " c_materialstocktimeseries
+                            p_language   = @sy-langu,
+                            p_startdate  = @iv_datum,
+                            p_enddate    = @iv_datum ) AS a
+     WHERE a~material           IN @lr_matnr
+       AND a~plant = @iv_werks
+       AND a~inventorystocktype IN ('01', '02', '03', '04', '05', '06', '07', '08')
+     GROUP BY
+        a~material,
+        a~plant,
+        a~storagelocation,
+        a~inventorystocktype,
+        a~inventoryspecialstocktype,
+        a~materialbaseunit,
+        a~batch,
+        a~supplier,
+        a~suppliername,
+        a~customer
+     ORDER BY a~material, a~plant, a~storagelocation, a~inventorystocktype
+      INTO CORRESPONDING FIELDS OF TABLE @lt_stock.
+
+  IF iv_meins IS NOT INITIAL .
+
+    " 2025.10.15 ## =&gt ## #### function## ##
+<font color ="#8C8C8C">* " IV_MEINS ## ### ##</font>
+<font color ="#8C8C8C">* " &gt&gt IV_MEINS # ## ##</font>
+<font color ="#8C8C8C">* SELECT matnr, werks, lgort, ibbsa, sobkz,</font>
+<font color ="#8C8C8C">* CASE @iv_meins " Target Unit = iv_meins</font>
+<font color ="#8C8C8C">* WHEN meins THEN meins</font>
+<font color ="#8C8C8C">* ELSE @iv_meins</font>
+<font color ="#8C8C8C">* END AS meins,</font>
+<font color ="#8C8C8C">* charg, lifnr, lifnr_txt, kunnr,</font>
+<font color ="#8C8C8C">* CASE @iv_meins</font>
+<font color ="#8C8C8C">* WHEN meins THEN</font>
+<font color ="#8C8C8C">* stock</font>
+<font color ="#8C8C8C">* ELSE</font>
+<font color ="#8C8C8C">* unit_conversion(</font>
+<font color ="#8C8C8C">* quantity = stock,</font>
+<font color ="#8C8C8C">* source_unit = meins,</font>
+<font color ="#8C8C8C">* target_unit = @iv_meins</font>
+<font color ="#8C8C8C">* )</font>
+<font color ="#8C8C8C">* END AS stock</font>
+<font color ="#8C8C8C">* FROM @lt_stock AS t</font>
+<font color ="#8C8C8C">* INTO CORRESPONDING FIELDS OF TABLE @et_stock .</font>
+
+
+    " IV_MEINS ## ### ##
+    "   &gt&gt IV_MEINS # ## ##
+    LOOP AT lt_stock ASSIGNING FIELD-SYMBOL(&ltfs_stock&gt).
+      CALL FUNCTION 'MD_CONVERT_MATERIAL_UNIT'
+        EXPORTING
+          i_matnr  = &ltfs_stock&gt-matnr         " MatNo.
+          i_in_me  = &ltfs_stock&gt-meins         " DE-EN-LANG-SWITCH-NO-TRANSLATION
+          i_out_me = iv_meins                 " DE-EN-LANG-SWITCH-NO-TRANSLATION
+          i_menge  = &ltfs_stock&gt-stock         " Outbound Qty
+        IMPORTING
+          e_menge  = &ltfs_stock&gt-stock.        " Target Quantity
+    ENDLOOP.
+
+    SELECT matnr, werks, lgort, ibbsa, sobkz,
+          CASE @iv_meins  "  Target Unit = iv_meins
+            WHEN meins THEN meins
+            ELSE @iv_meins
+          END AS meins,
+          charg, lifnr, lifnr_txt, kunnr,
+          stock
+      FROM @lt_stock  AS t
+      INTO CORRESPONDING FIELDS OF TABLE @et_stock .
+
+    "
+  ELSE .
+
+    et_stock[] = lt_stock[] .
+
+  ENDIF .
+
+  IF iv_zero EQ 'X'.
+
+    DELETE et_stock WHERE stock EQ 0.
+
+  ENDIF.
+
+
+  IF iv_show_popup = abap_false .
+    RETURN.
+  ENDIF.
+
+
+
+  IF et_stock[] IS INITIAL.
+    MESSAGE TEXT-999 TYPE 'S' DISPLAY LIKE 'E'.
+    RETURN.
+  ELSE.
+
+    PERFORM create_fcat_1100.
+    gt_grid_1100 = CORRESPONDING #( et_stock[] ).
+
+    gv_clicked = 'N' .
+
+    CALL SCREEN 1100 STARTING AT 1   1
+                     ENDING AT   75 20.
+
+    " ### ### ## ### ## 1100 #### PAI# ALV_1100#
+    " #### ET_STOCK[]# ##### ### ### ## # ####
+    " #### ### ### ### ### #### ###.
+    REFRESH et_stock[] .
+    IF gv_clicked = 'Y' . " Clicked #### ## Return
+      et_stock[] = gt_grid_1100[] .
+      gv_clicked = 'N' . " Click ## ## # Return
+    ENDIF .
+
+  ENDIF.
+
+ENDFUNCTION.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

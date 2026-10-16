@@ -1,0 +1,98 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XAUS_CHECK_PROMOTION</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XAUS_CHECK_PROMOTION</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*@001-Begin</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">* Prüfen, ob  der Artikel in Aktion ist, wenn ja Kennung setzen</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<div id="000000000005"></div>
+FORM CHECK_PROMOTION USING MATNR TESTDAT KZPROMO.
+  CLEAR KZPROMO.
+<font color ="#8C8C8C">*--&gt Aktionsprüfung nur für IS-Retail</font>
+  CHECK T001W-VLFKZ &lt&gt SPACE.
+
+<font color ="#8C8C8C">*@003-Begin</font>
+  DATA: L_AKTIONEN_TAB TYPE WAKTP_PROMOHEAD WITH HEADER LINE.
+<font color ="#8C8C8C">* data: begin of l_aktionen_tab occurs 10.</font>
+<font color ="#8C8C8C">*         include structure wakh.</font>
+<font color ="#8C8C8C">* data: end of l_aktionen_tab.</font>
+<font color ="#8C8C8C">*@003-End</font>
+<font color ="#8C8C8C">* note 614539 - B</font>
+  DATA: L_WAKHZ TYPE NUMC_5.
+<font color ="#8C8C8C">* note 614539 - B</font>
+
+<font color ="#8C8C8C">* note 208906 - B</font>
+  DATA: L_DATE_TYPE LIKE RWAKA-DATE_TYPE.
+
+  IF T001W-VLFKZ = 'A'.
+<font color ="#8C8C8C">*   Filiale: Überschneidungen mit VK-Zeitraum prüfen</font>
+    L_DATE_TYPE = 'V'.
+  ELSEIF T001W-VLFKZ = 'B'.
+<font color ="#8C8C8C">*   VZ: Überschneidungen mit Lieferzeitraum prüfen</font>
+    L_DATE_TYPE = 'F'.
+  ENDIF.
+<font color ="#8C8C8C">* note 208906 - E</font>
+
+  CLEAR   L_AKTIONEN_TAB.
+  REFRESH L_AKTIONEN_TAB.
+
+<font color ="#8C8C8C">* es gelten folgende Belegungen für KZPROMO:</font>
+<font color ="#8C8C8C">* 0: der Artikel ist in keiner Aktion</font>
+<font color ="#8C8C8C">* 1: der Artikel ist in Aktion und es wurden Aktionen ab dem</font>
+<font color ="#8C8C8C">*    aktuellen Datum gesucht</font>
+<font color ="#8C8C8C">* 2: der Artikel ist in Aktion und es wurden Aktionen ab dem</font>
+<font color ="#8C8C8C">*    Dispodatum gesucht</font>
+
+  IF TESTDAT = SY-DATLO.
+    KZPROMO = CHAR1.         "Aktionen ab akt. Datum suchen
+  ELSE.
+    KZPROMO = CHAR2.         "Aktionen ab Dispodatum suchen
+  ENDIF.
+
+<font color ="#8C8C8C">* note 614539 - B</font>
+  MOVE T399D-WAKHZ TO L_WAKHZ.
+<font color ="#8C8C8C">* note 614539 - E</font>
+
+  CALL FUNCTION 'PROMOTION_ON_ARTNR_ME_FIND'
+     EXPORTING
+          FFLDAT              = TESTDAT
+          FARTNR              = MATNR
+<font color ="#8C8C8C">* note 614539 - B</font>
+<font color ="#8C8C8C">*         FOFFS               = T399D-WAKHZ  "Horizont für Aktionen</font>
+          FOFFS               = L_WAKHZ      "Horizont für Aktionen
+<font color ="#8C8C8C">* note 614539 - E</font>
+<font color ="#8C8C8C">* note 208906 - B</font>
+          FSTORETYPE          = T001W-VLFKZ
+          FSTORE              = MDKP-PLWRK
+          DATE_TYPE           = L_DATE_TYPE
+<font color ="#8C8C8C">* note 208906 - E</font>
+     TABLES
+          FWAKH               = L_AKTIONEN_TAB
+     EXCEPTIONS
+          PROMOTION_NOT_FOUND = 01
+          STORETYPE_WRONG     = 02.
+
+  CASE SY-SUBRC.
+    WHEN 01.
+      CLEAR KZPROMO.
+    WHEN 02.
+      CLEAR KZPROMO.
+  ENDCASE.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

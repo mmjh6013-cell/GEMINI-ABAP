@@ -1,0 +1,165 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZMM_GET_PLM</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZMM_GET_PLM</b></font>
+<hr>
+<pre width="100">
+FUNCTION ZMM_GET_PLM.
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*"*"Local Interface:</font>
+<font color ="#8C8C8C">*"  EXPORTING</font>
+<font color ="#8C8C8C">*"     VALUE(ES_RETURN) LIKE  ZMMS0501 STRUCTURE  ZMMS0501</font>
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+
+<font color ="#8C8C8C">*       <a href ="global-zmm_get_plm.html">Global data declarations</a></font>
+  DATA: LS_ZMMT0010 LIKE ZMMT0010,
+        LT_ZMMT0010 LIKE TABLE OF LS_ZMMT0010,
+        LT_ZMMT0013 LIKE TABLE OF ZMMT0013,
+        LS_ZMMT0011 LIKE ZMMT0011,
+        LT_ZMMT0011 LIKE TABLE OF LS_ZMMT0011.
+
+  DATA: LT_DATA   LIKE TABLE OF ZMMS0012 WITH EMPTY KEY,
+        LV_MAKTX  LIKE MAKT-MAKTX,
+        LV_INDEX  TYPE I,
+        LV_NUMBER TYPE NRFROM.
+
+<font color ="#8C8C8C">* PROXY & ## ### ## ##</font>
+  DATA: ZCL_PROXY TYPE REF TO ZMMCO_MM0010_SO,
+        FAULT     TYPE REF TO CX_AI_SYSTEM_FAULT,
+        ZERROR    TYPE STRING.
+
+<font color ="#8C8C8C">* ##/## ### ## ##</font>
+  DATA : ZREQ TYPE ZMMMM0010_SEND_REQ_MT,
+         ZRES TYPE ZMMMM0010_SEND_RES_MT.
+
+  CONSTANTS: LC_UPDATE TYPE STRING VALUE 'UPDATE',
+             LC_ADD    TYPE STRING VALUE 'ADD'.
+<font color ="#8C8C8C">*__________________________________________________________</font>
+  "## # ##
+  ZREQ-SYS_SAP_PROC_FLAG = 'N'.
+
+<font color ="#8C8C8C">* PROXY ### ##</font>
+  TRY.
+      CREATE OBJECT ZCL_PROXY.
+<font color ="#8C8C8C">*  IS ##</font>
+      CALL METHOD ZCL_PROXY-&gtMM0010_SO
+        EXPORTING
+          INPUT  = ZREQ  "## ###
+        IMPORTING
+          OUTPUT = ZRES. "## ###
+
+
+<font color ="#8C8C8C">* ####</font>
+    CATCH CX_AI_SYSTEM_FAULT INTO FAULT.
+      CALL METHOD FAULT-&gtGET_TEXT
+        RECEIVING
+          RESULT = ZERROR.
+
+      ES_RETURN-MESSAGE = ZERROR.
+      ES_RETURN-STATUS = 'E'.
+
+  ENDTRY.
+
+  IF ZRES-IT_DATA[] IS INITIAL.
+    ES_RETURN-MESSAGE = TEXT-E01.
+    ES_RETURN-STATUS = 'E'.
+    EXIT.
+
+  ENDIF.
+
+  CLEAR: LT_ZMMT0010, LT_ZMMT0011, LT_ZMMT0013.
+
+  CALL FUNCTION <a href ="../zmm_get_interface_number/zmm_get_interface_number.html">'ZMM_GET_INTERFACE_NUMBER'</a>
+    IMPORTING
+      EV_NUMBER = LV_NUMBER.
+
+  MOVE-CORRESPONDING ZRES-IT_DATA[] TO LT_DATA.
+
+  SELECT A~INF_NUMBER, C~MAKTX
+    FROM @LT_DATA AS A INNER JOIN MARA AS B
+                               ON B~MATNR = A~INF_NUMBER
+                  LEFT OUTER JOIN MAKT AS C
+                               ON C~MATNR = A~INF_NUMBER
+                              AND C~SPRAS = @SY-LANGU
+    INTO TABLE @DATA(LT_MARA).
+  SORT LT_MARA BY INF_NUMBER.
+
+<font color ="#8C8C8C">*--- ##</font>
+  LOOP AT LT_DATA ASSIGNING FIELD-SYMBOL(&ltLS_DATA&gt).
+    CASE &ltLS_DATA&gt-SYS_OP_FLAG.
+      WHEN LC_UPDATE.
+        "### ##### I/F ### ## ## ## ##
+        READ TABLE LT_MARA INTO DATA(LS_MARA)
+                           WITH KEY INF_NUMBER = &ltLS_DATA&gt-INF_NUMBER
+                           BINARY SEARCH.
+
+        IF SY-SUBRC = 0.
+          LV_MAKTX = &ltLS_DATA&gt-INF_DESC.
+          IF LV_MAKTX &lt&gt LS_MARA-MAKTX.
+            PERFORM BAPI_MATERIAL_SAVEDATA USING &ltLS_DATA&gt.
+
+          ENDIF.
+
+        ENDIF.
+
+    ENDCASE.
+    IF &ltLS_DATA&gt-IF_TYPE &lt&gt 'E'.
+      &ltLS_DATA&gt-IF_TYPE = 'S'.
+      &ltLS_DATA&gt-SYS_ERP_PROC_FLAG =  'Y'.
+
+    ENDIF.
+
+    "LOG
+    "### ##
+    LV_INDEX += 1.
+    PERFORM SET_IF_LOG  USING LV_NUMBER LV_INDEX GC_PLM 'MM0010'
+                     CHANGING LS_ZMMT0010.
+
+    MOVE-CORRESPONDING &ltLS_DATA&gt TO LS_ZMMT0010.
+    APPEND LS_ZMMT0010 TO LT_ZMMT0010.
+
+    "LATEST
+    MOVE-CORRESPONDING &ltLS_DATA&gt TO LS_ZMMT0011.
+
+    APPEND LS_ZMMT0011 TO LT_ZMMT0011.
+
+    CLEAR: LS_ZMMT0010, LS_ZMMT0011.
+
+  ENDLOOP.
+
+<font color ="#8C8C8C">*---##</font>
+  IF LT_ZMMT0010[] IS NOT INITIAL.
+    MODIFY ZMMT0010 FROM TABLE LT_ZMMT0010.
+
+    IF SY-SUBRC = 0.
+      "PLM# ### ## DB
+      MOVE-CORRESPONDING LT_DATA TO LT_ZMMT0013.
+      MODIFY ZMMT0013 FROM TABLE LT_ZMMT0013.
+
+    ENDIF.
+
+  ENDIF.
+
+  IF LT_ZMMT0011[] IS NOT INITIAL.
+    MODIFY ZMMT0011 FROM TABLE LT_ZMMT0011.
+    DESCRIBE TABLE LT_ZMMT0011 LINES DATA(LV_LINE).
+
+  ENDIF.
+
+  MESSAGE S002(ZMMM) WITH LV_LINE.
+
+ENDFUNCTION.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

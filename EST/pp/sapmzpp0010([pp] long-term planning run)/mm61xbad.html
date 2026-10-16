@@ -1,0 +1,273 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XBAD</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XBAD</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&  Include           MM61XBAD</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  get_instance_add_cols</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       get instance and active flag for BAdI MD_ADD_COL_OVERVIEW</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000019"></div>
+FORM get_instance_add_cols
+  CHANGING ev_md_add_col_overview TYPE REF TO if_ex_md_add_col_overview
+           ev_md_badi_active      TYPE xflag.
+
+<font color ="#8C8C8C">*--&gt object instance declaration</font>
+  STATICS: lv_md_add_col_overview TYPE REF TO if_ex_md_add_col_overview,
+           lv_md_badi_active(1)   TYPE c.
+
+<font color ="#8C8C8C">*--&gt instance already created</font>
+  IF NOT lv_md_add_col_overview IS INITIAL.
+    ev_md_add_col_overview = lv_md_add_col_overview.
+    ev_md_badi_active      = lv_md_badi_active.
+  ELSE.
+    CALL METHOD cl_exithandler=&gtget_instance
+      EXPORTING
+        exit_name        = 'MD_ADD_COL_OVERVIEW'
+      IMPORTING
+        act_imp_existing = lv_md_badi_active
+      CHANGING
+        instance         = lv_md_add_col_overview.  "#EC CI_BADI_GETINST.
+
+    ev_md_add_col_overview = lv_md_add_col_overview.
+    ev_md_badi_active      = lv_md_badi_active.
+  ENDIF.
+
+ENDFORM.                    " get_instance_add_cols
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  check_add_columns_active</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       check whether additional columns are active for application</font>
+<font color ="#8C8C8C">*       and determines the names of additional columns</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000020"></div>
+FORM check_add_columns_active USING    iv_plauf     TYPE plauf
+                              CHANGING es_badi_m61r TYPE badi_m61r.
+
+  DATA: lv_md_add_col_overview TYPE REF TO if_ex_md_add_col_overview,
+        lv_md_badi_active(1)   TYPE c.
+
+<font color ="#8C8C8C">*--&gt get BAdI instance</font>
+  PERFORM <a href="#000000000019">get_instance_add_cols</a>
+              CHANGING
+                 lv_md_add_col_overview
+                 lv_md_badi_active.
+
+<font color ="#8C8C8C">*--&gt check BAdI active</font>
+  IF lv_md_badi_active IS INITIAL.
+    CLEAR es_badi_m61r.
+    EXIT.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt fill control structure with BAdI parameters</font>
+  CHECK iv_plauf NE es_badi_m61r-plauf.
+
+  CLEAR es_badi_m61r.
+  es_badi_m61r-badon = lv_md_badi_active.
+  es_badi_m61r-plauf = iv_plauf.
+
+<font color ="#8C8C8C">*--&gt call BAdI method to get active columns and column names</font>
+  CALL METHOD lv_md_add_col_overview-&gtactivate_add_columns
+    EXPORTING
+      im_plauf            = es_badi_m61r-plauf
+    IMPORTING
+      ex_col_char1_active = es_badi_m61r-col_char1_act
+      ex_col_char2_active = es_badi_m61r-col_char2_act
+      ex_col_char3_active = es_badi_m61r-col_char3_act
+      ex_col_dec1_active  = es_badi_m61r-col_dec1_act
+      ex_col_dec2_active  = es_badi_m61r-col_dec2_act
+      ex_col_dats1_active = es_badi_m61r-col_dats1_act
+      ex_col_dats2_active = es_badi_m61r-col_dats2_act
+      ex_col_char1_name   = es_badi_m61r-col_char1_name
+      ex_col_char2_name   = es_badi_m61r-col_char2_name
+      ex_col_char3_name   = es_badi_m61r-col_char3_name
+      ex_col_dec1_name    = es_badi_m61r-col_dec1_name
+      ex_col_dec2_name    = es_badi_m61r-col_dec2_name
+      ex_col_dats1_name   = es_badi_m61r-col_dats1_name
+      ex_col_dats2_name   = es_badi_m61r-col_dats2_name
+      ex_mdpsx_required   = es_badi_m61r-mdpsx_required.
+
+<font color ="#8C8C8C">*--&gt consistency check: active flag vs. column name</font>
+<font color ="#8C8C8C">*    COL_CHAR1</font>
+  IF NOT es_badi_m61r-col_char1_act IS INITIAL.
+    IF es_badi_m61r-col_char1_name IS INITIAL.
+      PERFORM <a href="#000000000022">get_default_name</a> CHANGING es_badi_m61r-col_char1_name.
+    ENDIF.
+  ELSE.
+    CLEAR es_badi_m61r-col_char1_name.
+  ENDIF.
+<font color ="#8C8C8C">*    COL_CHAR2</font>
+  IF NOT es_badi_m61r-col_char2_act IS INITIAL.
+    IF es_badi_m61r-col_char2_name IS INITIAL.
+      PERFORM <a href="#000000000022">get_default_name</a> CHANGING es_badi_m61r-col_char2_name.
+    ENDIF.
+  ELSE.
+    CLEAR es_badi_m61r-col_char2_name.
+  ENDIF.
+<font color ="#8C8C8C">*    COL_CHAR3</font>
+  IF NOT es_badi_m61r-col_char3_act IS INITIAL.
+    IF es_badi_m61r-col_char3_name IS INITIAL.
+      PERFORM <a href="#000000000022">get_default_name</a> CHANGING es_badi_m61r-col_char3_name.
+    ENDIF.
+  ELSE.
+    CLEAR es_badi_m61r-col_char3_name.
+  ENDIF.
+<font color ="#8C8C8C">*    COL_DEC1</font>
+  IF NOT es_badi_m61r-col_dec1_act IS INITIAL.
+    IF es_badi_m61r-col_dec1_name IS INITIAL.
+      PERFORM <a href="#000000000022">get_default_name</a> CHANGING es_badi_m61r-col_dec1_name.
+    ENDIF.
+  ELSE.
+    CLEAR es_badi_m61r-col_dec1_name.
+  ENDIF.
+<font color ="#8C8C8C">*    COL_DEC2</font>
+  IF NOT es_badi_m61r-col_dec2_act IS INITIAL.
+    IF es_badi_m61r-col_dec2_name IS INITIAL.
+      PERFORM <a href="#000000000022">get_default_name</a> CHANGING es_badi_m61r-col_dec2_name.
+    ENDIF.
+  ELSE.
+    CLEAR es_badi_m61r-col_dec2_name.
+  ENDIF.
+<font color ="#8C8C8C">*    COL_DATS1</font>
+  IF NOT es_badi_m61r-col_dats1_act IS INITIAL.
+    IF es_badi_m61r-col_dats1_name IS INITIAL.
+      PERFORM <a href="#000000000022">get_default_name</a> CHANGING es_badi_m61r-col_dats1_name.
+    ENDIF.
+  ELSE.
+    CLEAR es_badi_m61r-col_dats1_name.
+  ENDIF.
+<font color ="#8C8C8C">*    COL_DATS2</font>
+  IF NOT es_badi_m61r-col_dats2_act IS INITIAL.
+    IF es_badi_m61r-col_dats2_name IS INITIAL.
+      PERFORM <a href="#000000000022">get_default_name</a> CHANGING es_badi_m61r-col_dats2_name.
+    ENDIF.
+  ELSE.
+    CLEAR es_badi_m61r-col_dats2_name.
+  ENDIF.
+
+ENDFORM.                    " check_add_columns_active
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  fill_add_columns</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       fill additional columns when active for the appropriate</font>
+<font color ="#8C8C8C">*       application</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000021"></div>
+FORM fill_add_columns USING    iv_plauf     TYPE plauf
+                               is_badi_m61r TYPE badi_m61r
+                               is_mdkp      TYPE mdkp
+                               it_mdpsx     TYPE badi_mdpsx
+                      CHANGING es_mdke      TYPE mdke.
+
+  DATA: lv_md_add_col_overview TYPE REF TO if_ex_md_add_col_overview,
+        lv_md_badi_active(1)   TYPE c,
+        ls_mdke                TYPE mdke.
+
+<font color ="#8C8C8C">*--&gt get BAdI instance</font>
+  PERFORM <a href="#000000000019">get_instance_add_cols</a>
+              CHANGING
+                 lv_md_add_col_overview
+                 lv_md_badi_active.
+
+<font color ="#8C8C8C">*--&gt check BAdI active</font>
+  CHECK NOT lv_md_badi_active IS INITIAL.
+
+<font color ="#8C8C8C">*--&gt check whether control structure has been filled for current</font>
+<font color ="#8C8C8C">*    application</font>
+  CHECK iv_plauf EQ is_badi_m61r-plauf.
+
+<font color ="#8C8C8C">*--&gt call BAdI method to get the content of active columns</font>
+  CALL METHOD lv_md_add_col_overview-&gtfill_add_columns
+    EXPORTING
+      im_plauf             = is_badi_m61r-plauf
+      im_mdkp              = is_mdkp
+      im_mdke              = es_mdke
+      im_mdpsx             = it_mdpsx
+    IMPORTING
+      ex_col_char1_content = ls_mdke-col_char1_cont
+      ex_col_char2_content = ls_mdke-col_char2_cont
+      ex_col_char3_content = ls_mdke-col_char3_cont
+      ex_col_dec1_content  = ls_mdke-col_dec1_cont
+      ex_col_dec2_content  = ls_mdke-col_dec2_cont
+      ex_col_dats1_content = ls_mdke-col_dats1_cont
+      ex_col_dats2_content = ls_mdke-col_dats2_cont.
+
+<font color ="#8C8C8C">*--&gt copy content for activated columns only</font>
+  IF NOT is_badi_m61r-col_char1_act IS INITIAL.
+    es_mdke-col_char1_cont = ls_mdke-col_char1_cont.
+  ENDIF.
+  IF NOT is_badi_m61r-col_char2_act IS INITIAL.
+    es_mdke-col_char2_cont = ls_mdke-col_char2_cont.
+  ENDIF.
+  IF NOT is_badi_m61r-col_char3_act IS INITIAL.
+    es_mdke-col_char3_cont = ls_mdke-col_char3_cont.
+  ENDIF.
+  IF NOT is_badi_m61r-col_dec1_act IS INITIAL.
+    es_mdke-col_dec1_cont = ls_mdke-col_dec1_cont.
+  ENDIF.
+  IF NOT is_badi_m61r-col_dec2_act IS INITIAL.
+    es_mdke-col_dec2_cont = ls_mdke-col_dec2_cont.
+  ENDIF.
+  IF NOT is_badi_m61r-col_dats1_act IS INITIAL.
+    es_mdke-col_dats1_cont = ls_mdke-col_dats1_cont.
+  ENDIF.
+  IF NOT is_badi_m61r-col_dats2_act IS INITIAL.
+    es_mdke-col_dats2_cont = ls_mdke-col_dats2_cont.
+  ENDIF.
+
+ENDFORM.                    " fill_add_columns
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  get_default_name</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       get default name for additional column</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000022"></div>
+FORM get_default_name CHANGING ev_col_name TYPE md_col_name.
+
+  STATICS: ls_dd04v     TYPE dd04v,
+           lv_ddobjname TYPE ddobjname VALUE 'MD_COL_NAME'.
+
+  IF NOT ls_dd04v-scrtext_l IS INITIAL.
+    ev_col_name = ls_dd04v-scrtext_l.
+    EXIT.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt get long field label of data element MD_COL_NAME</font>
+  CALL FUNCTION 'DDIF_DTEL_GET'
+    EXPORTING
+      name     = lv_ddobjname
+      langu    = sy-langu
+    IMPORTING
+      dd04v_wa = ls_dd04v
+    EXCEPTIONS
+      OTHERS   = 1.
+  IF sy-subrc &lt&gt 0.
+    EXIT.
+  ENDIF.
+
+  ev_col_name = ls_dd04v-scrtext_l.
+
+ENDFORM.                    " get_default_name
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

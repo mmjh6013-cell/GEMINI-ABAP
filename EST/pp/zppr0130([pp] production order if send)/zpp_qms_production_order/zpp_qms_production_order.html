@@ -1,0 +1,322 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZPP_QMS_PRODUCTION_ORDER</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZPP_QMS_PRODUCTION_ORDER</b></font>
+<hr>
+<pre width="100">
+FUNCTION zpp_qms_production_order.
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*"*"Local Interface:</font>
+<font color ="#8C8C8C">*"  EXPORTING</font>
+<font color ="#8C8C8C">*"     REFERENCE(ES_REPLY) TYPE  ZCMS0060</font>
+<font color ="#8C8C8C">*"  TABLES</font>
+<font color ="#8C8C8C">*"      IT_DATA STRUCTURE  ZPPS0181</font>
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+
+<font color ="#8C8C8C">*       <a href ="global-zpp_qms_production_order.html">Global data declarations</a></font>
+  " For IS Req
+  DATA : zcl_proxy_req TYPE REF TO zppco_pp0090_so,
+         fault         TYPE REF TO cx_ai_system_fault,
+         zerror        TYPE string,
+         zreq_req      TYPE zpppp0090_send_req_mt,
+         zres_req      TYPE zpppp0090_send_res_mt.
+
+  DATA : lt_log TYPE TABLE OF zppt0210l,
+         ls_log TYPE zppt0210l.
+
+  DATA : BEGIN OF ls_data.
+           include structure <a href ="zpps0180/dictionary-zpps0180.html">zpps0180</a>.
+  DATA :   user0 TYPE char100,
+           zseq  TYPE zppt0210-zseq,
+         END OF ls_data,
+         lt_data    LIKE TABLE OF ls_data,
+         lt_sending LIKE TABLE OF ls_data.
+
+  " For Log
+  DATA : ls_ifkey_key  TYPE zcms0030,
+         ls_ifkey_info TYPE zcms0040,
+         lv_seq_log    TYPE zppt0210l-if_item,
+         lv_if_seq     TYPE numc4,
+         lv_err,
+         lv_err_msg    TYPE string.
+
+  DATA(lt_data_in) = it_data[].
+
+  "-- 1. Data Select
+  " CO #### ##
+  SELECT b~werks, a~aufnr, d~user2 AS prdline,
+         b~auart, b~plnbez AS matnr,
+         c~meins,
+<font color ="#8C8C8C">*         CAST( c~user0 AS DEC( 13 ) ) AS req_qty,</font>
+<font color ="#8C8C8C">*         d~user0,</font>
+         CAST( d~user5 AS CHAR( 8 ) ) AS req_date,
+         CASE WHEN d~user0 IS NULL OR d~user0 IS INITIAL
+                                   THEN '0'
+                                   ELSE d~user0
+                                   END AS user0,
+         a~ord_iud,
+         a~zseq
+    FROM zppt0210 AS a INNER JOIN caufv AS b
+                               ON a~aufnr = b~aufnr
+                       INNER JOIN afpo AS c
+                               ON b~aufnr = c~aufnr
+                       INNER JOIN aufk AS d
+                               ON a~aufnr = d~aufnr
+                       INNER JOIN @lt_data_in AS e  " Tables Data# Get
+                               ON a~aufnr   = e~aufnr
+                              AND a~zseq    = e~zseq
+                              AND a~zzcharg = e~zzcharg
+    WHERE b~autyp = '04'
+      AND b~auart IN ( 'CP01', 'YP10' )
+<font color ="#8C8C8C">*      AND a~aufnr = @iv_aufnr</font>
+<font color ="#8C8C8C">*      AND a~zseq  = @iv_seq</font>
+      AND a~if_type NOT IN ( 'S', 'P' )
+    INTO CORRESPONDING FIELDS OF TABLE @lt_data.
+
+  LOOP AT lt_data ASSIGNING FIELD-SYMBOL(&ltls_data&gt).
+    DATA(lv_str) = condense( val = CONV string( &ltls_data&gt-user0 ) ).
+
+    " CO(Contains Only) #### ##/###/#### ## ## ##
+    IF lv_str IS NOT INITIAL AND lv_str CO '0123456789.- '.
+      TRY.
+          &ltls_data&gt-req_qty = lv_str.
+        CATCH cx_sy_conversion_no_number cx_sy_conversion_overflow.
+          " ## ## # # ###
+          CLEAR &ltls_data&gt-req_qty.
+      ENDTRY.
+    ENDIF.
+  ENDLOOP.
+
+  " User0# ### #### ##
+  DELETE lt_data WHERE ( user0 IS INITIAL AND user0 &lt&gt '0' )
+                OR NOT ( user0 CO '0123456789.- ' ).
+
+  " PP #### ##
+  SELECT MAX( a~zseq ) AS zseq,
+         b~werks, a~aufnr, b~auart,
+         SUM( CASE WHEN stzhl IS NOT INITIAL THEN d~lmnga * -1 ELSE d~lmnga END ) AS req_qty,
+         c~meins,
+         MAX( CAST( d~budat AS CHAR( 8 ) ) ) AS req_date,
+         c~verid AS prdline,
+         c~matnr,
+         MAX( a~ord_iud ) AS ord_iud,   " I, U # U ##
+         a~zzcharg AS batch_no,
+         e~licha AS check_no,
+         c~zzrecheck AS recheck_seq,
+         c~zzordeco AS effective_eco,
+         c~zzbadrate AS ord_bad_rate,
+         c~zzmold1 AS mold_no1,
+         c~zzmold2 AS mold_no2,
+         c~zzmold3 AS mold_no3,
+         c~zzmold4 AS mold_no4
+    FROM zppt0210 AS a INNER JOIN caufv AS b
+                               ON a~aufnr = b~aufnr
+                       INNER JOIN afpo AS c
+                               ON a~aufnr = c~aufnr
+                       INNER JOIN afru AS d
+                               ON a~aufnr = d~aufnr
+                              AND a~zzcharg = d~zzcharg
+                       LEFT  JOIN mch1 AS e
+                               ON d~zzcharg = e~charg
+                              AND c~matnr = e~matnr
+                       INNER JOIN @lt_data_in AS f
+                               ON a~aufnr   = f~aufnr
+                              AND a~zseq    = f~zseq
+                              AND a~zzcharg = f~zzcharg
+    WHERE a~if_type NOT IN ( 'S', 'P' )
+      AND b~autyp = '10'
+      AND b~auart IN ( 'PP01', 'ZP10', 'ZP20', 'ZP30' )
+<font color ="#8C8C8C">*      AND d~stokz = ''</font>
+<font color ="#8C8C8C">*      AND d~stzhl = 0</font>
+      AND d~vornr = '0010'
+  GROUP BY b~werks, a~aufnr, b~auart, c~meins,
+<font color ="#8C8C8C">*           d~budat,</font>
+           c~verid, c~matnr,
+           a~zzcharg, e~licha,
+           c~zzrecheck, c~zzordeco, c~zzbadrate,
+           c~zzmold1, c~zzmold2, c~zzmold3, c~zzmold4
+  APPENDING CORRESPONDING FIELDS OF TABLE @lt_data.
+
+  IF lt_data IS INITIAL.
+    es_reply-type    = 'I'.
+    es_reply-message = TEXT-e01.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">*-- Log ###</font>
+  CLEAR es_reply.
+  PERFORM initialize_ifkey USING 'QMS' 'PP0090_SO'
+                           CHANGING ls_ifkey_key ls_ifkey_info es_reply.
+
+  MOVE-CORRESPONDING lt_data TO lt_sending.
+  LOOP AT lt_sending ASSIGNING FIELD-SYMBOL(&ltfs_sending&gt).
+
+    " Log Key, Info Setting
+    CLEAR ls_log.
+    lv_seq_log += 1.
+    MOVE-CORRESPONDING ls_ifkey_key  TO ls_log.
+    MOVE-CORRESPONDING ls_ifkey_info TO ls_log.
+    MOVE-CORRESPONDING &ltfs_sending&gt  TO ls_log.
+
+    " Sending I/F Key ##
+<font color ="#8C8C8C">* [REFACTOR] - 2026/10/14 16:06</font>
+<font color ="#8C8C8C">*   #-&gt IF_KEY # #### ###..</font>
+    lv_if_seq = lv_seq_log.
+    &ltfs_sending&gt-if_key = |{ ls_ifkey_key-if_key+2(6) }{ ls_ifkey_key-if_key+10(7) }{ lv_if_seq }|.
+    ls_log-if_key       = ls_ifkey_key-if_key.
+    ls_log-if_item      = lv_seq_log.
+    ls_log-if_date_send = ls_ifkey_key-if_date.
+    ls_log-if_time_send = ls_ifkey_key-if_time.
+    ls_log-if_id_send   = ls_ifkey_key-if_id.
+    ls_log-if_key_send  = ls_ifkey_key-if_key.
+
+    " ## ### ##
+    PERFORM check_field_missing_po_qms USING ls_log
+                                       CHANGING lv_err.
+
+    APPEND ls_log TO lt_log.
+
+  ENDLOOP.
+
+<font color ="#8C8C8C">*-- Log Table ##</font>
+  TRY.
+      INSERT zppt0210l FROM TABLE lt_log.
+      IF sy-subrc = 0.
+        COMMIT WORK AND WAIT.
+      ELSE.
+        ROLLBACK WORK.
+        lv_err_msg = TEXT-e05.
+        REPLACE ALL OCCURRENCES OF '&' IN lv_err_msg WITH 'ZPPT0210L'.
+        es_reply-type = 'E'.
+        es_reply-message = lv_err_msg.
+        RETURN.
+      ENDIF.
+
+    CATCH cx_root.
+      lv_err_msg = TEXT-e05.
+      REPLACE ALL OCCURRENCES OF '&' IN lv_err_msg WITH 'ZPPT0210L'.
+      es_reply-type = 'E'.
+      es_reply-message = lv_err_msg.
+      RETURN.
+  ENDTRY.
+
+  IF lv_err = abap_true.
+    es_reply-type = 'E'.
+    es_reply-message = TEXT-e06.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">*-- Sending Data Setting</font>
+<font color ="#8C8C8C">*-- 1. ZPPT0210 Table Update # ## ## #### Sending</font>
+<font color ="#8C8C8C">*--    -&gt Type Update # 1 ~ ## SEQ ## ## Type# P# #### #</font>
+<font color ="#8C8C8C">*-- IS ##</font>
+  " IS Data Sending
+  TRY.
+      CREATE OBJECT zcl_proxy_req.
+
+      zreq_req-if_date = sy-datum.
+      zreq_req-if_time = sy-uzeit.
+      zreq_req-if_id   = sy-uname.
+      MOVE-CORRESPONDING lt_sending TO zreq_req-zoqc_req_t.
+
+      CALL METHOD zcl_proxy_req-&gtpp0090_so
+        EXPORTING
+          input  = zreq_req
+        IMPORTING
+          output = zres_req.
+
+    CATCH cx_ai_system_fault INTO fault.
+      CALL METHOD fault-&gtget_text
+        RECEIVING
+          result = zerror.
+      es_reply-type = 'E'.
+      es_reply-message = zerror.
+      RETURN.
+  ENDTRY.
+
+  " Reply ##
+  es_reply-type    = zres_req-if_status.
+  es_reply-message = zres_req-if_err_msg.
+
+  " IS Return ## Log ##
+  LOOP AT lt_log ASSIGNING FIELD-SYMBOL(&ltfs_log_get&gt).
+
+    &ltfs_log_get&gt-if_key_get     = zres_req-if_key.
+    &ltfs_log_get&gt-if_status_get  = zres_req-if_status.
+    &ltfs_log_get&gt-if_err_msg_get = zres_req-if_err_msg.
+    &ltfs_log_get&gt-extra_1_get    = zres_req-extra_1.
+    &ltfs_log_get&gt-extra_2_get    = zres_req-extra_2.
+
+  ENDLOOP.
+
+  " I/F Sending# ## Data Get -&gt Input SEQ## ### # ####
+  SELECT DISTINCT a~*
+    FROM zppt0210 AS a INNER JOIN @lt_data AS b
+                               ON a~aufnr   = b~aufnr
+                              AND a~zseq    &lt= b~zseq
+                              AND a~zzcharg = b~batch_no
+    WHERE a~if_type NOT IN ('P', 'S' )
+    INTO TABLE @DATA(lt_update).
+
+  SORT lt_update BY aufnr zseq zzcharg ASCENDING.
+
+  " ### SEQ# S# ## #### ## #### P#
+  LOOP AT lt_update ASSIGNING FIELD-SYMBOL(&ltfs_upd&gt).
+    &ltfs_upd&gt-if_type = 'P'.
+    &ltfs_upd&gt-if_msg  = zres_req-if_err_msg.
+    &ltfs_upd&gt-aedat   = sy-datum.
+    &ltfs_upd&gt-aenam   = sy-uname.
+    &ltfs_upd&gt-aezet   = sy-uzeit.
+  ENDLOOP.
+
+  " aufnr, zzcharg ## ### # ### #### ##
+  LOOP AT lt_update ASSIGNING FIELD-SYMBOL(&ltfs_line&gt)
+    GROUP BY ( aufnr = &ltfs_line&gt-aufnr zzcharg = &ltfs_line&gt-zzcharg )
+    ASSIGNING FIELD-SYMBOL(&ltfs_group&gt).
+
+    " ## # #### #### #### ### ### ### MAX ZSEQ
+    LOOP AT GROUP &ltfs_group&gt ASSIGNING FIELD-SYMBOL(&ltfs_last_member&gt).
+    ENDLOOP.
+
+    IF &ltfs_last_member&gt IS ASSIGNED.
+      READ TABLE lt_log ASSIGNING FIELD-SYMBOL(&ltfs_log&gt)
+           WITH KEY aufnr    = &ltfs_last_member&gt-aufnr
+                    batch_no = &ltfs_last_member&gt-zzcharg.
+      IF sy-subrc = 0.
+        &ltfs_last_member&gt-if_type = &ltfs_log&gt-if_status_get.
+      ELSE.
+        &ltfs_last_member&gt-if_type = 'S'.
+      ENDIF.
+    ENDIF.
+
+  ENDLOOP.
+
+  MODIFY zppt0210 FROM TABLE lt_update.
+  IF sy-subrc = 0.
+    COMMIT WORK AND WAIT.
+  ELSE.
+    ROLLBACK WORK.
+  ENDIF.
+
+  MODIFY zppt0210l FROM TABLE lt_log.
+  IF sy-subrc = 0.
+    COMMIT WORK AND WAIT.
+  ELSE.
+    ROLLBACK WORK.
+  ENDIF.
+
+ENDFUNCTION.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

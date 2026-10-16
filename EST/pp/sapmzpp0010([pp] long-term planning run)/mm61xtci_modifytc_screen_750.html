@@ -1,0 +1,291 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XTCI_MODIFYTC_SCREEN_750</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XTCI_MODIFYTC_SCREEN_750</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Module  MODIFYTC_SCREEN_750  OUTPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Entsprechendes für Dispolistendruck in                               *</font>
+<font color ="#8C8C8C">*   RMDLDF40: FORM AUSGABE                                             *</font>
+<font color ="#8C8C8C">* Log. Änderungen hier sollten dort entsprechend durchgeführt werden.  *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000889"></div>
+MODULE modifytc_screen_750 OUTPUT.
+  DATA:  tccol TYPE cxtab_column.
+
+<font color ="#8C8C8C">*--&gt BESTANDSZEILEN</font>
+  IF mdez-fbyte EQ char1.
+    LOOP AT SCREEN.
+      IF screen-group1 = '001'
+      OR screen-group1 = '003'.
+        screen-intensified = 1.
+      ENDIF.
+      IF screen-group1 = '002'.
+        screen-invisible = 1.
+      ENDIF.
+      MODIFY SCREEN.
+    ENDLOOP.
+  ENDIF.
+
+  "{ Begin ENHO AD_MPN_PUR2_MM61XTCI IS-AD-MPN AD_MPN_IC }
+<font color ="#8C8C8C">* Automotive 2.0/A&D 4.0; Supersession/MPN Project</font>
+<font color ="#8C8C8C">* Chris Tebbe; 24.09.1999</font>
+<font color ="#8C8C8C">* Highlight Supersession Date</font>
+  PERFORM pic_modifytc_screen_750(sapmm61r).
+  "{ End ENHO AD_MPN_PUR2_MM61XTCI IS-AD-MPN AD_MPN_IC }
+
+include <a href ="mm61xtci_01 spots es_mm61xtci include bound.html">mm61xtci_01 SPOTS es_mm61xtci INCLUDE BOUND</a>.
+<font color ="#8C8C8C">*--&gt FIXIERUNGSHORIZONT</font>
+  IF mdez-delkz EQ fxhor
+  OR mdez-delkz EQ ausdt
+  OR mdez-delkz EQ wzhor.
+    LOOP AT SCREEN.
+      IF screen-group3 EQ '001'.
+        screen-intensified = 1.
+      ENDIF.
+      IF screen-group3 EQ '002'.
+        screen-invisible  = 1.
+      ENDIF.
+      MODIFY SCREEN.
+    ENDLOOP.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt VOR- / BRUTTO PLANUNGSABSCHNITTS - ZEILE</font>
+  IF  mdez-delkz EQ vorpl
+  OR  mdez-delkz EQ brtpl.
+    LOOP AT SCREEN.
+      IF screen-group1 = '001'
+      OR screen-group1 = '003'.
+        screen-intensified = 1.
+      ENDIF.
+      IF screen-group3 = '002'.
+        screen-invisible = 1.
+      ENDIF.
+      MODIFY SCREEN.
+    ENDLOOP.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Icon für erste Spalte bestimmen</font>
+  PERFORM set_detail_icon CHANGING mdez.
+
+<font color ="#8C8C8C">*--&gt Element nicht verfügbarkeitswirksam: Verfügbare Menge ausblenden</font>
+  IF mdez-vrfkz NE xflag.
+    LOOP AT SCREEN.
+      IF screen-group1 EQ '003'.
+        screen-invisible  = 1.
+      ENDIF.
+      MODIFY SCREEN.
+    ENDLOOP.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Aktuelle Zeile (ausgewaehlter Bestellvorschlag)</font>
+<font color ="#8C8C8C">*--&gt Splitscreen MD43</font>
+  IF mdst-anzei = ezsi_activ.
+    IF mdez-fbyte EQ char2.
+      LOOP AT SCREEN.
+        CLEAR am61x-flg01.
+        IF screen-group4 = 'EZ1'
+        OR screen-group4 = 'EZ2'
+        OR screen-group4 = 'EZ3'
+        OR screen-group4 = 'MG1'.
+          screen-intensified = 1.
+          MOVE xflag TO am61x-flg01.
+        ENDIF.
+        IF screen-group1 = 'MG2'.
+          IF mdpsx-vrfkz EQ xflag.
+            screen-intensified = 1.
+          ELSE.
+            screen-invisible = 1.
+          ENDIF.
+          MOVE xflag TO am61x-flg01.
+        ENDIF.
+        IF am61x-flg01 EQ xflag.
+          MODIFY SCREEN.
+        ENDIF.
+      ENDLOOP.
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Bei Splitscreen interact. Planung Felder eingabebereit schalten</font>
+  IF mdst-anzei = psezsi_activ.
+    LOOP AT SCREEN.
+      IF screen-group2 = 'MG1'.
+        IF mdez-fbyte EQ char1
+        OR mdez-fbyte EQ char3.
+          screen-invisible = 1.
+          MOVE xflag TO am61x-flg01.
+        ELSE.
+          IF  mdez-delkz EQ plauf
+          OR  mdez-delkz EQ saauf
+          OR  mdez-delkz EQ bsanf
+          OR  mdez-delkz EQ lpein
+          AND mdez-vrfkz EQ xflag.
+            screen-input = 1.
+            MOVE xflag TO am61x-flg01.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+      IF screen-group2 = 'MG2'.
+        IF mdez-fbyte EQ char3.
+          screen-invisible = 1.
+          MOVE xflag TO am61x-flg01.
+        ENDIF.
+      ENDIF.
+      IF am61x-flg01 EQ xflag.
+        MODIFY SCREEN.
+      ENDIF.
+    ENDLOOP.
+
+<font color ="#8C8C8C">*--&gt Detail-Icon ausblenden</font>
+    LOOP AT tc_ez-cols INTO tccol.
+      IF tccol-screen-name = 'MDEZ-DETAIL_ICON'.
+        tccol-invisible = 1.
+      ENDIF.
+      MODIFY tc_ez-cols FROM tccol.
+    ENDLOOP.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt 2. Mengenspalten ausblenden, wenn keine 2. ME gesetzt (für Rück-</font>
+<font color ="#8C8C8C">* sprung aus TC-Einstellungen ändern)</font>
+  LOOP AT tc_ez-cols INTO tccol.
+
+    IF tccol-screen-name = 'MDEZ-UNIV1'
+    OR tccol-screen-name = 'MDEZ-UNIV2'.
+      IF rm61r-mein2 IS INITIAL.
+        tccol-invisible = 1.
+      ENDIF.
+    ENDIF.
+
+    "{ Begin ENHO MD_SFWS_MM61XTCI_MODTC_SCR_750 PP-MRP MAN_SFWS_SC_MRP_01 }
+<font color ="#8C8C8C">*   3. MAT, LOC, WRK und BER Spalten entsprechend ein- oder ausblenden</font>
+    IF tccol-screen-name EQ 'MDEZ-MDMAT'.
+      IF mdsam-anmat IS INITIAL.
+        tccol-invisible = 1.
+      ELSE.
+        tccol-invisible = 0.
+      ENDIF.
+    ENDIF.
+    IF tccol-screen-name EQ 'MDEZ-MDLOC'.
+      IF mdsam-anloc IS INITIAL.
+        tccol-invisible = 1.
+      ELSE.
+        tccol-invisible = 0.
+      ENDIF.
+    ENDIF.
+    IF tccol-screen-name EQ 'MDEZ-MDWRK'.
+      IF mdsam-anwrk IS INITIAL.
+        tccol-invisible = 1.
+      ELSE.
+        tccol-invisible = 0.
+      ENDIF.
+    ENDIF.
+    IF tccol-screen-name EQ 'MDEZ-MDBER'.
+      IF mdsam-anber  IS INITIAL
+      OR t000md-disfg IS INITIAL.
+        tccol-invisible = 1.
+      ELSE.
+        tccol-invisible = 0.
+      ENDIF.
+    ENDIF.
+    "{ End ENHO MD_SFWS_MM61XTCI_MODTC_SCR_750 PP-MRP MAN_SFWS_SC_MRP_01 }
+
+ENHANCEMENT-POINT ehp_modifytc_screen_750_01 SPOTS es_mm61xtci INCLUDE BOUND .
+
+    "{ Begin ENHO AD_MPN_PUR2_MM61XTCI IS-AD-MPN AD_MPN_IC }
+<font color ="#8C8C8C">*SUBRAMANIANR-Hide 'Exception' column for individual MPN-Note:603775</font>
+    IF NOT ( cm61m-picid = '05' OR cm61m-picid = '06' OR cm61m-picid = '07' ).
+      IF tccol-screen-name = 'MDEZ-AUSKT'
+      OR tccol-screen-name = 'MDEZ-UMDAT'.
+        IF g_pic_is_ic_obj = 'X'.
+          IF g_pic_set_mode = 'X'.
+            tccol-invisible = 0.
+          ELSE.
+            tccol-invisible = 1.
+          ENDIF.
+        ELSE.                                "note 694439
+          tccol-invisible = 0.               "note 694439
+        ENDIF.
+      ENDIF.
+    ENDIF.                                                  "n2050906
+<font color ="#8C8C8C">*SUBRAMANIANR-Hide 'Exception' column for individual MPN-Note:603775</font>
+
+<font color ="#8C8C8C">*------------------------------------------------------------Note 791885</font>
+<font color ="#8C8C8C">*SUBRAMANIANR: "Material" Field also to be suppressed until necessary</font>
+    IF tccol-screen-name = 'MDEZ-MPNMT'.                    "800846
+      IF g_pic_is_ic_obj = 'X'.                             "800846
+        IF g_pic_set_mode = 'X'.                            "800846
+          tccol-invisible = 0.                              "800846
+        ELSE.                                               "800846
+          tccol-invisible = 1.                              "800846
+        ENDIF.                                              "800846
+      ELSE.                                                 "800846
+        tccol-invisible = 1.                                "800846
+      ENDIF.                                                "800846
+    ENDIF.                                                  "800846
+<font color ="#8C8C8C">*------------------------------------------------------------Note 791885</font>
+    "{ End ENHO AD_MPN_PUR2_MM61XTCI IS-AD-MPN AD_MPN_IC }
+
+include <a href ="mm61xtci_02 spots es_mm61xtci include bound.html">mm61xtci_02 SPOTS es_mm61xtci INCLUDE BOUND</a>.
+    MODIFY tc_ez-cols FROM tccol.
+
+  ENDLOOP.
+
+<font color ="#8C8C8C">*--&gt Markierte Zeilen</font>
+  PERFORM selected_hell.
+
+<font color ="#8C8C8C">*--&gt Ausnahmen untergeordnete Materialien</font>
+  IF cm61x-inmem = gc_true.
+    PERFORM low_level_messages CHANGING mdez.
+  ENDIF.
+
+ENDMODULE.                             " MODIFYTC_SCREEN_550  OUTPUT
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Module  MODIFYTC_SCREEN_860  OUTPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000890"></div>
+MODULE modifytc_screen_860 OUTPUT.
+
+  LOOP AT tc_ez-cols INTO tccol.
+    IF tccol-screen-name = 'RM61R-HERKUNFT'.
+      tccol-invisible = 0.
+      MODIFY tc_ez-cols FROM tccol.
+    ENDIF.
+  ENDLOOP.
+
+<font color ="#8C8C8C">*--&gtZeilen der ersten Liste hell</font>
+  IF mdez-fbyte = fbyte_row_intensified.
+    rm61r-herkunft = TEXT-t04.  "this is list 1
+    LOOP AT SCREEN.
+      screen-intensified = 1.
+      MODIFY SCREEN.
+    ENDLOOP.
+  ELSE.
+    rm61r-herkunft = TEXT-t05.  "this is list 2
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Detail-Icon ausblenden</font>
+  LOOP AT tc_ez-cols INTO tccol.
+    IF tccol-screen-name = 'MDEZ-DETAIL_ICON'.
+      tccol-invisible = 1.
+    ENDIF.
+    MODIFY tc_ez-cols FROM tccol.
+  ENDLOOP.
+
+ENDMODULE.                 " MODIFYTC_SCREEN_860  OUTPUT
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

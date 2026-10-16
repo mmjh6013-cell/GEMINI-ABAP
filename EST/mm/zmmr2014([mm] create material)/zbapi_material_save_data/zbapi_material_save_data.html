@@ -1,0 +1,251 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZBAPI_MATERIAL_SAVE_DATA</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZBAPI_MATERIAL_SAVE_DATA</b></font>
+<hr>
+<pre width="100">
+FUNCTION ZBAPI_MATERIAL_SAVE_DATA.
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*"*"Local Interface:</font>
+<font color ="#8C8C8C">*"  IMPORTING</font>
+<font color ="#8C8C8C">*"     VALUE(IS_DATA) LIKE  ZMMS0020 STRUCTURE  ZMMS0020 OPTIONAL</font>
+<font color ="#8C8C8C">*"     VALUE(IV_CHECK) TYPE  CHAR01 OPTIONAL</font>
+<font color ="#8C8C8C">*"  EXPORTING</font>
+<font color ="#8C8C8C">*"     VALUE(ES_RETURN) LIKE  BAPIRET2 STRUCTURE  BAPIRET2</font>
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+
+<font color ="#8C8C8C">*       <a href ="global-zbapi_material_save_data.html">Global data declarations</a></font>
+  DATA: LS_HEAD   TYPE BAPIMATHEAD,
+        LS_MARA   TYPE BAPI_MARA,
+        LS_MARAX  TYPE BAPI_MARAX,
+        LS_MARC   TYPE BAPI_MARC,
+        LS_MARCX  TYPE BAPI_MARCX,
+        LS_MARD   TYPE BAPI_MARD,
+        LS_MARDX  TYPE BAPI_MARDX,
+        LS_MBEW   TYPE BAPI_MBEW,
+        LS_MBEWX  TYPE BAPI_MBEWX,
+        LS_MVKE   TYPE BAPI_MVKE,
+        LS_MVKEX  TYPE BAPI_MVKEX,
+        LS_RETURN TYPE BAPIRET2.
+
+  DATA: LT_MAKT         TYPE TABLE OF BAPI_MAKT WITH HEADER LINE,
+        LT_MARM         TYPE TABLE OF BAPI_MARM WITH HEADER LINE,
+        LT_MARMX        TYPE TABLE OF BAPI_MARMX WITH HEADER LINE,
+        LT_MLAN         TYPE TABLE OF BAPI_MLAN WITH HEADER LINE,
+        LS_MLAN         TYPE BAPI_MLAN,
+        LT_EXTENSIONIN  TYPE TABLE OF BAPIPAREX,
+        LT_EXTENSIONINX TYPE TABLE OF BAPIPAREXX.
+
+  DATA: LS_DATA LIKE IS_DATA.
+
+  DATA: LV_VTWEG TYPE STRING,
+        LV_VPSTA TYPE MARA-VPSTA.
+
+  " ----------------------------------------------------------------------
+  " ### ## ## (PERFORM ##)
+  " ----------------------------------------------------------------------
+  PERFORM SET_BAPI_HEADER    USING IS_DATA CHANGING LS_HEAD.
+
+  IF LS_HEAD-BASIC_VIEW = 'X'.
+    PERFORM SET_BAPI_MAKT      USING IS_DATA CHANGING LT_MAKT[].
+    PERFORM SET_BAPI_MARA      USING IS_DATA CHANGING LS_MARA LS_MARAX.
+    PERFORM SET_BAPI_MARM      USING IS_DATA CHANGING LT_MARM[] LT_MARMX[].
+
+  ENDIF.
+
+  IF LS_HEAD-SALES_VIEW = 'X'.
+    PERFORM SET_BAPI_MVKE      USING IS_DATA CHANGING LS_MVKE LS_MVKEX.
+    PERFORM SET_BAPI_MLAN      USING IS_DATA CHANGING LT_MLAN[].
+
+  ENDIF.
+
+  IF LS_HEAD-PURCHASE_VIEW   = 'X' OR
+     LS_HEAD-MRP_VIEW        = 'X' OR
+     LS_HEAD-WORK_SCHED_VIEW = 'X'.
+    PERFORM SET_BAPI_MARC      USING IS_DATA CHANGING LS_MARC LS_MARCX.
+
+  ENDIF.
+
+  IF LS_HEAD-STORAGE_VIEW = 'X'.
+    PERFORM SET_BAPI_MARD      USING IS_DATA CHANGING LS_MARD LS_MARDX.
+
+  ENDIF.
+
+  IF LS_HEAD-ACCOUNT_VIEW = 'X' OR LS_HEAD-COST_VIEW = 'X'.
+    PERFORM SET_BAPI_MBEW      USING IS_DATA CHANGING LS_MBEW LS_MBEWX.
+
+  ENDIF.
+
+  PERFORM SET_BAPI_EXTENSION USING IS_DATA CHANGING LT_EXTENSIONIN LT_EXTENSIONINX.
+
+  " ----------------------------------------------------------------------
+  " BAPI ##
+  " ----------------------------------------------------------------------
+  CALL FUNCTION 'BAPI_MATERIAL_SAVEDATA'
+    EXPORTING
+      HEADDATA             = LS_HEAD
+      CLIENTDATA           = LS_MARA
+      CLIENTDATAX          = LS_MARAX
+      PLANTDATA            = LS_MARC
+      PLANTDATAX           = LS_MARCX
+      STORAGELOCATIONDATA  = LS_MARD
+      STORAGELOCATIONDATAX = LS_MARDX
+      VALUATIONDATA        = LS_MBEW
+      VALUATIONDATAX       = LS_MBEWX
+      SALESDATA            = LS_MVKE
+      SALESDATAX           = LS_MVKEX
+    IMPORTING
+      RETURN               = LS_RETURN
+    TABLES
+      MATERIALDESCRIPTION  = LT_MAKT
+      UNITSOFMEASURE       = LT_MARM
+      UNITSOFMEASUREX      = LT_MARMX
+      TAXCLASSIFICATIONS   = LT_MLAN
+      EXTENSIONIN          = LT_EXTENSIONIN
+      EXTENSIONINX         = LT_EXTENSIONINX.
+
+  " ----------------------------------------------------------------------
+  " ## ## (Commit / Rollback)
+  " ----------------------------------------------------------------------
+  IF LS_RETURN-TYPE = 'E' OR LS_RETURN-TYPE = 'A'.
+    CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
+    ES_RETURN = LS_RETURN.
+    EXIT.
+
+  ELSE.
+    CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+      EXPORTING
+        WAIT = 'X'.
+
+    "#### VALUE# ## CLASSIFICATION VIEW ##
+    "VPSTA# C# ### ##
+    IF IS_DATA-MTART = 'VALU'.
+      SELECT SINGLE VPSTA
+        FROM MARA
+       WHERE MATNR = @IS_DATA-MATNR
+        INTO @LV_VPSTA.
+
+      IF LV_VPSTA NS 'C'.
+        PERFORM BAPI_OBJCL_CREATE USING IS_DATA
+                               CHANGING LS_RETURN.
+
+        IF LS_RETURN-TYPE = 'E' OR LS_RETURN-TYPE = 'A'.
+          ES_RETURN = LS_RETURN.
+          EXIT.
+
+        ENDIF.
+
+      ENDIF.
+
+    ENDIF.
+
+  ENDIF.
+
+  "#### ##
+  CASE IV_CHECK.
+      "### ## #### ## 10~40
+    WHEN ABAP_TRUE.
+      CHECK LS_HEAD-SALES_VIEW IS NOT INITIAL.
+      CLEAR: LS_HEAD-ACCOUNT_VIEW, LS_HEAD-COST_VIEW,
+             LS_HEAD-MRP_VIEW,     LS_HEAD-PURCHASE_VIEW,
+             LS_HEAD-STORAGE_VIEW, LS_HEAD-WORK_SCHED_VIEW.
+
+      DO 3 TIMES.
+        LS_MVKE-DISTR_CHAN  += 10.
+        LS_MVKEX-DISTR_CHAN += 10.
+
+        CALL FUNCTION 'BAPI_MATERIAL_SAVEDATA'
+          EXPORTING
+            HEADDATA    = LS_HEAD
+            CLIENTDATA  = LS_MARA
+            CLIENTDATAX = LS_MARAX
+            SALESDATA   = LS_MVKE
+            SALESDATAX  = LS_MVKEX
+          IMPORTING
+            RETURN      = LS_RETURN.
+
+        IF LS_RETURN-TYPE = 'E' OR LS_RETURN-TYPE = 'A'.
+          CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
+          ES_RETURN = LS_RETURN.
+          EXIT.
+
+        ELSE.
+          CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+            EXPORTING
+              WAIT = 'X'.
+
+        ENDIF.
+
+      ENDDO.
+
+    WHEN 'A'. "## ## ##### ### ##
+      SELECT VKORG, VTWEG, TAXM1, KTGRM, MTPOS
+        FROM ZMMT2013
+       WHERE ZMCLASS = @IS_DATA-ZMCLASS
+         AND WERKS = @IS_DATA-WERKS
+        "### ### #### # ### #### ### ##
+         AND NOT ( VKORG = @IS_DATA-VKORG AND
+                   VTWEG = @IS_DATA-VTWEG )
+        INTO TABLE @DATA(LT_2012_2).
+
+      CHECK SY-SUBRC = 0.
+      CLEAR: LS_HEAD-ACCOUNT_VIEW, LS_HEAD-COST_VIEW,
+             LS_HEAD-MRP_VIEW,     LS_HEAD-PURCHASE_VIEW,
+             LS_HEAD-STORAGE_VIEW, LS_HEAD-WORK_SCHED_VIEW.
+
+      LS_DATA = IS_DATA.
+
+      LOOP AT LT_2012_2 INTO DATA(LS_2012_2).
+        LS_DATA-VKORG = LS_2012_2-VKORG.
+        LS_DATA-VTWEG = LS_2012_2-VTWEG.
+        LS_DATA-MTPOS = LS_2012_2-MTPOS.
+        LS_DATA-TAXM1 = LS_2012_2-TAXM1.
+        LS_DATA-KTGRM = LS_2012_2-KTGRM.
+
+        PERFORM SET_BAPI_MVKE      USING LS_DATA CHANGING LS_MVKE LS_MVKEX.
+        PERFORM SET_BAPI_MLAN      USING LS_DATA CHANGING LT_MLAN[].
+
+        CALL FUNCTION 'BAPI_MATERIAL_SAVEDATA'
+          EXPORTING
+            HEADDATA           = LS_HEAD
+            CLIENTDATA         = LS_MARA
+            CLIENTDATAX        = LS_MARAX
+            SALESDATA          = LS_MVKE
+            SALESDATAX         = LS_MVKEX
+          IMPORTING
+            RETURN             = LS_RETURN
+          TABLES
+            TAXCLASSIFICATIONS = LT_MLAN.
+
+        IF LS_RETURN-TYPE = 'E' OR LS_RETURN-TYPE = 'A'.
+          CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
+          ES_RETURN = LS_RETURN.
+          EXIT.
+
+        ELSE.
+          CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+            EXPORTING
+              WAIT = 'X'.
+
+        ENDIF.
+
+      ENDLOOP.
+
+  ENDCASE.
+
+
+ENDFUNCTION.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

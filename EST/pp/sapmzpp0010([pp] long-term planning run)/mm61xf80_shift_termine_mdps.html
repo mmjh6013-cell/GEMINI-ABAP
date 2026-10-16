@@ -1,0 +1,85 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF80_SHIFT_TERMINE_MDPS</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF80_SHIFT_TERMINE_MDPS</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Bestellvorschlag umterminieren                                       *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000379"></div>
+FORM shift_termine_mdps USING delkz.
+<font color ="#8C8C8C">*--&gt Umrechnen Umterminierungstermin</font>
+  PERFORM convert_gkday_fkday_minus USING rm61x-umdat cm61w-fabkl.
+<font color ="#8C8C8C">*--&gt Umterminierungstermin = Liefertermin</font>
+  MOVE mdcal-gkday TO mdps-dat00.
+<font color ="#8C8C8C">*--&gt WEBAZ subtrahieren</font>
+  am61x-sfday = mdcal-fkday - mdps-webaz.
+<font color ="#8C8C8C">*--&gt NEW-Endtermin bestimmen</font>
+  PERFORM convert_fkday_gkday USING am61x-sfday cm61w-fabkl.
+  IF mdcal-gkday EQ mdps-dat01.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt OLD-Endtermin sichern</font>
+  MOVE mdps-dat01  TO am61x-sgday.
+<font color ="#8C8C8C">*--&gt NEW-Endtermin vorgeben</font>
+  MOVE mdcal-gkday TO mdps-dat01.
+<font color ="#8C8C8C">* &gt&gt&gt&gt&gt&gt&gt&gt&gt BEGIN OF INSERTION - NOTE 174198 &lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt</font>
+<font color ="#8C8C8C">*--&gt Lohnbearbeiter-LPE: DAT02 ermitteln      "SL 46B - HW</font>
+  IF mdps-sobes EQ sobesl.
+    PERFORM read_mdrv USING mdps-delnr mdps-delps.
+    IF NOT mdrv-plifz IS INITIAL.      "DAT02 mit Lieferzeit aus Vertrag
+      PERFORM dat02_aus_dat01_mplp USING    mdrv-plifz
+                                            mdps-dat01
+                                   CHANGING mdps-dat02.
+    ELSE.                           "DAT02 mit Lieferzeit aus Matstamm
+      PERFORM dat02_aus_dat01_mplp USING    mt61d-plifz
+                                            mdps-dat01
+                                   CHANGING mdps-dat02.
+    ENDIF.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">* &gt&gt&gt&gt&gt&gt&gt&gt&gt END OF INSERTION - NOTE 174198 &lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt</font>
+<font color ="#8C8C8C">*--&gt Dispoelement pruefen</font>
+  IF delkz EQ lpein
+  OR delkz EQ umres                    "AEND 45A
+  OR delkz EQ ulres.                   "AEND 45A
+    CLEAR: mdpsx-dat02, mdpsx-dat03.   "sicherheitshalber  "HW 174198
+    CLEAR: mdps-dat02, mdps-dat03.                         "HW 174198
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt OLD-Endtermin umrechnen</font>
+  PERFORM convert_gkday_fkday_minus USING am61x-sgday cm61w-fabkl.
+<font color ="#8C8C8C">*--&gt Differenz bestimmen</font>
+  am61x-fkdif = mdcal-fkday - am61x-sfday.
+<font color ="#8C8C8C">*--&gt NEW-Starttermin bestimmen</font>
+  PERFORM convert_gkday_fkday_minus USING mdps-dat02 cm61w-fabkl.
+  am61x-fkday = mdcal-fkday - am61x-fkdif.
+  PERFORM convert_fkday_gkday USING am61x-fkday cm61w-fabkl.
+  MOVE mdcal-gkday TO mdps-dat02.
+<font color ="#8C8C8C">*--&gt Dispoelement pruefen</font>
+  IF delkz EQ bsanf.
+    CLEAR mdpsx-dat03.
+    CLEAR mdps-dat03.                                       "HW 174198
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt NEW-Eröffnungstermin bestimmen</font>
+  PERFORM convert_gkday_fkday_minus USING mdps-dat03 cm61w-fabkl.
+  am61x-fkday = mdcal-fkday - am61x-fkdif.
+  PERFORM convert_fkday_gkday USING am61x-fkday cm61w-fabkl.
+  MOVE mdcal-gkday TO mdps-dat03.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

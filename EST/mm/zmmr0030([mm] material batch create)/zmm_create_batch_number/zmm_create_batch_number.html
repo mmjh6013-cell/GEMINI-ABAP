@@ -1,0 +1,150 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZMM_CREATE_BATCH_NUMBER</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZMM_CREATE_BATCH_NUMBER</b></font>
+<hr>
+<pre width="100">
+FUNCTION ZMM_CREATE_BATCH_NUMBER.
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*"*"Local Interface:</font>
+<font color ="#8C8C8C">*"  IMPORTING</font>
+<font color ="#8C8C8C">*"     REFERENCE(IS_DATA) LIKE  ZMMS0542 STRUCTURE  ZMMS0542</font>
+<font color ="#8C8C8C">*"  EXPORTING</font>
+<font color ="#8C8C8C">*"     REFERENCE(ES_RETURN) LIKE  ZMMS0501 STRUCTURE  ZMMS0501</font>
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+
+<font color ="#8C8C8C">*       <a href ="global-zmm_create_batch_number.html">Global data declarations</a></font>
+
+  DATA: LV_CHARG     TYPE BAPIBATCHKEY-BATCH,
+        LV_MATNR     TYPE BAPIBATCHKEY-MATERIAL,
+        LS_DATA      LIKE IS_DATA,
+        LS_BATCHATT  LIKE BAPIBATCHATT,
+        LS_BATCHATTX LIKE BAPIBATCHATTX,
+        LT_RETURN    LIKE TABLE OF BAPIRET2.
+
+  DATA: LV_OBJKEY     TYPE BAPI1003_KEY-OBJECT,
+        LT_ALLOC_CHAR TYPE STANDARD TABLE OF BAPI1003_ALLOC_VALUES_CHAR,
+        LT_ALLOC_NUM  TYPE STANDARD TABLE OF BAPI1003_ALLOC_VALUES_NUM,
+        LT_ALLOC_CURR TYPE STANDARD TABLE OF BAPI1003_ALLOC_VALUES_CURR.
+
+  LS_DATA = IS_DATA.
+
+  IF LS_DATA-ZHSDAT = '00000000'.
+    LS_DATA-ZHSDAT = LS_DATA-ZBUDAT.
+
+  ELSEIF LS_DATA-ZHSDAT &gt LS_DATA-ZBUDAT.
+    ES_RETURN-STATUS = 'E'.
+    ES_RETURN-MESSAGE = 'Check Vendor Batch Create Date'.
+
+  ENDIF.
+
+  CHECK ES_RETURN-STATUS &lt&gt 'E'.
+
+  LV_CHARG = LS_DATA-CHARG.
+
+  IF LV_CHARG IS NOT INITIAL.
+    PERFORM SET_BAPI_BATCH USING LS_DATA
+                        CHANGING LS_BATCHATT LS_BATCHATTX.
+
+    "## ##
+    LV_MATNR = LS_DATA-MATNR.
+    CALL FUNCTION 'BAPI_BATCH_CREATE'
+      EXPORTING
+        MATERIAL        = LV_MATNR
+        BATCH           = LV_CHARG
+        BATCHATTRIBUTES = LS_BATCHATT
+      IMPORTING
+        BATCH           = LV_CHARG
+      TABLES
+        RETURN          = LT_RETURN.
+
+    READ TABLE LT_RETURN INTO DATA(LS_RETURN) WITH KEY TYPE = 'E'.
+    IF SY-SUBRC &lt&gt 0.
+      READ TABLE LT_RETURN INTO LS_RETURN WITH KEY TYPE = 'A'.
+
+    ENDIF.
+
+    IF SY-SUBRC = 0.
+      CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
+
+      ES_RETURN-STATUS = 'E'.
+      ES_RETURN-MESSAGE = LS_RETURN-MESSAGE.
+
+    ELSE.
+      CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+        EXPORTING
+          WAIT = 'X'.
+
+      DO.
+        SELECT COUNT(*)
+          FROM MCH1
+         WHERE MATNR = LV_MATNR
+           AND CHARG = LV_CHARG.
+        IF SY-SUBRC = 0.
+          EXIT.
+        ENDIF.
+        WAIT UP TO '0.2' SECONDS.
+      ENDDO.
+
+    ENDIF.
+
+    "CLASSIFICATION
+    CHECK ES_RETURN-STATUS &lt&gt 'E'.
+    LV_OBJKEY+0(18)  = LV_MATNR.
+    LV_OBJKEY+18(10) = LV_CHARG.
+
+    PERFORM SET_CLASS_INFO USING LS_DATA
+                        CHANGING LT_ALLOC_CHAR LT_ALLOC_NUM.
+
+    CLEAR LT_RETURN.
+
+    CALL FUNCTION 'BAPI_OBJCL_CREATE'
+      EXPORTING
+        OBJECTKEYNEW    = LV_OBJKEY
+        OBJECTTABLENEW  = 'MCH1'
+        CLASSNUMNEW     = 'ZBATCH_CL'
+        CLASSTYPENEW    = '023'
+      TABLES
+        ALLOCVALUESNUM  = LT_ALLOC_NUM
+        ALLOCVALUESCHAR = LT_ALLOC_CHAR
+        ALLOCVALUESCURR = LT_ALLOC_CURR
+        RETURN          = LT_RETURN.
+
+    READ TABLE LT_RETURN INTO LS_RETURN WITH KEY TYPE = 'E'.
+    IF SY-SUBRC &lt&gt 0.
+      READ TABLE LT_RETURN INTO LS_RETURN WITH KEY TYPE = 'A'.
+
+    ENDIF.
+
+    IF SY-SUBRC = 0.
+      CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
+
+      ES_RETURN-STATUS = 'E'.
+      ES_RETURN-MESSAGE = LS_RETURN-MESSAGE.
+
+    ELSE.
+      CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+        EXPORTING
+          WAIT = 'X'.
+
+      ES_RETURN-STATUS = 'S'.
+
+    ENDIF.
+
+  ENDIF.
+
+ENDFUNCTION.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

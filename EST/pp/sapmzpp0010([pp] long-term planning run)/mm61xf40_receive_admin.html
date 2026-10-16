@@ -1,0 +1,138 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF40_RECEIVE_ADMIN</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF40_RECEIVE_ADMIN</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Beendete Task auswerten: Statustabellen und Statistik fortschreiben</font>
+<font color ="#8C8C8C">* Taskx: Statistikdaten fortschreiben und Status = FINISHED setzen</font>
+<font color ="#8C8C8C">* Workx: Statistikdaten fortschreiben und Fehlerbehandlung</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000257"></div>
+FORM receive_admin USING    recv TYPE recv
+                   CHANGING mrpstop TYPE c.
+  DATA: tindx LIKE sy-tabix,
+        nline TYPE i.
+  DATA: BEGIN OF cm61dx OCCURS 20.
+          INCLUDE STRUCTURE cm61d.
+  DATA END OF cm61dx.
+  DATA: lv_result TYPE mdplanresult.
+<font color ="#8C8C8C">*</font>
+  IF recv-subrc &lt&gt 0.
+    LOOP AT taskx WHERE tname = recv-tname.
+      tindx = sy-tabix.
+      EXIT.
+    ENDLOOP.
+    IF sy-subrc &lt&gt 0.
+      MESSAGE e005(md) WITH 'SAPMM61X' 'RECEIVE_ADMIN'.
+    ENDIF.
+    IF recv-subrc = 9.
+      taskx-statu = statu_error.
+    ELSE.
+      taskx-statu = statu_finished.
+    ENDIF.
+    LOOP AT workx WHERE index = tindx.
+<font color ="#8C8C8C">*--&gt  Abbruch: Fehlermeldung übernehmen für Ausgabe</font>
+      IF recv-subrc &lt&gt 0.
+        MOVE recv-msgid TO workx-msgid.
+        MOVE recv-msgno TO workx-msgno.
+        MOVE recv-msgv1 TO workx-msgv1.
+        MOVE recv-msgtx TO workx-msgtx.
+      ENDIF.
+<font color ="#8C8C8C">*--&gt Zur Nachbereitung vormerken</font>
+      IF workx-statu = second_try.
+<font color ="#8C8C8C">*--&gt    Zum 2.Mal fehlerhaft -&gt Fehler des Materials</font>
+        rm61x-anzmt = rm61x-anzmt + 1.
+<font color ="#8C8C8C">*        RM61X-ANZEX = RM61X-ANZEX + 1.                     "SL 99A</font>
+        rm61x-anzdp = rm61x-anzdp + 1.
+        PERFORM <a href ="javascript:Link('MM61XF88_WRITE_ERROR_MATERIAL.html?id=#000000000411');">write_error_material</a> USING workx.
+        DELETE workx.
+<font color ="#8C8C8C">*--&gt Stop Planungslauf wegen zu vieler Abbrüche</font>
+        PERFORM check_abbruch USING    rm61x-anzmt rm61x-anzdp
+                              CHANGING mrpstop.
+<font color ="#8C8C8C">*       IF MRPSTOP EQ XFLAG.</font>
+<font color ="#8C8C8C">*      MRP-Lauf beendet wg. zu vielen Abbr. (E252(MD))</font>
+<font color ="#8C8C8C">*         TASKX-STATU = STATU_FINISHED.</font>
+<font color ="#8C8C8C">*         EXIT.</font>
+<font color ="#8C8C8C">*       ENDIF.</font>
+      ENDIF.
+      IF workx-statu = statu_working.
+<font color ="#8C8C8C">*--&gt    Zum 1.Mal fehlerhaft -&gt Vormerken zum Nachdisponieren</font>
+        workx-statu = error_at_receive.
+        MODIFY workx.
+      ENDIF.
+    ENDLOOP.
+  ELSE.                                " alles ok
+<font color ="#8C8C8C">*--&gt Perf-Statistik fortschreiben</font>
+    CATCH SYSTEM-EXCEPTIONS arithmetic_errors = 5.
+      ADD-CORRESPONDING recv-statn TO stats.
+    ENDCATCH.
+<font color ="#8C8C8C">*--&gt Laufzeit der Task fortschreiben und Status 'finished' setzen</font>
+    tindx = recv-index.
+    READ TABLE taskx INDEX tindx.
+    taskx-statu = statu_finished.
+    ADD recv-rtime TO taskx-rtime.
+<font color ="#8C8C8C">*--&gt Materialstatistik fortschreiben und ggf. Listeneintrag schreiben</font>
+    cm61dx[] = recv-cm61dx[].
+<font color ="#8C8C8C">*--&gt zur statistik-ausgabe vorbereiten</font>
+    LOOP AT cm61dx.
+<font color ="#8C8C8C">*--&gt Statistikausgabe, wenn Material geplant (user-exit-NOMRP beachten)</font>
+      IF cm61dx-nomrp IS INITIAL.
+        PERFORM statistics_material USING cm61dx.
+      ENDIF.
+<font color ="#8C8C8C">*--&gt Aus Arbeitsvorrat loeschen</font>
+      READ TABLE workx WITH KEY INDEX = tindx
+                                matnr = cm61dx-matnr
+                                werks = cm61dx-werks
+                                berid = cm61dx-berid.
+<font color ="#8C8C8C">*--&gt Wg. Multi-Plant-MRP muss der Eintrag nicht immer in WORKX sein</font>
+      IF sy-subrc = 0.
+        DELETE workx INDEX sy-tabix.
+      ENDIF.
+<font color ="#8C8C8C">*--&gt Collect data for BADI</font>
+      MOVE-CORRESPONDING cm61dx TO lv_result.
+      IF NOT gv_md_planning_result_act IS INITIAL.
+        CALL METHOD gv_md_planning_result-&gtcollect_material_status
+          EXPORTING
+            im_result    =  lv_result
+            im_matstat   =  recv-statn
+          CHANGING
+            ex_statustab =  gt_statustab.
+      ENDIF.
+    ENDLOOP.
+<font color ="#8C8C8C">*--&gt Portionsgroesse dynamisch anpassen</font>
+    DESCRIBE TABLE cm61dx LINES nline.
+    taskx-anzmt = taskx-anzmt + nline.
+    IF tsize = nline.
+      IF recv-rtime &lt 20.
+        tsize = tsize * 2.
+      ELSEIF recv-rtime &gt 120 AND tsize &gt 1.
+        tsize = tsize DIV 2.
+      ENDIF.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Performance-Statistik</font>
+    perfy[] = recv-perfy[].
+    PERFORM perfy_perfx_insert.
+  ENDIF.
+  MODIFY taskx INDEX tindx.
+<font color ="#8C8C8C">*--&gt test and maintenance: write receive information</font>
+  IF NOT trace_level IS INITIAL.
+    PERFORM <a href ="javascript:Link('MM61XF40_CALL_TASK_DISPOSITI08.html?id=#000000000242');">trace_rfc</a> USING text-082.
+  ENDIF.
+<font color ="#8C8C8C">*</font>
+ENDFORM.                    "receive_admin
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

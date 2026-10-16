@@ -1,0 +1,320 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZPPR0150_F01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZPPR0150_F01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZPPR0150_F01</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_init_screen</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000001"></div>
+FORM set_init_screen .
+
+  DATA : lv_werks     TYPE usr05-parva,
+         lv_last_date TYPE sy-datum.
+
+  " Plant ### ##
+  SELECT SINGLE parva
+    FROM usr05
+    INTO lv_werks
+    WHERE bname = sy-uname
+      AND parid = 'WRK'.
+
+  IF sy-subrc = 0.
+    p_werks = lv_werks.
+  ELSE.
+    p_werks = 'WRK'.
+  ENDIF.
+
+  s_spras-sign   = 'I'.
+  s_spras-option = 'EQ'.
+  s_spras-low    = sy-langu.
+  APPEND s_spras.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_werks_text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt P_WERKS</font>
+<font color ="#8C8C8C">*&      --&gt G_WERKST</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000002"></div>
+FORM set_werks_text USING pv_werks pv_text.
+
+  SELECT SINGLE w~name1
+    INTO @pv_text
+    FROM t001k AS k INNER JOIN t001w AS w
+                            ON k~bwkey = w~bwkey
+    WHERE werks = @p_werks.
+
+  IF sy-subrc &lt&gt 0.
+    CLEAR pv_text.
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form f4_variant_werks</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000003"></div>
+FORM f4_variant_werks USING pv_fieldname.
+
+  DATA : lt_dynp TYPE TABLE OF dynpread WITH HEADER LINE.
+  DATA : lt_return TYPE TABLE OF ddshretval WITH HEADER LINE.
+
+  SELECT DISTINCT w~werks, w~name1
+    INTO TABLE @DATA(gt_werks)
+    FROM t001k AS k
+   INNER JOIN t001w AS w
+      ON k~bwkey = w~bwkey
+   ORDER BY w~werks ASCENDING.
+
+  CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield     = 'WERKS'
+      dynpprog     = sy-cprog
+      dynpnr       = sy-dynnr
+      dynprofield  = pv_fieldname
+      window_title = 'Select Plant'
+      value_org    = 'S'
+    TABLES
+      value_tab    = gt_werks
+      return_tab   = lt_return.
+
+  IF lt_return[] IS NOT INITIAL.
+
+    READ TABLE lt_return INDEX 1.
+    READ TABLE gt_werks ASSIGNING FIELD-SYMBOL(&ltfs_werks&gt) WITH KEY werks = lt_return-fieldval
+                                                           BINARY SEARCH.
+
+    IF sy-subrc = 0.
+
+      CLEAR lt_dynp.
+      lt_dynp-fieldname = pv_fieldname.
+      lt_dynp-fieldvalue = &ltfs_werks&gt-werks.
+      APPEND lt_dynp.
+
+      CLEAR lt_dynp.
+      lt_dynp-fieldname = 'G_WERKST'.
+      lt_dynp-fieldvalue = &ltfs_werks&gt-name1.
+      APPEND lt_dynp.
+
+      CALL FUNCTION 'DYNP_VALUES_UPDATE'
+        EXPORTING
+          dyname     = sy-cprog
+          dynumb     = sy-dynnr
+        TABLES
+          dynpfields = lt_dynp[].
+
+      CALL METHOD cl_gui_cfw=&gtset_new_ok_code
+        EXPORTING
+          new_code = 'ENTER'.
+
+    ENDIF.
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form get_data</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000004"></div>
+FORM get_data .
+
+  CLEAR gt_main.
+  SELECT CASE WHEN b~zflag = 'X' THEN @icon_led_green
+                                 ELSE @icon_led_yellow END AS icon,
+         a~werks, t1~spras, a~grund, t1~grdtx
+    FROM trug AS a LEFT JOIN zppt0230 AS b
+                          ON a~werks = b~werks
+                         AND a~grund = b~grund
+                   LEFT JOIN trugt AS t1
+                          ON a~grund = t1~grund
+    WHERE a~werks   = @p_werks
+      AND t1~spras IN @s_spras
+      AND a~grund  IN @s_grund
+    ORDER BY a~werks, t1~spras, a~grund
+    INTO CORRESPONDING FIELDS OF TABLE @gt_main.
+
+  IF sy-subrc &lt&gt 0.
+    MESSAGE s002 DISPLAY LIKE 'E'.
+    STOP.
+  ELSE.
+    MESSAGE s001 WITH sy-dbcnt.
+  ENDIF.
+
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form display_screen_0100</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000005"></div>
+FORM display_screen_0100 .
+
+  IF go_docking_cont IS NOT BOUND.
+
+    CLEAR gt_fcat.
+    PERFORM <a href="#000000000006">set_fcat</a> USING : 'X' 'ICON'  ' '        'C' ' ',
+                             'X' 'WERKS' 'ZPPT0230' 'C' ' ',
+                             'X' 'GRUND' 'ZPPT0230' 'C' ' ',
+                             'X' 'SPRAS' 'ZPPT0230' 'C' ' ',
+                             ' ' 'GRDTX' 'TRUGT'    ' ' 'X'.
+
+    PERFORM <a href="#000000000007">set_layout</a> USING 'M'.
+    PERFORM <a href="#000000000008">create_object</a>.
+    PERFORM <a href="#000000000009">display_alv</a>.
+
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_fcat</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000006"></div>
+FORM set_fcat USING pv_key pv_field pv_table pv_just pv_emph.
+
+  DATA : ls_fcat TYPE lvc_s_fcat.
+
+  ls_fcat-key       = pv_key.
+  ls_fcat-fieldname = pv_field.
+  ls_fcat-ref_table = pv_table.
+  ls_fcat-just      = pv_just.
+  ls_fcat-emphasize = pv_emph.
+
+  CASE pv_field.
+    WHEN 'ICON'.
+      ls_fcat-coltext = TEXT-f01.
+  ENDCASE.
+
+  APPEND ls_fcat TO gt_fcat.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_layout</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000007"></div>
+FORM set_layout USING pv_grid.
+
+  CLEAR : gs_layout, gs_variant.
+  gs_layout-zebra      = abap_true.
+  gs_layout-cwidth_opt = 'A'.
+  gs_layout-sel_mode   = ' '.
+
+  gs_variant-report = sy-repid.
+  CASE pv_grid.
+    WHEN 'M'.
+      gs_variant-handle = |ALV_{ pv_grid }|.
+  ENDCASE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form create_object</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000008"></div>
+FORM create_object .
+
+  CREATE OBJECT go_docking_cont
+    EXPORTING
+      side                        = go_docking_cont-&gtdock_at_left
+      extension                   = 5000
+    EXCEPTIONS
+      cntl_error                  = 1
+      cntl_system_error           = 2
+      create_error                = 3
+      lifetime_error              = 4
+      lifetime_dynpro_dynpro_link = 5
+      OTHERS                      = 6.
+
+  CREATE OBJECT go_grid_cont
+    EXPORTING
+      i_parent          = go_docking_cont
+    EXCEPTIONS
+      error_cntl_create = 1
+      error_cntl_init   = 2
+      error_cntl_link   = 3
+      error_dp_create   = 4
+      OTHERS            = 5.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form display_alv</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000009"></div>
+FORM display_alv .
+
+  CALL METHOD go_grid_cont-&gtset_table_for_first_display
+    EXPORTING
+      is_variant                    = gs_variant
+      i_save                        = 'A'
+      i_default                     = 'X'
+      is_layout                     = gs_layout
+<font color ="#8C8C8C">*     it_toolbar_excluding          =</font>
+    CHANGING
+      it_outtab                     = gt_main
+      it_fieldcatalog               = gt_fcat
+<font color ="#8C8C8C">*     it_sort                       =</font>
+    EXCEPTIONS
+      invalid_parameter_combination = 1
+      program_error                 = 2
+      too_many_lines                = 3
+      OTHERS                        = 4.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

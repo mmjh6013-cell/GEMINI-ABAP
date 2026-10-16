@@ -1,0 +1,97 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF59_MDPSX_ANPASSEN</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF59_MDPSX_ANPASSEN</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       FORM MDPSX_ANPASSEN                                           *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       ........                                                      *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  VALUE(EXCLUDE_PLNUM)                                          *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000341"></div>
+FORM MDPSX_ANPASSEN USING VALUE(EXCLUDE_PLNUM).
+  DATA BEGIN OF PLAF_ACTUAL.
+    INCLUDE STRUCTURE PLAF.
+  DATA END OF PLAF_ACTUAL.
+  DATA: INDEX LIKE SY-TABIX,
+        STATU LIKE AF61E-STATU.
+<font color ="#8C8C8C">*</font>
+  LOOP AT MDPSX WHERE ( DELKZ = PLAUF OR DELKZ = SAAUF ) AND
+                        BESKZ = BESKZE.
+    CHECK MDPSX-DELNR &lt&gt EXCLUDE_PLNUM.
+    INDEX = SY-TABIX.
+    CALL FUNCTION 'GET_PLAF_WITH_PLNUM'
+         EXPORTING
+              PLNUM                  = MDPSX-DELNR
+         IMPORTING
+              OPLAF                  = PLAF_ACTUAL
+              STATU                  = STATU
+              EPLST                  = PLST
+         EXCEPTIONS
+              PLAF_LOGICALLY_DELETED = 01.
+    IF SY-SUBRC = 1.
+      STATU = 'D'.
+    ENDIF.
+    CHECK STATU &lt&gt 'E'.
+    AM61X-DELKZ = MDPSX-DELKZ.
+<font color ="#8C8C8C">*--&gt alten Zustand in MDPSS lesen fuer Vergleich</font>
+    PERFORM <a href ="javascript:Link('MM61XF50_PUT_MDPSX_MPSVIEW.html?id=#000000000276');">PUT_MDPSX_MPSVIEW</a>.
+    MDPSS = MDPSX.
+    MDPSS-XLINE = INDEX.
+    IF STATU = 'D'.
+      PERFORM DELETE_MDPSS_01.
+    ELSE.
+<font color ="#8C8C8C">*--&gt Zur Weiterverarb. in 'Hilfsstruktur' MPPA uebernehmen</font>
+      PERFORM <a href ="javascript:Link('MM61XF59_PLAF_TO_MPPA.html?id=#000000000342');">PLAF_TO_MPPA</a> USING PLST-AKTAL
+                                 PLST-AKTFT PLST-AKTRT PLST-AKTGT
+                                 PLAF_ACTUAL.
+<font color ="#8C8C8C">* &gt&gt&gt&gt&gt&gt&gt&gt&gt&gt BEGIN OF INSERTION - NOTE 364836 &lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt</font>
+<font color ="#8C8C8C">*--&gt Vergleichsstruktur aktualisieren</font>
+      PERFORM <a href ="javascript:Link('MM61XF60_PUT_MPPA_PLKVA.html?id=#000000000354');">PUT_MPPA_PLKV</a> USING PLKVA.
+      IF PLKVS &lt&gt PLKVA.
+        IF MPPA-STLFX IS INITIAL.
+<font color ="#8C8C8C">*         Stückliste neu aufzulösen (beim Sichern)</font>
+          CLEAR MPPA-AKTAL.
+<font color ="#8C8C8C">*         Auftrag zu fixieren</font>
+          MPPA-AUFFX = XFLAG.
+        ELSE.
+<font color ="#8C8C8C">*         Komponenten anzupassen (sofort)</font>
+          CLEAR MPPA-AKTAL.
+          PERFORM <a href ="javascript:Link('MM61XF60_UPDATE_MDPMX_PLAF.html?id=#000000000363');">UPDATE_MDPMX_PLAF</a>.
+<font color ="#8C8C8C">*         Neue Komponentenliste ins Memory</font>
+          CALL FUNCTION 'MD_SAVE_MDPMI_MEMORY'
+               EXPORTING
+                    ERSNUM = MDPSX-RSNUM
+                    EPLNUM = MDPSX-DELNR
+               TABLES
+                    MDPMX  = MDPMX.
+          MDPSX-AKTAL = XFLAG.
+        ENDIF.
+      ENDIF.
+<font color ="#8C8C8C">* &gt&gt&gt&gt&gt&gt&gt&gt&gt&gt END   OF INSERTION - NOTE 364836 &lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt</font>
+<font color ="#8C8C8C">*--&gt Dispositionszeile erstellen</font>
+      PERFORM PUT_MPSVIEW_MDPS USING MDPSX-DELKZ.
+<font color ="#8C8C8C">*--&gt Zeile in Dispositionstabelle uebernehmen</font>
+      PERFORM <a href ="javascript:Link('MM61XF59_CHECK_AENDERUNG_MDP09.html?id=#000000000335');">CHECK_AENDERUNG_MDPS_KAPA</a>.
+    ENDIF.
+  ENDLOOP.
+  CLEAR MDST-KZATP.
+  CLEAR MDST-KZUMT.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

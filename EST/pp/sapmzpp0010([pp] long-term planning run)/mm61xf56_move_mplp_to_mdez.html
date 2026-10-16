@@ -1,0 +1,105 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF56_MOVE_MPLP_TO_MDEZ</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF56_MOVE_MPLP_TO_MDEZ</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* MPLP nach MDEZ uebernehmen</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000311"></div>
+FORM MOVE_MPLP_TO_MDEZ.
+<font color ="#8C8C8C">*--&gt MDEZ zuruecksetzen</font>
+  CLEAR MDEZ.
+<font color ="#8C8C8C">*--&gt Sortierblock ergaenzen</font>
+  MOVE NETPLA     TO MDEZ-PLAAB.
+  MOVE S1PLUSX    TO MDEZ-SORT1.
+  MOVE S2LPEIN    TO MDEZ-SORT2.
+<font color ="#8C8C8C">*--&gt Pruefen Bruttoplanung</font>
+  IF  MT61D-MISKZ EQ MISKZB.
+    MOVE BRTPLA     TO MDEZ-PLAAB.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Pruefen Lagerortdisposition</font>
+  IF MDEZ-PLAAB EQ NETPLA
+  OR MDEZ-PLAAB EQ BRTPLA.
+    IF NOT MPLP-LGORT IS INITIAL.
+      PERFORM <a href ="javascript:Link('MM61XF50_CHECK_LGORT.html?id=#000000000264');">CHECK_LGORT</a> USING MPLP-LGORT.
+      IF MARD-DISKZ EQ DISKZ1.      "Lagerort ausgeschlossen
+        MOVE LGODS2     TO MDEZ-PLAAB.
+        MOVE MPLP-LGORT TO PLALG-LGORT.
+        MOVE PLALG      TO MDEZ-PLANR.
+      ENDIF.
+      IF MARD-DISKZ EQ DISKZ2.      "Lagerort seperat disponieren
+        MOVE LGODS1     TO MDEZ-PLAAB.
+        MOVE MPLP-LGORT TO PLALG-LGORT.
+        MOVE PLALG      TO MDEZ-PLANR.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt supplying plant (note 650227)</font>
+  IF MPLP-PSTYP = SOBESU.
+    MOVE MPLP-RESWK TO MDEZ-WRK02.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Daten uebernehmen</font>
+  MOVE LPEIN       TO MDEZ-DELKZ.
+  MOVE PLUSX       TO MDEZ-PLUMI.
+  MOVE XFLAG       TO MDEZ-VRFKZ.
+  IF AM61X-VSTAT EQ VSTATH.
+    IF MDEZS-DELB0 EQ SPACE.
+      PERFORM <a href ="javascript:Link('MM61XF10_READ_T457T.html?id=#000000000170');">READ_T457T</a> USING MDEZ-DELKZ.
+      MOVE T457T-DELB0 TO MDEZ-DELB0.
+    ELSE.
+      MOVE MDEZS-DELB0 TO MDEZ-DELB0.
+    ENDIF.
+    IF MDEZS-EXTRA EQ SPACE.
+      IF MPLP-EBELN NE SPACE.
+        MOVE MPLP-EBELN TO MDEZ-EXTRA+0(10).
+        MOVE '/'        TO MDEZ-EXTRA+10(1).
+        MOVE MPLP-EBELP TO MDEZ-EXTRA+11(5).
+        MOVE '/'        TO MDEZ-EXTRA+16(1).
+        MOVE MPLP-ETENR TO MDEZ-EXTRA+17(4).
+      ENDIF.
+    ELSE.
+      MOVE MDEZS-EXTRA TO MDEZ-EXTRA.
+      PERFORM <a href ="javascript:Link('MM61XF52_MOVE_EXC_MDEZS_TO_MDE.html?id=#000000000282');">MOVE_EXC_MDEZS_TO_MDEZ</a>.
+    ENDIF.
+  ELSE.
+    MOVE MDEZS-DELB0 TO MDEZ-DELB0.
+    MOVE MDEZS-EXTRA TO MDEZ-EXTRA.
+    PERFORM <a href ="javascript:Link('MM61XF52_MOVE_EXC_MDEZS_TO_MDE.html?id=#000000000282');">MOVE_EXC_MDEZS_TO_MDEZ</a>.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Formatbyte für Anzeige</font>
+  MOVE CHAR2 TO MDEZ-FBYTE.
+<font color ="#8C8C8C">*--&gt Auftragsmenge bestimmen</font>
+  AM61X-FLP01 = MPLP-MENGE.
+  MOVE AM61X-FLP01 TO MDEZ-MNG01.
+<font color ="#8C8C8C">*--&gt Liefertermin übernehmen</font>
+  MOVE MPLP-EINDT TO MDEZ-DAT01.
+<font color ="#8C8C8C">*--&gt Verfügbarkeisttermin bestimmen</font>
+  PERFORM <a href ="javascript:Link('MM61XF80_ADD_WEBAZ.html?id=#000000000366');">ADD_WEBAZ</a> USING MPLP-EINDT MPLP-WEBAZ MDEZ-DAT00.
+<font color ="#8C8C8C">*--&gt Sortierschluessel ergaenzen</font>
+  IF MDST-VRFWE EQ XFLAG.
+    MOVE MDEZ-DAT01 TO MDEZ-SORT0.
+  ELSE.
+    MOVE MDEZ-DAT00 TO MDEZ-SORT0.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Daten aus OLD-Workaerea uebernehmen</font>
+  MOVE MDEZS-MNG02 TO MDEZ-MNG02.
+  MOVE MDEZS-MNG04 TO MDEZ-MNG04.
+  MOVE MDEZS-ALINE TO MDEZ-ALINE.
+  MOVE MDEZS-SLOC2 TO MDEZ-SLOC2.                                "SSLOC
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

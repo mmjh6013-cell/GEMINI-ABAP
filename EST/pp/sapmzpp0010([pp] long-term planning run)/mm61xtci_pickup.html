@@ -1,0 +1,145 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XTCI_PICKUP</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XTCI_PICKUP</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  PICKUP                                                              *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000895"></div>
+FORM pickup
+     CHANGING es_line    TYPE mrp_list_line_type
+              ev_found   TYPE bool.
+
+<font color ="#8C8C8C">*--&gt Initialisierung</font>
+  ev_found = gc_false.
+
+<font color ="#8C8C8C">*--&gt Step-Loopzeile ermitteln</font>
+  IF sy-dyngr = 'X700'.                "Table Control THD
+    es_line-cursor_line = mdcursor-line.
+    es_line-field_name  = mdcursor-fname_ez.
+  ELSE.
+    GET CURSOR FIELD es_line-field_name LINE es_line-cursor_line.
+  ENDIF.
+  IF  es_line-cursor_line = 0.
+<font color ="#8C8C8C">*--&gt Steht der Cursor auf einem anderen Feld ? (z.B. Materialnummer</font>
+<font color ="#8C8C8C">*--&gt fuer Doppelklick-Navigation ?)</font>
+    IF mdcursor-fname is initial
+    OR am61r-xcode NE 'AZDE'.                      " kein Doppelklick
+      MESSAGE s112.
+    ENDIF.
+    EXIT.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Index der Tabelle MDEZX ermitteln</font>
+  es_line-mdez_index = mdezx-xline + es_line-cursor_line - 1.
+  IF  es_line-mdez_index &gt mdezx-mline.
+    MESSAGE s112.
+    EXIT.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Daten der ermittelten Zeile lesen</font>
+  PERFORM <a href="#000000000896">pickup_data</a> CHANGING es_line
+                               ev_found.
+
+ENDFORM.
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       FORM PICKUP_DATA                                              *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       ........                                                      *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  ES_LINE                                                       *</font>
+<font color ="#8C8C8C">*  --&gt  EV_FOUND                                                      *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000896"></div>
+FORM pickup_data
+     CHANGING es_line    TYPE mrp_list_line_type
+              ev_found   TYPE bool.
+
+  DATA: lv_index      LIKE sy-tabix.
+
+<font color ="#8C8C8C">*--&gt Einzelzeile nachlesen</font>
+  READ TABLE mdezx INTO es_line-mdez INDEX es_line-mdez_index.
+  IF sy-subrc &gt 0.
+    MESSAGE e190 WITH lv_index 'MDEZX'.
+    EXIT.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Gibt es einen Bezug zur MDPSX ?</font>
+  IF es_line-mdez-aline = 0.
+<font color ="#8C8C8C">*--&gt Kein Bezug vorhanden</font>
+<font color ="#8C8C8C">*--&gt 1. Sonderfall: Kundeneinzelbestandszeile ohne  Bestand</font>
+    IF es_line-mdez-delkz eq kdbst.
+<font color ="#8C8C8C">*--&gt Pseudo-MDPS erzeugen (fuer CALL_TRANSACTION)</font>
+      es_line-mdps-delkz = es_line-mdez-delkz.
+      plakd              = es_line-mdez-planr.
+      es_line-mdps-kdauf = plakd-kdauf.
+      es_line-mdps-kdpos = plakd-kdpos.
+<font color ="#8C8C8C">*--&gt Returncode setzen</font>
+      ev_found = gc_true.
+<font color ="#8C8C8C">*--&gt 2. Sonderfall: Projekteinzelbestandszeile ohne  Bestand</font>
+    ELSEIF es_line-mdez-delkz eq prbst.
+<font color ="#8C8C8C">*--&gt Pseudo-MDPS erzeugen (fuer CALL_TRANSACTION)</font>
+      es_line-mdps-delkz = es_line-mdez-delkz.
+      plapr              = es_line-mdez-planr.
+      es_line-mdps-pspel = plapr-pspel.
+<font color ="#8C8C8C">*--&gt Returncode setzen</font>
+      ev_found = gc_true.
+    ENDIF.
+    EXIT.
+  ENDIF.
+  es_line-mdps_index = es_line-mdez-aline.
+
+<font color ="#8C8C8C">*--&gt Daten zur Zeile lesen</font>
+  READ TABLE mdpsx INTO es_line-mdps INDEX es_line-mdez-aline.
+  IF sy-subrc &gt 0.
+    MESSAGE s112.
+    EXIT.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Daten fuer Auftragsbericht/Bedarfsverursacher</font>
+  IF es_line-mdps-del12 eq space
+  or es_line-mdps-delkz eq arbed.
+    MOVE es_line-mdps-delnr TO es_line-mdps-del12.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Returncode setzen</font>
+  ev_found = gc_true.
+ENDFORM.
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       FORM PICKUP_FIRST_ELEMENT                                     *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       ........                                                      *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  ES_LINE                                                       *</font>
+<font color ="#8C8C8C">*  --&gt  EV_FOUND                                                      *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000897"></div>
+FORM pickup_first_element
+     CHANGING es_line    TYPE mrp_list_line_type
+              ev_found   TYPE bool.
+
+  LOOP AT mdezx.
+    IF mdezx-plumi = plusx.
+      es_line-mdez_index = sy-tabix.
+      PERFORM <a href="#000000000896">pickup_data</a> CHANGING es_line
+                                   ev_found.
+      EXIT.
+    ENDIF.
+  ENDLOOP.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

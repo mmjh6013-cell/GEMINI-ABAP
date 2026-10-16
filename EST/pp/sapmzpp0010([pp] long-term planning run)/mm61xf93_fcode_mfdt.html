@@ -1,0 +1,139 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF93_FCODE_MFDT</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF93_FCODE_MFDT</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Manuelles Fixierungsdatum setzen</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000495"></div>
+FORM FCODE_MFDT.
+
+ DATA: OLD_FIXTR LIKE MDKP-FIXTR,
+       OLD_MFHKZ LIKE MDKP-MFHKZ,
+       OLD_FIX01 LIKE MDPS-FIX01.
+
+<font color ="#8C8C8C">*--&gt alte Fixierungstermine merken</font>
+  MOVE MDKP-FIXTR TO OLD_FIXTR.
+  MOVE MDKP-MFHKZ TO OLD_MFHKZ.
+<font color ="#8C8C8C">*--&gt Baustein zum Setzen MFXDT aufrufen</font>
+  CALL FUNCTION 'MD_SET_MFXDT'
+       EXPORTING
+            EMDKP              = MDKP
+            EMDFD              = MDFD
+            ECM61B             = CM61B
+            SAVE_DIRECT        = SPACE
+       IMPORTING
+            IMDFD              = MDFD
+       EXCEPTIONS
+            INPUT_INSUFFICIENT = 1
+            DATE_NOT_SET       = 2
+            OTHERS             = 3.
+  IF SY-SUBRC NE 0.
+    CASE SY-SUBRC.
+      WHEN '1'.
+      WHEN '2'.
+    ENDCASE.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt CM61M, MDKP aktualisieren</font>
+  CALL FUNCTION 'MD_UPDATE_FIXTR'
+       EXPORTING
+            EMDKP   = MDKP
+            ECM61M  = CM61M
+            ECM61B  = CM61B
+            EMDFD   = MDFD
+       IMPORTING
+            IMDKP   = MDKP
+            ICM61M  = CM61M
+            IMDFD   = MDFD.
+<font color ="#8C8C8C">*--&gt Fixierungsart 3 und 4 -&gt Anzeige neu aufbauen</font>
+  IF CM61M-FXART EQ CHAR3
+  OR CM61M-FXART EQ CHAR4.
+    PERFORM <a href ="javascript:Link('MM61XF36_PUT_MDPSX_MDEZX.html?id=#000000000233');">PUT_MDPSX_MDEZX</a>.
+    IF MDST-GROKO = GC_TRUE.
+      PERFORM MDSTA_AUFBAUEN.
+      PERFORM GROKO_DATA_SEND_COMP.
+    ENDIF.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Fixtermin erhoeht -&gt logisch nachfixieren</font>
+  IF MDKP-FIXTR GT OLD_FIXTR.
+    LOOP AT MDPSX WHERE ( PLAAB EQ NETPLA OR PLAAB EQ BRTPLA )
+                  AND     DAT00 GE OLD_FIXTR
+                  AND     DAT00 LE MDKP-FIXTR.
+      MOVE MDPSX-FIX01 TO OLD_FIX01.
+      CASE MDPSX-DELKZ.
+        WHEN PLAUF
+        OR   SAAUF.
+          IF MDPSX-VRPLA NE XFLAG.
+            PERFORM <a href ="javascript:Link('MM61XF80_CHECK_FIXIERUNGSHORIZ.html?id=#000000000368');">CHECK_FIXIERUNGSHORIZONT</a>
+                    USING MDPSX-FIX01 MDPSX-FIX01.
+          ENDIF.
+        WHEN BSANF
+        OR   LPEIN.
+          PERFORM <a href ="javascript:Link('MM61XF80_CHECK_FIXIERUNGSHORIZ.html?id=#000000000368');">CHECK_FIXIERUNGSHORIZONT</a>
+                  USING MDPSX-FIX01 MDPSX-FIX01.
+        WHEN BSEIN
+        OR   RETPO
+        OR   NEAUF
+        OR   BAREZ
+        OR   FEAUF.
+          PERFORM <a href ="javascript:Link('MM61XF80_CHECK_FIXIERUNGSHORIZ.html?id=#000000000368');">CHECK_FIXIERUNGSHORIZONT</a> USING XFLAG MDPSX-FIX01.
+      ENDCASE.
+      IF OLD_FIX01 NE MDPSX-FIX01.
+        MODIFY MDPSX.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Fixtermin verringert -&gt logische Fixierung loeschen</font>
+  IF MDKP-FIXTR LT OLD_FIXTR.
+    LOOP AT MDPSX WHERE ( PLAAB EQ NETPLA OR PLAAB EQ BRTPLA )
+                  AND     DAT00 GE MDKP-FIXTR
+                  AND     DAT00 LE OLD_FIXTR.
+      MOVE MDPSX-FIX01 TO OLD_FIX01.
+      CASE MDPSX-DELKZ.
+        WHEN PLAUF
+        OR   SAAUF.
+          PERFORM <a href ="javascript:Link('MM61XF80_CHECK_PLAF_FIX01.html?id=#000000000370');">CHECK_PLAF_FIX01</a>.
+        WHEN BSANF.
+          PERFORM <a href ="javascript:Link('MM61XF80_CHECK_BANF_FIX01.html?id=#000000000367');">CHECK_BANF_FIX01</a>.
+        WHEN LPEIN.
+          PERFORM <a href ="javascript:Link('MM61XF80_CHECK_LPEIN_FIX01.html?id=#000000000369');">CHECK_LPEIN_FIX01</a>.
+        WHEN BSEIN
+        OR   RETPO
+        OR   NEAUF
+        OR   BAREZ
+        OR   FEAUF.
+          CLEAR MDPSX-FIX01.
+      ENDCASE.
+      IF OLD_FIX01 NE MDPSX-FIX01.
+        MODIFY MDPSX.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt MDEZX erneuern</font>
+  PERFORM <a href ="javascript:Link('MM61XF36_PUT_MDPSX_MDEZX.html?id=#000000000233');">PUT_MDPSX_MDEZX</a>.
+<font color ="#8C8C8C">*--&gt Falls grosser Kopf sitzt, Daten an LM61K abschicken</font>
+<font color ="#8C8C8C">*   (insbes. wg. Bestands- und Zugangsreichweite)</font>
+  IF MDST-GROKO = GC_TRUE.
+    PERFORM MDSTA_AUFBAUEN.
+    PERFORM GROKO_DATA_SEND_COMP.
+  ENDIF.
+
+ENDFORM.                    " FCODE_MFDT
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

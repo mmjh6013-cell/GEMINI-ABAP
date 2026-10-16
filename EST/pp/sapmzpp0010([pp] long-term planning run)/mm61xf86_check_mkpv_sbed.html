@@ -1,0 +1,106 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF86_CHECK_MKPV_SBED</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF86_CHECK_MKPV_SBED</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Prüfen Verfügbarkeit der Komponenten</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000387"></div>
+FORM CHECK_MKPV_SBED.
+<font color ="#8C8C8C">*--&gt Aktuelle Auflösung ermitteln</font>
+  CASE AM61X-DELKZ.
+<font color ="#8C8C8C">*--&gt PLanauftrag</font>
+  WHEN PLAUF
+  OR   SAAUF.
+    PERFORM <a href ="javascript:Link('MM61XF60_UPDATE_MDPMX_PLAF.html?id=#000000000363');">UPDATE_MDPMX_PLAF</a>.
+    IF AM61X-RCODE &lt&gt CHAR0. MESSAGE I027. EXIT. ENDIF.
+<font color ="#8C8C8C">*--&gt Bestellanforderung</font>
+  WHEN BSANF.
+    PERFORM <a href ="javascript:Link('MM61XF60_UPDATE_MDPMX_BSANF.html?id=#000000000361');">UPDATE_MDPMX_BSANF</a>.                          "TL 470
+    IF AM61X-RCODE &lt&gt CHAR0. MESSAGE I027. EXIT. ENDIF.
+<font color ="#8C8C8C">*--&gt Ungültiges DELKZ</font>
+  WHEN OTHERS.
+    MESSAGE A888.
+  ENDCASE.
+<font color ="#8C8C8C">*--&gt Sekundaerbedarf überprüfen</font>
+  DESCRIBE TABLE MDPMX LINES AM61X-ALINE.
+  IF AM61X-ALINE = 0.
+    MESSAGE I027. EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Verfügbarkeitstabellen erfrischen</font>
+  REFRESH MDVAX.
+  REFRESH RSNRX.
+<font color ="#8C8C8C">*--&gt Sichern aktuelle RSNUM</font>
+  DATA: L_RSNUM LIKE RESB-RSNUM.
+  IF AM61X-DELKZ EQ PLAUF.
+    MOVE MPPA-RSNUM TO L_RSNUM.
+  ENDIF.
+  IF AM61X-DELKZ EQ BSANF.
+    MOVE MPBA-RSNUM TO L_RSNUM.
+  ENDIF.
+  MOVE L_RSNUM TO RSNRX-RSNUM.
+  APPEND RSNRX.
+<font color ="#8C8C8C">*--&gt Aktuelle Auflösung übernehmen</font>
+  PERFORM <a href ="javascript:Link('MM61XF86_UEBERNEHMEN_MDPMX.html?id=#000000000393');">UEBERNEHMEN_MDPMX</a> USING CHAR1 L_RSNUM.
+<font color ="#8C8C8C">*--&gt Aktuelle MDPMX im Memory sichern (temporär)</font>
+  EXPORT MDPMX TO MEMORY ID '$12345678'.
+<font color ="#8C8C8C">*--&gt Auflösung für die restlichen Aufträge aktualisieren</font>
+  CALL FUNCTION 'MD_AUFLOESUNG_DISPOSITION'
+       EXPORTING ECM61X  = CM61X
+                 ECM61W  = CM61W
+                 ECM61M  = CM61M
+                 ECM61B  = CM61B
+                 EMT61D  = MT61D
+                 ET399D  = T399D
+                 EMDKP   = MDKP
+                 EEXDEL  = MDPSS-DELKZ  "Exclude akt. Auftrag
+                 EEXDNR  = MDPSS-DELNR  "Exclude akt. Auftrag
+                 EEXDPS  = MDPSS-DELPS  "Exclude akt. Auftrag
+       IMPORTING IMDKP   = MDKP
+       TABLES    MDPSX   = MDPSX
+                 DQUKX   = EQUKX
+                 DQUPX   = EQUPX
+       EXCEPTIONS ERROR_MESSAGE = 1.
+       IF SY-SUBRC NE 0.
+         PERFORM <a href ="javascript:Link('MM61XF34_SEND_ERROR_MESSAGE.html?id=#000000000221');">SEND_ERROR_MESSAGE</a>.
+       ENDIF.
+<font color ="#8C8C8C">*--&gt Die restl. SBED's in VF-Tabelle übernehmen</font>
+  LOOP AT MDPSX.
+    CHECK NOT MDPSX-RSNUM IS INITIAL.
+    IF MDPSX-VSTAT EQ VSTATL.
+      MOVE MDPSX-RSNUM TO RSNRX-RSNUM.
+      APPEND RSNRX.
+    ELSE.
+      IF MDPSX-AKTAL EQ XFLAG.
+        MOVE MDPSX-RSNUM TO RSNRX-RSNUM.
+        APPEND RSNRX.
+        PERFORM <a href ="javascript:Link('MM61XF60_GET_MDPMX.html?id=#000000000351');">GET_MDPMX</a> USING MDPSX-RSNUM.
+        PERFORM <a href ="javascript:Link('MM61XF86_UEBERNEHMEN_MDPMX.html?id=#000000000393');">UEBERNEHMEN_MDPMX</a> USING CHAR2 MDPSX-RSNUM.
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+<font color ="#8C8C8C">*--&gt IMPORT aktuelle MDPMX from Memory (temporär)</font>
+  IMPORT MDPMX FROM MEMORY ID '$12345678'.
+  FREE MEMORY ID '$12345678'.
+<font color ="#8C8C8C">*--&gt Verfügbarkeitsprüfung aufrufen</font>
+  PERFORM <a href ="javascript:Link('MM61XF86_PRUEFUNG_AUFRUFEN.html?id=#000000000391');">PRUEFUNG_AUFRUFEN</a> USING CHAR2
+                                  SPACE
+                                  CHAR3
+                                  CM61M-FKOBS.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

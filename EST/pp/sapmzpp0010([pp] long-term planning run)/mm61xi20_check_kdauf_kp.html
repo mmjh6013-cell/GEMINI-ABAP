@@ -1,0 +1,130 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XI20_CHECK_KDAUF_KP</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XI20_CHECK_KDAUF_KP</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Pruefen Kundenauftrag fuer Kundenplanung</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000600"></div>
+MODULE check_kdauf_kp.
+  PERFORM <a href="#000000000601">check_kdauf_kp</a>.
+ENDMODULE.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       FORM CHECK_KDAUF_KP                                           *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       ........                                                      *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000601"></div>
+FORM check_kdauf_kp.
+  DATA:
+    lv_matnr LIKE rm61x-matnr,
+    lv_werks LIKE rm61x-werks.
+<font color ="#8C8C8C">*--&gt Ersetze ggf. Auftrag durch Originalbeleg (Angebot, Kontrakt)</font>
+<font color ="#8C8C8C">*--&gt und hole Mat. des KdAuftrags (Mat. aus Orginal kann anders sein!)</font>
+  PERFORM <a href="#000000000602">check_replace_kdauf</a> CHANGING rm61x-kdauf rm61x-kdpos
+                                       lv_matnr    lv_werks.
+<font color ="#8C8C8C">*--&gt Pruefen Existenz (des Originalbelegs)</font>
+  CALL FUNCTION 'SD_DOCUMENT_ACCOUNT_ASSIGNMENT'
+       EXPORTING
+            i_document_number         = rm61x-kdauf
+            i_item_number             = rm61x-kdpos
+       IMPORTING
+            e_knttp                   = rm61x-knttp
+            e_sobkz                   = rm61x-sobkz
+            e_kzvbr                   = rm61x-kzvbr
+            e_kzbws                   = rm61x-kzbws
+            e_ps_psp_pnr              = rm61x-pspel
+            e_cuobj                   = rm61x-cuobj
+            e_techs                   = rm61x-techs
+            e_material                = rm61x-matnr
+            e_plant                   = rm61x-werks
+       EXCEPTIONS
+            document_not_found        = 01
+            document_type_not_allowed = 02
+            item_not_found            = 01.
+  CASE sy-subrc.
+    WHEN 01. MESSAGE e150.
+    WHEN 02. MESSAGE e151.
+  ENDCASE.
+<font color ="#8C8C8C">*--&gt Pruefen Bestandführung</font>
+  IF  rm61x-sobkz NE sobkze
+  AND rm61x-sobkz NE sobkzq.
+    MESSAGE e155.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Ggf. abweichendes Material aus Kundenauftrag einsetzen</font>
+  IF NOT lv_matnr IS INITIAL.
+    rm61x-matnr = lv_matnr.
+    rm61x-werks = lv_werks.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Kundenauftrag für Einzelplanung sperren</font>
+  PERFORM sperren_knd_ep USING rm61x-kdauf rm61x-kdpos.
+<font color ="#8C8C8C">*--&gt Pruefen Material</font>
+  PERFORM <a href ="javascript:Link('MM61XF32_READ_CHECK_MATNR_KP.html?id=#000000000214');">read_check_matnr_kp</a>.
+<font color ="#8C8C8C">*--&gt Pruefen und Lesen Werk</font>
+  PERFORM read_t001w USING rm61x-werks.
+  IF sy-subrc NE 0.
+    MESSAGE e272 WITH rm61x-werks.
+  ENDIF.
+ENDFORM.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       FORM check_replace_kdauf                                      *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       Lesen des Kundenauftrags. Falls dieser per Referenz auf</font>
+<font color ="#8C8C8C">*       Angebot oder Kontrakt angelegt wurde (VBELE &lt&gt VBELN), dann</font>
+<font color ="#8C8C8C">*       durch Originalbeleg ersetzen, weil unter dessen Nummer</font>
+<font color ="#8C8C8C">*       disponiert wird.</font>
+<font color ="#8C8C8C">*       Falls beim Anlegen mit Referenz eine SD-Materialsubstitution</font>
+<font color ="#8C8C8C">*       stattfand (Materialnummer aus Orignalbeleg verschieden von</font>
+<font color ="#8C8C8C">*       VBBE-MATNR), dann muss mit der VBBE-Matnr geplant werden.</font>
+<font color ="#8C8C8C">* Zu beachten:</font>
+<font color ="#8C8C8C">*       Wenn keine VBBE mehr existiert (z.B. Auftrag abgesagt),</font>
+<font color ="#8C8C8C">*       muss dennoch geplant werden können. Allerdings kann</font>
+<font color ="#8C8C8C">*       dann weder Originalbeleg noch ersetzte Materialnummer</font>
+<font color ="#8C8C8C">*       ermittelt werden.</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  kdauf   Ersetzung der eingegebenen Nr. durch Originalbelegnr.</font>
+<font color ="#8C8C8C">*  --&gt  kdpos</font>
+<font color ="#8C8C8C">*  --&gt  matnr   Materialnr. aus VBBE fuer nachfolgende Ersetzung</font>
+<font color ="#8C8C8C">*  --&gt  werks   des Mat. aus Orginalbeleg merken</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000602"></div>
+FORM check_replace_kdauf CHANGING kdauf LIKE rm61x-kdauf
+                                  kdpos LIKE rm61x-kdpos
+                                  matnr LIKE rm61x-matnr
+                                  werks LIKE rm61x-werks.
+  DATA:
+    ls_vbbe LIKE vbbe.
+<font color ="#8C8C8C">*--&gt Kundenauftrag unter der eingegebenen Nummer suchen</font>
+  SELECT * FROM vbbe INTO ls_vbbe UP TO 1 ROWS
+                     WHERE vbeln = kdauf
+                     AND   posnr = kdpos.
+  ENDSELECT.
+<font color ="#8C8C8C">*--&gt VBBE kann geloescht sein oder ist mit anderem Key (Auftragsnr.)</font>
+<font color ="#8C8C8C">*--&gt vorhanden( bei Einstieg ueber Originalnr., also Angebot, Kontrakt)</font>
+<font color ="#8C8C8C">*--&gt In diesem Fall keine Ersetzung der Auftragsnummer noetig und</font>
+<font color ="#8C8C8C">*--&gt keine Ermittlung eines abweichenden KdAuftragsmaterials moeglich</font>
+  CHECK sy-subrc = 0.
+<font color ="#8C8C8C">*--&gt Originalbelegnummer und Material des Bedarfs merken</font>
+  kdauf = ls_vbbe-vbele.
+  kdpos = ls_vbbe-posne.
+  matnr = ls_vbbe-matnr.
+  werks = ls_vbbe-werks.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

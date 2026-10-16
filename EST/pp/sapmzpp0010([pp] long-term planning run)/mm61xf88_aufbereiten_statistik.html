@@ -1,0 +1,120 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF88_AUFBEREITEN_STATISTIK</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF88_AUFBEREITEN_STATISTIK</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Aufbereiten Statistik</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000396"></div>
+FORM aufbereiten_statistik.
+
+  DATA: lv_length TYPE i.
+
+ENHANCEMENT-POINT mm61xf88_aufbereit_statstik_02 SPOTS es_sapmm61x STATIC.
+<font color ="#8C8C8C">*--&gt Hilfsvariablen Laufzeit</font>
+  DATA: hdays TYPE i,                  "Anzahl Tage
+        htime LIKE sy-uzeit,             "Reine Zeitdifferenz(Uhr)
+        sdays TYPE i,                  "Umrechnung Tage -&gt sec
+        shour TYPE i,                  "Umrechnung Std  -&gt sec
+        smins TYPE i,                  "Umrechnung Min  -&gt sec
+        ssecs TYPE i.                  "Umrechnung Sec  -&gt sec
+
+<font color ="#8C8C8C">*--&gt Laufzeiten</font>
+  IF stats-rtime IS INITIAL.
+    IF rm61x-ezeit IS INITIAL.
+      rm61x-ezeit = sy-uzeit.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Neue Logik : Grosse Laufzeiten (&gt24 h)</font>
+    hdays = sy-datlo - rm61x-sdate.
+    htime = rm61x-ezeit - rm61x-szeit.
+    IF rm61x-ezeit GE rm61x-szeit.
+      sdays = hdays * 24 * 60 * 60.
+    ELSE.
+      sdays = ( hdays - 1 ) * 24 * 60 * 60.
+    ENDIF.
+    shour = htime(2) * 60 * 60.
+    smins = htime+2(2) * 60.
+    ssecs = htime+4(2).
+    stats-rtime = ( sdays + shour + smins + ssecs ).  "in secs
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Materialstatistik</font>
+  stats-anzmt = rm61x-anzmt.
+  stats-anzdp = rm61x-anzdp.              "SL 4.7
+  stats-anzex = rm61x-anzex.              "SL 4.7
+  IF cm61x-plauf EQ mrpmp
+  OR cm61x-plauf EQ mpsmp
+  OR cm61x-plauf EQ mpskd
+  OR cm61x-plauf EQ mpspr
+  OR cm61x-plauf EQ lfrmp
+  OR cm61x-plauf EQ lfrkd
+  OR cm61x-plauf EQ lfrpr.
+<font color ="#8C8C8C">*--&gt Datenbankstatistik</font>
+    PERFORM write_end_statistik.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Statistik in Early-Watch-Tabelle ablegen</font>
+  PERFORM moni_export.
+  IF rm61x-anzls EQ xflag.
+ENHANCEMENT-SECTION     mm61xf88_aufbereit_statstik_01 SPOTS es_sapmm61x.
+    IF rm61x-anzmt EQ 0.
+      FORMAT COLOR COL_NORMAL INTENSIFIED OFF.
+      WRITE: /01 sy-vline(1),
+              03(52) TEXT-041.
+      DESCRIBE FIELD rm61x-matnr OUTPUT-LENGTH lv_length.
+      lv_length = 83 + lv_length - 18.                  "2055527
+      WRITE AT lv_length sy-vline(1).
+    ENDIF.
+    DESCRIBE FIELD rm61x-matnr OUTPUT-LENGTH lv_length.
+    lv_length = 84 + lv_length - 18.                    "2055527
+    WRITE AT /01(lv_length) sy-uline.
+<font color ="#8C8C8C">*    IF rm61x-anzmt EQ 0.</font>
+<font color ="#8C8C8C">*      FORMAT COLOR COL_NORMAL INTENSIFIED OFF.</font>
+<font color ="#8C8C8C">*      WRITE: /01 sy-vline(1),</font>
+<font color ="#8C8C8C">*              03(52) text-041,</font>
+<font color ="#8C8C8C">*              83 sy-vline(1).</font>
+<font color ="#8C8C8C">*    ENDIF.</font>
+<font color ="#8C8C8C">*   WRITE: /01 sy-uline(84).</font>
+END-ENHANCEMENT-SECTION.
+  ENDIF.
+  PERFORM write_end_statistik.
+  IF rm61x-paral = xflag.
+    PERFORM statistics_rfc.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Output of the BADI MD_PLANNING_RESULT</font>
+  IF cm61x-plauf EQ mrppl
+  OR cm61x-plauf EQ mpspl
+  OR cm61x-plauf EQ lfrpl.
+    IF NOT gv_md_planning_result_act IS INITIAL.
+<font color ="#8C8C8C">*   Output Material Status</font>
+      CALL METHOD gv_md_planning_result-&gtpost_material_status
+        EXPORTING
+          im_cm61x     = cm61x
+          im_statustab = gt_statustab.
+<font color ="#8C8C8C">*   Output Planning Run Status</font>
+      CALL METHOD gv_md_planning_result-&gtpost_planning_run_status
+        EXPORTING
+          im_cm61x = cm61x
+          im_pstop = mrpstop
+          im_stats = stats
+          im_perfx = perfx[].
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                    "AUFBEREITEN_STATISTIK
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

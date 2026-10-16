@@ -1,0 +1,180 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XMEM_UPDATE_MRP_DATA_IN_ME</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XMEM_UPDATE_MRP_DATA_IN_ME</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  UPDATE_MRP_DATA_IN_MEMORY                                           *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000728"></div>
+FORM update_mrp_data_in_memory
+     USING is_mdkp  LIKE mdkp
+           is_mdps  LIKE mdps
+           is_cm61b TYPE m61x_cm61b
+           it_mdps  LIKE mdpsx[]
+           it_mdpso LIKE mdpsx[].
+
+  DATA: lt_components TYPE aps_plantmat_tab_type,
+        ls_component  TYPE aps_plantmat,
+        ls_mdlv       LIKE mdlv.
+
+<font color ="#8C8C8C">*--&gt Vorraussetzungen pruefen</font>
+  CHECK cm61x-inmem = gc_true.
+
+<font color ="#8C8C8C">*--&gt Geanderten Auftrag als solchen merken</font>
+  CALL FUNCTION 'MD_ORDER_WAS_CHANGED_MANUALLY'
+    EXPORTING
+      is_mdps = is_mdps
+      is_mdkp = is_mdkp.
+
+<font color ="#8C8C8C">*--&gt Gaenderte MDPSX ins Memory stellen</font>
+  CALL FUNCTION 'MD_UPDATE_PLANNING_RESULT'
+    EXPORTING
+      iv_memid    = id_ph
+      iv_plscn    = cm61x-plscn
+      iv_material = is_mdkp-matnr
+      iv_plant    = is_mdkp-plwrk
+      iv_berid    = is_cm61b-berid
+      it_mdpsx    = it_mdps
+      it_mdpso    = it_mdpso.
+
+<font color ="#8C8C8C">*--&gt alle alten Komponenten aus Auftragsnetz ermitteln</font>
+  CALL FUNCTION 'APS_MATERIAL_GET_COMPONENTS'
+    EXPORTING
+      iv_material   = is_mdkp-matnr
+      iv_plant      = is_mdkp-plwrk
+      iv_berid      = is_cm61b-berid
+    IMPORTING
+      et_components = lt_components.
+
+<font color ="#8C8C8C">*--&gt eventuelle neue Komponenten aus MDPMX ermitteln</font>
+  LOOP AT mdpmx.
+    IF mdpmx-bdart EQ brbed.
+<font color ="#8C8C8C">*--&gt Lohnbearbeiter in SBed festhalten</font>
+      MOVE is_mdps-lifnr TO mdpmx-lifnr.
+      MODIFY mdpmx.
+    ENDIF.
+    IF NOT mdpmx-matnr IS INITIAL.                          "SA 45A
+      CALL FUNCTION 'MD_MRP_AREA_GET'
+        EXPORTING
+          i_matnr   = mdpmx-matnr
+          i_werks   = mdpmx-werks
+          i_lgort   = mdpmx-lgpro
+          i_lbear   = mdpmx-lifnr
+          i_sobkz   = mdpmx-sobkz
+          i_dbskz   = mdpmx-dbskz
+        IMPORTING
+          e_db_mdlv = ls_mdlv.
+    ENDIF.                                                  " SA 45A
+
+    READ TABLE lt_components
+         WITH KEY material = mdpmx-matnr
+                  plant    = mdpmx-werks
+                  berid    = ls_mdlv-berid
+         BINARY SEARCH TRANSPORTING NO FIELDS.
+    IF sy-subrc &gt 0.
+      ls_component-material = mdpmx-matnr.
+      ls_component-plant    = mdpmx-werks.
+      ls_component-berid    = ls_mdlv-berid.
+      INSERT ls_component INTO lt_components INDEX sy-tabix.
+    ENDIF.
+  ENDLOOP.
+
+<font color ="#8C8C8C">*--&gt Sekundaerbedarfe aktualisieren</font>
+  IF NOT is_mdps-rsnum IS INITIAL.
+    IF is_mdps-vstat = vstatl.           "Auftrag geloescht
+      CALL FUNCTION 'MD_DEP_REQUIREMENT_DELETE'
+        EXPORTING
+          iv_rsnum = is_mdps-rsnum.
+    ELSE.                              "Auftrag geaendert
+      CALL FUNCTION 'MD_DEPENDENT_REQUIREMENT_STORE'
+        EXPORTING
+          is_mdps  = is_mdps
+          iv_matnr = is_mdkp-matnr                          "HW 443176
+          iv_disst = is_mdkp-disst                          "HW 443176
+          is_cm61x = cm61x
+          it_mdpmi = mdpmx[].
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Umlagerung -&gt  Abruf im anderen Werk aktualisieren</font>
+  IF  is_mdps-beskz = beskzf
+  AND is_mdps-sobes = sobesu.
+    IF is_mdps-vstat = vstatl.            "Auftrag geloescht
+      CALL FUNCTION 'MD_TRANSFER_REQUIREMENT_DELETE'
+        EXPORTING
+          iv_material = is_mdkp-matnr
+          iv_plant    = is_mdps-wrk02
+          iv_delkz    = is_mdps-delkz
+          iv_delnr    = is_mdps-delnr
+          iv_delps    = is_mdps-delps
+          iv_delet    = is_mdps-delet.
+    ELSE.                                 "Auftrag geaendert
+      CALL FUNCTION 'MD_TRANSFER_REQUIREMENT_STORE'
+        EXPORTING
+          is_mdps  = is_mdps
+          is_mdkp  = is_mdkp
+          is_cm61x = cm61x
+          is_cm61b = is_cm61b.
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Produktion im anderen Werk -&gt Auftrag im ProdWerk aktualisieren</font>
+  IF    is_mdps-beskz = beskze
+  AND ( is_mdps-sobes = sobesp OR is_mdps-sobes = sobesu )
+  AND   NOT is_mdps-wrk02 IS INITIAL
+  AND   is_mdps-wrk02 &lt&gt is_mdkp-plwrk.
+    IF is_mdps-vstat = vstatl.                "Auftrag geloescht
+      CALL FUNCTION 'MD_ORDER_PRODCTN_PLANT_DELETE'
+        EXPORTING
+          iv_material = is_mdkp-matnr
+          iv_plant    = is_mdps-wrk02
+          iv_plnum    = is_mdps-delnr.
+    ELSE.
+      CALL FUNCTION 'MD_ORDER_PRODCTN_PLANT_STORE'
+        EXPORTING
+          is_mdps  = is_mdps
+          is_mdkp  = is_mdkp                  "NOTE 308313
+          is_mt61d = mt61d
+          is_cm61m = cm61m
+          is_t399d = t399d
+          is_cm61x = cm61x.
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Auftragsnetz aktuelle Material anpassen</font>
+  CALL FUNCTION 'MD_STORE_PEGGING_INFORMATION'
+    EXPORTING
+      it_mdpsx = it_mdps
+      is_mdkp  = is_mdkp
+      is_cm61b = is_cm61b
+      iv_reset = gc_true.
+
+<font color ="#8C8C8C">*--&gt Fuer alle Komponenten</font>
+  LOOP AT lt_components INTO ls_component.
+    CALL FUNCTION 'MD_COPY_DEPENDENT_REQUIREMENTS'
+      EXPORTING
+        iv_material     = ls_component-material
+        iv_plant        = ls_component-plant
+        iv_berid        = ls_component-berid
+        iv_disst_father = is_mdkp-disst                     "HW 443176
+        is_cm61x        = cm61x
+      CHANGING
+        ct_materials    = mdkex[].
+  ENDLOOP.
+ENDFORM.                    "UPDATE_MRP_DATA_IN_MEMORY
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

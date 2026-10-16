@@ -1,0 +1,78 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF54_MPBA_VORBEREITEN</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF54_MPBA_VORBEREITEN</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* MPBA vorbereiten                                                     *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000305"></div>
+FORM mpba_vorbereiten.
+<font color ="#8C8C8C">*--&gt Fixierungskennzeichen vorbesetzen</font>
+  MOVE xflag       TO mpba-fix01.
+<font color ="#8C8C8C">*--&gt WEBAZ vorbesetzen</font>
+  MOVE mdkp-webaz  TO mpba-webaz.
+<font color ="#8C8C8C">*--&gt Reservierungswerk vorbesetzen</font>
+  IF mpba-pstyp EQ sobesu.
+    MOVE mdkp-wrk02 TO mpba-reswk.
+  ELSE.
+    MOVE mdkp-plwrk TO mpba-reswk.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Lagerort vorschlagen</font>
+  PERFORM vorschlagen_lgort CHANGING mpba-lgort.
+<font color ="#8C8C8C">*--&gt Unterdeckungsdaten ueberpruefen</font>
+ENHANCEMENT-SECTION     mpba_vorbereiten_01 SPOTS es_sapmm61x.
+  IF mpba-sobkz EQ sobkze
+  OR mpba-sobkz EQ sobkzq
+<font color ="#8C8C8C">* DI A&D PCS - Customer stock "{ ENHO ADSUB_MM61XF54_MPBA_VORBERE000 IS-AD-SUC AD_SUB }</font>
+  OR mpba-sobkz EQ sobkzb.    "{ ENHO ADSUB_MM61XF54_MPBA_VORBERE000 IS-AD-SUC AD_SUB }
+    IF  exezx-plaab NE kndpla
+    AND exezx-plaab NE propla
+    AND exezx-plaab NE cstpla."{ ENHO ADSUB_MM61XF54_MPBA_VORBERE000 IS-AD-SUC AD_SUB }
+      EXIT.
+    ENDIF.
+  ELSE.
+    IF  exezx-plaab NE netpla
+    AND exezx-plaab NE brtpla.
+      EXIT.
+    ENDIF.
+  ENDIF.
+END-ENHANCEMENT-SECTION.
+<font color ="#8C8C8C">*--&gt Check Unterdeckungsmenge</font>
+  IF exezx-mng01 LT 0.
+    mpba-menge = exezx-mng01 * -1.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Check Losgroessenparameter</font>
+  PERFORM check_mpba_mengen.
+<font color ="#8C8C8C">*--&gt Check Unterdeckungstermin</font>
+  IF NOT exezx-dat00 IS INITIAL.
+    IF mpba-webaz GT 0.
+<font color ="#8C8C8C">*--&gt Umrechnen Unterdeckungstermin</font>
+      PERFORM convert_gkday_fkday_minus USING exezx-dat00 cm61w-fabkl.
+<font color ="#8C8C8C">*--&gt WEBAZ subtrahieren</font>
+      am61x-sfday = mdcal-fkday - mpba-webaz.
+<font color ="#8C8C8C">*--&gt NEW-Endtermin bestimmen</font>
+      PERFORM convert_fkday_gkday USING am61x-sfday cm61w-fabkl.
+      MOVE mdcal-gkday TO mpba-lfdat.
+    ELSE.
+      MOVE exezx-dat00 TO mpba-lfdat.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Freigabetermin bestimmen</font>
+    PERFORM comp_frgdt.
+  ENDIF.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

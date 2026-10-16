@@ -1,0 +1,181 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XMDV_SELECT_DBVM_FOR_MPS</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XMDV_SELECT_DBVM_FOR_MPS</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  SELECT_DBVM_FOR_MPS</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  p1        text</font>
+<font color ="#8C8C8C">*  &lt--  p2        text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000707"></div>
+FORM SELECT_DBVM_FOR_MPS.
+
+<font color ="#8C8C8C">*--&gt Lokale Datenfelder</font>
+  STATICS: P_MATNR LIKE AM61X-MATNR.     "Zeiger gelesenes Mat. DBVM
+  DATA:    PORTION_RC LIKE AM61X-RCODE.  "KZ: Portion zum Planen
+
+<font color ="#8C8C8C">*--&gt Größe der RANGE-Tabelle bestimmen</font>
+  DATA: LV_LINES TYPE I.
+  DESCRIBE TABLE SELBERIDX LINES LV_LINES.
+
+<font color ="#8C8C8C">*--&gt Clear Datenbereiche</font>
+  CLEAR AM61X-FLP01.                   "Zaehler Eintrage MDMMX
+<font color ="#8C8C8C">*--&gt Pruefen Verarbeitungsart</font>
+  CASE CM61X-VRART.
+<font color ="#8C8C8C">*--&gt Lesen MDVM bei Neuplanung</font>
+<font color ="#8C8C8C">*    Lesen in Abhängigkeit der Größe der RANGE-Tabelle SELBERIDX</font>
+    WHEN NEUVR.
+      IF LV_LINES LE k_range_max.
+        SELECT * FROM  DBVM
+                 INTO  DBVM
+                 WHERE MAFID EQ CM61X-MDMAF
+                 AND   DISST EQ P_DBVM-DISST              "#EC PORTABLE
+                 AND   MATNR GT P_DBVM-MATNR
+                 AND   BERID IN SELBERIDX
+                 AND   MPSKZ EQ XFLAG
+                 ORDER BY MAFID DISST MATNR.
+<font color ="#8C8C8C">*--&gt Materialvormerkung MDMMX uebernehmen</font>
+          PERFORM ADD_DBVM_TO_MDMMX
+                  USING    DBVM
+                  CHANGING P_MATNR
+                           PORTION_RC.
+          IF PORTION_RC NE CHAR0.
+            EXIT.
+          ENDIF.
+        ENDSELECT.
+      ELSE.
+        SELECT * FROM  DBVM
+                 INTO  DBVM
+                 WHERE MAFID EQ CM61X-MDMAF
+                 AND   DISST EQ P_DBVM-DISST              "#EC PORTABLE
+                 AND   MATNR GT P_DBVM-MATNR
+                 AND   MPSKZ EQ XFLAG
+                 ORDER BY MAFID DISST MATNR.
+<font color ="#8C8C8C">*--&gt Dispositionsbereich prüfen</font>
+          CHECK DBVM-BERID IN SELBERIDX.
+<font color ="#8C8C8C">*--&gt Materialvormerkung MDMMX uebernehmen</font>
+          PERFORM ADD_DBVM_TO_MDMMX
+                  USING    DBVM
+                  CHANGING P_MATNR
+                           PORTION_RC.
+          IF PORTION_RC NE CHAR0.
+            EXIT.
+          ENDIF.
+        ENDSELECT.
+      ENDIF.
+<font color ="#8C8C8C">*--&gt Lesen MDVM bei NET_CHANGE-Verarbeitung</font>
+<font color ="#8C8C8C">*    Lesen in Abhängigkeit der Größe der RANGE-Tabelle SELBERIDX</font>
+    WHEN NETVR.
+      IF LV_LINES LE k_range_max.
+        SELECT * FROM  DBVM
+                 INTO  DBVM
+                 WHERE MAFID EQ CM61X-MDMAF
+                 AND   DISST EQ P_DBVM-DISST              "#EC PORTABLE
+                 AND   MATNR GT P_DBVM-MATNR
+                 AND   BERID IN SELBERIDX
+                 AND   MPSKZ EQ XFLAG
+                 AND ( GSAEN EQ XFLAG OR
+                     ( RHYTD GT DATUMU AND RHYTD LE CM61X-DISPD ) )
+                 ORDER BY MAFID DISST MATNR.
+<font color ="#8C8C8C">*--&gt Materialvormerkung in MDMMX uebernehmen</font>
+          PERFORM ADD_DBVM_TO_MDMMX
+                  USING    DBVM
+                  CHANGING P_MATNR
+                           PORTION_RC.
+          IF PORTION_RC NE CHAR0.
+            EXIT.
+          ENDIF.
+        ENDSELECT.
+      ELSE.
+        SELECT * FROM  DBVM
+                 INTO  DBVM
+                 WHERE MAFID EQ CM61X-MDMAF
+                 AND   DISST EQ P_DBVM-DISST              "#EC PORTABLE
+                 AND   MATNR GT P_DBVM-MATNR
+                 AND   MPSKZ EQ XFLAG
+                 AND ( GSAEN EQ XFLAG OR
+                     ( RHYTD GT DATUMU AND RHYTD LE CM61X-DISPD ) )
+                 ORDER BY MAFID DISST MATNR.
+<font color ="#8C8C8C">*--&gt Dispositionsbereich prüfen</font>
+          CHECK DBVM-BERID IN SELBERIDX.
+<font color ="#8C8C8C">*--&gt Materialvormerkung in MDMMX uebernehmen</font>
+          PERFORM ADD_DBVM_TO_MDMMX
+                  USING    DBVM
+                  CHANGING P_MATNR
+                           PORTION_RC.
+          IF PORTION_RC NE CHAR0.
+            EXIT.
+          ENDIF.
+        ENDSELECT.
+      ENDIF.
+<font color ="#8C8C8C">*--&gt Lesen MDVM bei Kurzfrist-NET-CHANGE-Verarbeitung</font>
+<font color ="#8C8C8C">*    Lesen in Abhängigkeit der Größe der RANGE-Tabelle SELBERIDX</font>
+    WHEN NPLVR.
+      IF LV_LINES LE k_range_max.
+        SELECT * FROM  DBVM
+                 INTO  DBVM
+                 WHERE MAFID EQ CM61X-MDMAF
+                 AND   DISST EQ P_DBVM-DISST         "#EC PORTABLE
+                 AND   MATNR GT P_DBVM-MATNR
+                 AND   BERID IN SELBERIDX
+                 AND   MPSKZ EQ XFLAG
+                 AND ( AKKEN EQ XFLAG OR
+                     ( RHYTD GT DATUMU AND RHYTD LE CM61X-DISPD ) )
+                 ORDER BY MAFID DISST MATNR.
+<font color ="#8C8C8C">*--&gt Materialvormerkung in MDMMX uebernehmen</font>
+          PERFORM ADD_DBVM_TO_MDMMX
+                  USING    DBVM
+                  CHANGING P_MATNR
+                           PORTION_RC.
+          IF PORTION_RC NE CHAR0.
+            EXIT.
+          ENDIF.
+        ENDSELECT.
+      ELSE.
+        SELECT * FROM  DBVM
+                 INTO  DBVM
+                 WHERE MAFID EQ CM61X-MDMAF
+                 AND   DISST EQ P_DBVM-DISST         "#EC PORTABLE
+                 AND   MATNR GT P_DBVM-MATNR
+                 AND   MPSKZ EQ XFLAG
+                 AND ( AKKEN EQ XFLAG OR
+                     ( RHYTD GT DATUMU AND RHYTD LE CM61X-DISPD ) )
+                 ORDER BY MAFID DISST MATNR.
+<font color ="#8C8C8C">*--&gt Dispositionsbereich prüfen</font>
+          CHECK DBVM-BERID IN SELBERIDX.
+<font color ="#8C8C8C">*--&gt Materialvormerkung in MDMMX uebernehmen</font>
+          PERFORM ADD_DBVM_TO_MDMMX
+                  USING    DBVM
+                  CHANGING P_MATNR
+                           PORTION_RC.
+          IF PORTION_RC NE CHAR0.
+            EXIT.
+          ENDIF.
+        ENDSELECT.
+      ENDIF.
+    WHEN OTHERS.
+      MESSAGE A051 WITH CM61X-VRART.
+  ENDCASE.
+<font color ="#8C8C8C">*--&gt Zeiger auf Materialvormerkungen aktualisieren</font>
+  MOVE P_MATNR TO P_DBVM-MATNR.
+
+ENDFORM.                               " SELECT_DBVM_FOR_MPS
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

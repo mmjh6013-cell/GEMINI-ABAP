@@ -1,0 +1,129 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XTCI_FCODE_CALL_TC</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XTCI_FCODE_CALL_TC</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*---------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*           Transaktions-Calls für Umsetztransaktionen</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------</font>
+
+<div id="000000000842"></div>
+FORM fcode_call_tc USING selkz.
+  DATA: lv_found TYPE bool,
+        ls_line  TYPE mrp_list_line_type,
+        lv_disgr LIKE mdkp-disgr.                          "note 0329517
+  DATA: BEGIN OF ls_memoryid,                               "N_1327813
+          memid TYPE memid4,
+          plscn TYPE plscn,
+          matnr LIKE mt61d-matnr,
+          berid LIKE mdlv-berid,
+          werks LIKE mt61d-werks,
+        END OF ls_memoryid.
+  DATA : lv_mpn_save_matnr LIKE mt61d-matnr. "{ ENHO DIMP_GENERAL_MM61XTCI_FCODE_CA IS-AD-MPN-MRP AD_MPN_IC }
+
+include <a href ="mm61xtci_fcode_call_tc_03 spots esc_mm61xtci static include bound.html">mm61xtci_fcode_call_tc_03 SPOTS esc_mm61xtci STATIC INCLUDE BOUND</a>.
+<font color ="#8C8C8C">*--&gt Ausgewaehlte Zeile bestimmen</font>
+  PERFORM <a href ="javascript:Link('MM61XTCI_PICKUP.html?id=#000000000895');">pickup</a> CHANGING ls_line lv_found.
+  IF lv_found NE gc_true.
+    EXIT.
+  ENDIF.
+
+  "{ Begin ENHO DIMP_GENERAL_MM61XTCI_FCODE_CA IS-AD-MPN-MRP AD_MPN_IC }
+<font color ="#8C8C8C">*  &gt A&D 3.0 Insert for IM-MPN</font>
+<font color ="#8C8C8C">*    for planned indep. rqmt of non leading parts the matnr must me</font>
+<font color ="#8C8C8C">*    switched before the maintenance transaction is called.</font>
+
+  IF NOT ls_line-mdps-mpnmt IS INITIAL AND ls_line-mdps-delkz = 'PP'.
+    IF ls_line-mdps-mpnmt &lt&gt mdkp-matnr.
+      lv_mpn_save_matnr = mdkp-matnr.
+      mdkp-matnr = ls_line-mdps-mpnmt.
+    ENDIF.
+  ENDIF.
+<font color ="#8C8C8C">*  &gt End of A&D 3.0 Insert</font>
+  "{ End ENHO DIMP_GENERAL_MM61XTCI_FCODE_CA IS-AD-MPN-MRP AD_MPN_IC }
+
+include <a href ="mm61xtci_fcode_call_tc_01 spots esc_mm61xtci include bound.html">mm61xtci_fcode_call_tc_01 SPOTS esc_mm61xtci INCLUDE BOUND</a>.
+<font color ="#8C8C8C">*--&gt Falls Bedarfsplanung für Dispobereiche aktiv und Dispositionsgruppe</font>
+<font color ="#8C8C8C">*    auf Dispobereichsebene gepflegt, wird die Dispositionsgruppe des</font>
+<font color ="#8C8C8C">*    Dispobereichs übergeben. Ansonsten die Dispositionsgruppe des Werks</font>
+  PERFORM <a href ="javascript:Link('MM61XDBR_READ_T000MD.html?id=#000000000138');">read_t000md</a>.                                     "note 0329517
+  IF NOT t000md-disfg IS INITIAL                           "note 0329517
+    AND NOT cm61b-disgr IS INITIAL.                        "note 0329517
+    lv_disgr = cm61b-disgr.                                "note 0329517
+  ELSE.                                                    "note 0329517
+    lv_disgr = mdkp-disgr.                                 "note 0329517
+  ENDIF.                                                   "note 0329517
+
+ENHANCEMENT-SECTION     ehp_fcode_call_tc_01 SPOTS esc_mm61xtci INCLUDE BOUND .
+  "{ Begin ENHO MD_SFWS_MM61XTCI_FCODE_CALL_TC PP-MRP MAN_SFWS_SC_MRP_01 }
+<font color ="#8C8C8C">*--&gt Transaktionscall über Funktionsbaustein</font>
+  IF ls_line-mdps-mdmat IS INITIAL OR
+     ls_line-mdps-mdwrk IS INITIAL.
+    CALL FUNCTION 'CALL_TRANSACTION'
+      EXPORTING
+        emdps                = ls_line-mdps
+        trgrp                = t450n-trgrp
+        selkz                = selkz
+        matnr                = mdkp-matnr
+        werks                = mdkp-plwrk
+        disgr                = lv_disgr
+      EXCEPTIONS
+        t457c_unvollstaendig = 01.
+  ELSE.
+    CALL FUNCTION 'CALL_TRANSACTION'
+      EXPORTING
+        emdps                = ls_line-mdps
+        trgrp                = t450n-trgrp
+        selkz                = selkz
+        matnr                = ls_line-mdps-mdmat
+        werks                = ls_line-mdps-mdwrk
+        disgr                = lv_disgr
+      EXCEPTIONS
+        t457c_unvollstaendig = 01.
+  ENDIF.
+  "{ End ENHO MD_SFWS_MM61XTCI_FCODE_CALL_TC PP-MRP MAN_SFWS_SC_MRP_01 }
+END-ENHANCEMENT-SECTION.
+  IF sy-subrc NE 0.
+    MESSAGE e111.
+  ENDIF.
+
+<font color ="#8C8C8C">* Delete the stock/requirements situation in buffer           "N_1327813</font>
+  IF selkz = selkzv OR
+     selkz = charf  OR
+     selkz = chart  OR
+     selkz = charb  OR
+     selkz = charc  OR
+     selkz = charp.
+    ls_memoryid-memid = id_bl.
+    ls_memoryid-plscn = mdkp-plscn.
+    ls_memoryid-matnr = mdkp-matnr.
+    ls_memoryid-berid = cm61b-berid.
+    ls_memoryid-werks = mdkp-plwrk.
+    FREE MEMORY ID ls_memoryid.
+  ENDIF.
+
+  "{ Begin ENHO DIMP_GENERAL_MM61XTCI_FCODE_CA IS-AD-MPN-MRP AD_MPN_IC }
+<font color ="#8C8C8C">*  &gt A&D 3.0 Insert for IM-MPN</font>
+  IF NOT lv_mpn_save_matnr IS INITIAL.
+    mdkp-matnr = lv_mpn_save_matnr.
+  ENDIF.
+<font color ="#8C8C8C">*  &gt End of A&D 3.0 Insert</font>
+  "{ End ENHO DIMP_GENERAL_MM61XTCI_FCODE_CA IS-AD-MPN-MRP AD_MPN_IC }
+
+include <a href ="mm61xtci_fcode_call_tc_02 spots esc_mm61xtci include bound.html">mm61xtci_fcode_call_tc_02 SPOTS esc_mm61xtci INCLUDE BOUND</a>.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

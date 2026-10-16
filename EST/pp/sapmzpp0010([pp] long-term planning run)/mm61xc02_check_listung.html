@@ -1,0 +1,164 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XC02_CHECK_LISTUNG</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XC02_CHECK_LISTUNG</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">* note 368933 - B</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*   Listungsprüfung Retail                                             *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  check_listung_3</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000040"></div>
+FORM CHECK_LISTUNG_3 USING    P_WERKS    LIKE AM61X-WERKS
+                              P_MATNR    LIKE AM61X-MATNR
+                              P_DISPD    LIKE CM61X-DISPD
+                     CHANGING KZGELISTET TYPE C.
+
+<font color ="#8C8C8C">* CALL-Ergebnisse</font>
+  DATA: L_KZ_ITEM_LISTING  LIKE WTDY-TYP01.
+  DATA: L_KZLIK_NOT_IN_USE LIKE WTDY-TYP01.
+
+<font color ="#8C8C8C">* Lokale Valiable für den Artikeltyp</font>
+  DATA: L_ATTYP            LIKE MARA-ATTYP.
+  DATA: L_BFLME            LIKE MARA-BFLME.
+  DATA: L_HEADFL           LIKE TWZLA-KZKSN.
+  DATA: L_COMP             LIKE WSOS_STULI OCCURS 0 WITH HEADER LINE.
+  DATA: L_ST_SPLITT        LIKE WSOS_MATNR.
+
+  STATICS: S_T001W   LIKE T001W.
+
+  KZGELISTET = XFLAG.
+
+<font color ="#8C8C8C">* Bemerkung : Beim aufruf von CHECK_LISTUNG_EN_BLOCK nehmen wir an, daß</font>
+<font color ="#8C8C8C">* es nur VZ/Filialen oder nur Werke geben kann, s.d. die Abfrage auf das</font>
+<font color ="#8C8C8C">* VFLKZ richtig zieht.</font>
+  IF S_T001W-WERKS &lt&gt P_WERKS.
+    CALL FUNCTION 'T001W_SINGLE_READ'
+      EXPORTING
+<font color ="#8C8C8C">*       KZRFB             = ' '</font>
+        T001W_WERKS       = P_WERKS
+      IMPORTING
+        WT001W            = S_T001W
+      EXCEPTIONS
+        NOT_FOUND         = 1
+        OTHERS            = 2.
+    IF SY-SUBRC &lt&gt 0.
+      EXIT.
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">* NUR für Handelsbetriebe Listungsprüfung durchführen</font>
+  CHECK NOT S_T001W-VLFKZ IS INITIAL.
+
+  CALL FUNCTION 'WLK1_CHECK'
+       EXPORTING
+            DATE                        = P_DISPD
+            ITEM                        = P_MATNR
+            SHOP_LOCNR                  = S_T001W-KUNNR
+            SHOP_WERKS                  = S_T001W-WERKS
+            SHOP_MUST_BE_LOCATION       = XFLAG
+            WRF1_KZLIK_CHECK            = XFLAG
+            DISPOFL                     = XFLAG
+<font color ="#8C8C8C">* Note 921381 - Begin</font>
+            COMPONENT_CHECK             = XFLAG
+<font color ="#8C8C8C">* Note 921381 - End</font>
+       IMPORTING
+            NO_UNIT_BUT_ITEM_LISTING    = L_KZ_ITEM_LISTING
+            WRF1_KZLIK_NOT_IN_USE       = L_KZLIK_NOT_IN_USE
+            P_ATTYP                     = L_ATTYP
+            P_BFLME                     = L_BFLME
+       EXCEPTIONS
+            NO_LISTING                  = 01
+            NO_LISTING_IN_TIME          = 02
+            EXISTING_EXCLUSION_LISTING  = 03
+            WRONG_PARAMETERS            = 04
+            NO_OPEN_TIME_SHOP_IN_TIME   = 05
+            NO_LISTING_FOR_PROMOTION    = 06
+            WRONG_LOCATION              = 07
+            NO_COMPLETE_LISTING_IN_TIME = 08
+            OTHERS                      = 99.
+
+  IF SY-SUBRC &lt&gt 0.
+<font color ="#8C8C8C">*   Material ist nicht gelistet;</font>
+<font color ="#8C8C8C">*   Planungsvormerkung könnte jetzt gelöscht werden, zumindest</font>
+<font color ="#8C8C8C">*   sollten das Rhythmusdatum und die Änderungskennzeichen</font>
+<font color ="#8C8C8C">*   zurückgesetzt werden.</font>
+    CLEAR KZGELISTET.
+  ELSE.
+    IF L_ATTYP = C_MAT_SAMMEL.
+      CLEAR KZGELISTET.
+    ELSE.
+<font color ="#8C8C8C">*     ist das Material/Artikel gelistet, so wird für strukturierte</font>
+<font color ="#8C8C8C">*     Artikel geprüft, ob sie aufgelöst (= Bestandsführung</font>
+<font color ="#8C8C8C">*     auf Ebene der Komponenten) werden.</font>
+
+      IF L_ATTYP = C_MAT_SET
+      OR L_ATTYP = C_MAT_LOT
+      OR L_ATTYP = C_MAT_DISPLAY
+      OR L_BFLME = C_BFLME_KOLLI.
+        CALL FUNCTION 'STRUC_ART_KEY_TODO'
+                    EXPORTING
+                         PI_MATNR       = P_MATNR
+                         PI_WERKS       = P_WERKS
+<font color ="#8C8C8C">*                        PI_LOCNR       =</font>
+                         PI_ATTYP       = L_ATTYP
+                         PI_KEY         = '200'
+                    IMPORTING
+                         PE_HEADFL      = L_HEADFL
+                    EXCEPTIONS
+                         NO_TWZLA_FOUND = 1
+                         OTHERS         = 99.
+        IF SY-SUBRC = 0.
+          IF L_HEADFL = '1'.
+<font color ="#8C8C8C">*           Material/Artikel wird aufgelöst, dann Prüfung</font>
+<font color ="#8C8C8C">*           ob eine Komponente seperat disponierbar wird.</font>
+            CLEAR L_ST_SPLITT.
+            L_ST_SPLITT-MATNR = P_MATNR.
+            L_ST_SPLITT-ATTYP = L_ATTYP.
+            L_ST_SPLITT-WERKS = P_WERKS.
+            L_ST_SPLITT-DATAB = P_DISPD.
+            L_ST_SPLITT-DATBI = P_DISPD.
+            L_ST_SPLITT-BFLME = L_BFLME.
+            CALL FUNCTION 'STRUC_ARTICLE_SPLITTING'
+                 EXPORTING
+                      ST_SPLIT                = L_ST_SPLITT
+                 TABLES
+                      BILL_OF_MATERIAL        = L_COMP
+                 EXCEPTIONS
+                      NO_HEAD_FOUND           = 1
+                      NO_COMPONENTS_FOUND     = 2
+                      NO_RANGE_FOUND          = 3
+                      NO_RETAIL_MAT           = 4
+                      NO_LISTING_AS_COMPONENT = 5
+                      OTHERS                  = 99.
+            IF SY-SUBRC &lt&gt 0.
+<font color ="#8C8C8C">*             Mindestens eine Komponente wird seperat</font>
+<font color ="#8C8C8C">*             disponierbar, somit wird der Kopfartikel NICHT</font>
+<font color ="#8C8C8C">*             disponiert.</font>
+              CLEAR KZGELISTET.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                               "CHECK_LISTUNG_3
+<font color ="#8C8C8C">* note 368933 - E</font>
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

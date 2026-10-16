@@ -1,0 +1,108 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XDYN_GROKO_DYNP_BUILD</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XDYN_GROKO_DYNP_BUILD</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*--&gt Zugehörige Form-Routine</font>
+<div id="000000000153"></div>
+FORM GROKO_DYNP_BUILD.
+DATA: L_TBLEN LIKE SY-TABIX.   "Länge von interner Tabelle THD4.0A
+TABLES: D020S.
+
+<font color ="#8C8C8C">*--&gt Tabelle nur aufbauen, wenn neues Dispomerkmal</font>
+  IF NOT MT61D-DISMM IS INITIAL.                               "TF 4.0B
+    CHECK OLD_DISMM &lt&gt MT61D-DISMM.
+  ENDIF.                                                       "TF 4.0B
+  CLEAR GROKO_DYNP. REFRESH GROKO_DYNP.
+  OLD_DISMM = MT61D-DISMM.
+<font color ="#8C8C8C">*--&gt Dynprofolge lesen und in Groko_Dynp speichern</font>
+  SELECT SINGLE * FROM T438A WHERE DISMM = MT61D-DISMM.
+  IF SY-SUBRC = 0.
+    SELECT * FROM T449F WHERE DYFOL = T438A-DYFOL.
+      SELECT SINGLE * FROM D020S
+        WHERE PROG = 'SAPLM61K'
+        AND   DNUM = T449F-DYNNR.
+<font color ="#8C8C8C">*----&gt Falls nicht Dispoliste: Screens mit Dyngr = 'DISL' NICHT!</font>
+        IF  CM61X-PLAUF NE ANZDL                           "MD05
+        AND CM61X-PLAUF NE ANZDS                           "MD06
+        AND CM61X-PLAUF NE LFRDL                           "MS05
+        AND CM61X-PLAUF NE LFRDS.                          "MS06
+          CHECK D020S-DGRP NE 'DISL'.
+        ENDIF.
+<font color ="#8C8C8C">*----&gt Nur falls Planungstransaktion: Screens mit Dyngr = 'PLAN' bringen</font>
+        IF CM61X-PLAUF EQ ANZDL                            "MD05
+        OR CM61X-PLAUF EQ LFRDL                            "MS05
+        OR CM61X-PLAUF EQ ANZDS                            "MD06
+        OR CM61X-PLAUF EQ LFRDS                            "MS06
+        OR CM61X-PLAUF EQ ANZBS                            "MD04
+        OR CM61X-PLAUF EQ LFRAZ                            "MS04
+        OR CM61X-PLAUF EQ ANZML                            "MD07
+        OR CM61X-PLAUF EQ LFRML                            "MS07
+        OR CM61X-PLAUF EQ ANZPT                            "Serienpl.
+        OR CM61X-PLAUF EQ ANZRM.                           "Serienpl.
+          CHECK D020S-DGRP NE 'PLAN'.
+        ENDIF.
+<font color ="#8C8C8C">*----&gt Nur falls Serienplanung: Screens mit Dyngr = 'REPE' bringen</font>
+        IF  CM61X-PLAUF NE ANZPT
+        AND CM61X-PLAUF NE ANZRM.
+          CHECK D020S-DGRP NE 'REPE'.
+        ENDIF.
+<font color ="#8C8C8C">*----&gt Prüfen, ob der Screen überhaupt als 'großer Kopf' definiert wurde</font>
+        CHECK D020S-DGRP EQ 'GRKO'
+        OR    D020S-DGRP EQ 'DISL'
+        OR    D020S-DGRP EQ 'PLAN'
+        OR    D020S-DGRP EQ 'REPE'.
+<font color ="#8C8C8C">*----&gt Dynpro in int. Tabelle übernehmen</font>
+        GROKO_DYNP-SRTNR = T449F-SRTNR.
+        GROKO_DYNP-DYNNR = T449F-DYNNR.
+<font color ="#8C8C8C">*       PERFORM read_tab_text.                                 "TF 4.0B</font>
+        PERFORM <a href ="javascript:Link('MM61XDYN_READ_TAB_TEXT.html?id=#000000000155');">READ_TAB_TEXT</a> USING GROKO_DYNP-DYNNR.          "TF 4.0B
+        APPEND GROKO_DYNP.
+    ENDSELECT.
+        DESCRIBE TABLE GROKO_DYNP LINES L_TBLEN.
+        IF L_TBLEN = 0.                                     "THD4.0A
+             GROKO_DYNP-SRTNR = '01'.                       "THD4.0A
+             GROKO_DYNP-DYNNR = STANDARD_GROKO. "='0101'    "THD4.0A
+<font color ="#8C8C8C">*            PERFORM read_tab_text.                   "THD4.0A "TF 4.0B</font>
+             PERFORM <a href ="javascript:Link('MM61XDYN_READ_TAB_TEXT.html?id=#000000000155');">READ_TAB_TEXT</a> USING GROKO_DYNP-DYNNR.     "TF 4.0B
+             APPEND GROKO_DYNP.                             "THD4.0A
+        ENDIF.
+  ELSE.
+<font color ="#8C8C8C">*--&gt Standardfolge, bestehend nur aus Dynpro SAPLM61K-101, setzen</font>
+    GROKO_DYNP-SRTNR = '01'.
+    GROKO_DYNP-DYNNR = STANDARD_GROKO.          "='0101'
+<font color ="#8C8C8C">*   PERFORM read_tab_text.                                     "TF 4.0B</font>
+    PERFORM <a href ="javascript:Link('MM61XDYN_READ_TAB_TEXT.html?id=#000000000155');">READ_TAB_TEXT</a> USING GROKO_DYNP-DYNNR.              "TF 4.0B
+    APPEND GROKO_DYNP.
+  ENDIF.
+  SORT GROKO_DYNP.
+<font color ="#8C8C8C">*--&gt Falls noch kein Tab gedrückt wurde, ersten Includescreen setzen</font>
+   IF TABNR_OLD IS INITIAL.
+    LOOP AT GROKO_DYNP.           "Ersten Eintrag holen
+     READ TABLE GROKO_DYNP.
+     IF SY-SUBRC EQ '0'.
+      MOVE GROKO_DYNP-DYNNR TO SUBSCREEN_GRKOPF.
+      EXIT.
+     ENDIF.
+     EXIT.
+    ENDLOOP.
+   ENDIF.
+  DYNP_MAX_INDEX = SY-TABIX.
+  DYNP_CURR_INDEX = 1.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

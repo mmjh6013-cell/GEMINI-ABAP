@@ -1,0 +1,72 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF32_READ_CHECK_MATNR_KP</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF32_READ_CHECK_MATNR_KP</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Pruefen Materialnummer bei Kundenplanung</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000214"></div>
+FORM read_check_matnr_kp.
+<font color ="#8C8C8C">*--&gt Werks-DB ergaenzen, falls DB aktiv</font>
+  PERFORM <a href ="javascript:Link('MM61XDBR_READ_T000MD.html?id=#000000000138');">read_t000md</a>.
+<font color ="#8C8C8C">* IF NOT T000MD-UDBVM IS INITIAL.                    "N1583339</font>
+  PERFORM berid_for_werks USING rm61x-werks CHANGING rm61x-berid
+                                                     rm61x-bertx.
+<font color ="#8C8C8C">* ENDIF.</font>
+<font color ="#8C8C8C">*--&gt View Materialstamm lesen</font>
+  PERFORM read_mt61d USING rm61x-matnr rm61x-werks rm61x-berid.
+  IF sy-subrc NE 0.
+    MESSAGE e004 WITH rm61x-matnr rm61x-werks.
+  ENDIF.
+  MOVE mt61d-disst TO rm61x-disst.
+
+"{ Begin ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+<font color ="#8C8C8C">*--&gt PIC : material check for MPN+SUS                                "46</font>
+  PERFORM PIC_MATERIAL_CHECK_OL
+                       USING    MT61D
+                       CHANGING RM61X GT_PIC_PARTS[].
+"{ End ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+
+ENHANCEMENT-POINT mm61xf32_read_chck_matnr_kp_01 SPOTS es_sapmm61x.
+<font color ="#8C8C8C">*--&gt Aktuelles Material</font>
+  CLEAR cm61d.
+  MOVE rm61x-matnr TO cm61d-matnr.
+  MOVE rm61x-werks TO cm61d-werks.
+  MOVE rm61x-disst TO cm61d-disst.
+  MOVE rm61x-berid TO cm61d-berid.
+<font color ="#8C8C8C">*--&gt Authority-Check</font>
+  IF t450n-mdobj EQ mdobjl.
+    PERFORM check_authority_l_01
+            USING t450n-mdaty rm61x-plscn rm61x-werks.
+  ELSE.
+    PERFORM check_authority_d_01
+            USING t450n-mdakt t450n-mdaty mt61d-werks mt61d-dispo.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Dispositionsmerkmal ueberpruefen</font>
+  PERFORM check_dismm USING mt61d-dismm.
+  IF am61x-rcode EQ char1.
+    MESSAGE e008 WITH mt61d-matnr mt61d-werks rm61x-berid.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Dispositionsverfahren ueberpruefen</font>
+  PERFORM check_disvf.
+<font color ="#8C8C8C">*--&gt Materialstatus ueberpruefen (allgemein)</font>
+  PERFORM check_mmsta_ol USING mt61d-mstae mt61d-matnr mt61d-mstde.
+<font color ="#8C8C8C">*--&gt Materialstatus ueberpruefen (Werk)</font>
+  PERFORM check_mmsta_ol USING mt61d-mmsta mt61d-matnr mt61d-mmstd.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

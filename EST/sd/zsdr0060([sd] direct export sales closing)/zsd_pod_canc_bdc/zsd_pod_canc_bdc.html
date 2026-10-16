@@ -1,0 +1,176 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZSD_POD_CANC_BDC</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZSD_POD_CANC_BDC</b></font>
+<hr>
+<pre width="100">
+FUNCTION zsd_pod_canc_bdc.
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*"*"Local Interface:</font>
+<font color ="#8C8C8C">*"  IMPORTING</font>
+<font color ="#8C8C8C">*"     REFERENCE(IV_VBELN_VL) TYPE  VBELN_VL</font>
+<font color ="#8C8C8C">*"     REFERENCE(IV_PODAT) TYPE  PODAT OPTIONAL</font>
+<font color ="#8C8C8C">*"     REFERENCE(IV_DISMODE) TYPE  CTU_MODE DEFAULT 'N'</font>
+<font color ="#8C8C8C">*"  EXPORTING</font>
+<font color ="#8C8C8C">*"     REFERENCE(ES_RETURN) TYPE  ZSDS0010</font>
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+
+<font color ="#8C8C8C">*       <a href ="global-zsd_pod_canc_bdc.html">Global data declarations</a></font>
+
+  DATA:
+    lv_vbeln      TYPE likp-vbeln,
+    lv_podat      TYPE podat,
+    lv_potim      TYPE potim,
+    lv_podat_char TYPE char10,
+    lv_potim_char TYPE char8.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Initialize</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  CLEAR:
+    gs_options,
+    gt_bdc_data[],
+    gt_bdc_msg[],
+    es_return.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* BDC Options</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  PERFORM set_bdc_options
+    USING iv_dismode.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Delivery</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  lv_vbeln =
+    |{ iv_vbeln_vl ALPHA = IN WIDTH = 10 }|.
+
+  es_return-vbeln_vl =
+    iv_vbeln_vl.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* POD Date</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* ## ### ### ## ## ##</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF iv_podat IS INITIAL.
+
+    lv_podat =
+      sy-datum.
+
+  ELSE.
+
+    lv_podat =
+      iv_podat.
+
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* POD Time</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  lv_potim =
+    sy-uzeit.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Date / Time Format</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  WRITE lv_podat
+    TO lv_podat_char.
+
+  WRITE lv_potim
+    TO lv_potim_char.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* VLPOD Initial Screen</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  PERFORM dynpro USING:
+    'X' 'SAPMV50A'   '4006',
+    ' ' 'BDC_CURSOR' 'LIKP-VBELN',
+    ' ' 'BDC_OKCODE' '=ENT2',
+    ' ' 'LIKP-VBELN' lv_vbeln.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* POD Cancellation</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  PERFORM dynpro USING:
+    'X' 'SAPMV50A'   '1000',
+    ' ' 'BDC_OKCODE' '=PODS',
+    ' ' 'BDC_SUBSCR'
+        'SAPMV50A                                1502SUBSCREEN_HEADER',
+    ' ' 'BDC_SUBSCR'
+        'SAPMV50A                                1110SUBSCREEN_BODY',
+    ' ' 'BDC_SUBSCR'
+        'SAPMV50A                                1704SUBSCREEN_ICONBAR'.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Save</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  PERFORM dynpro USING:
+    'X' 'SAPMV50A'   '1000',
+    ' ' 'BDC_OKCODE' '=SICH_T',
+    ' ' 'BDC_SUBSCR'
+        'SAPMV50A                                1502SUBSCREEN_HEADER',
+    ' ' 'BDC_SUBSCR'
+        'SAPMV50A                                1110SUBSCREEN_BODY',
+    ' ' 'LIKP-PODAT' lv_podat_char,
+    ' ' 'LIKP-POTIM' lv_potim_char,
+    ' ' 'GV_XSIT'    '3',
+    ' ' 'BDC_SUBSCR'
+        'SAPMV50A                                1704SUBSCREEN_ICONBAR'.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Call Transaction</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  CALL TRANSACTION 'VLPOD'
+    USING gt_bdc_data
+    OPTIONS FROM gs_options
+    MESSAGES INTO gt_bdc_msg.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* POD Status</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  SELECT SINGLE pdstk
+    FROM likp
+   WHERE vbeln = @lv_vbeln
+    INTO @DATA(lv_pdstk).
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Result</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF lv_pdstk EQ gc_c. " POD Confirmed
+
+    es_return-type =
+      gc_e.
+
+    es_return-message =
+      TEXT-m02 && | | &&
+      |{ iv_vbeln_vl ALPHA = OUT }| && | | &&
+      TEXT-e01.
+
+  ELSE.
+
+    es_return-type =
+      gc_s.
+
+    es_return-message =
+      TEXT-m02 && | | &&
+      |{ iv_vbeln_vl ALPHA = OUT }| && | | &&
+      TEXT-s02.
+
+  ENDIF.
+
+ENDFUNCTION.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

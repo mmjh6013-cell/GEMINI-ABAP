@@ -1,0 +1,155 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>LZFGCM01F01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: LZFGCM01F01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">***INCLUDE LZFGCM01_3F01.</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*                              &nb</font>
+<font color ="#8C8C8C">*& Form separated_to_intern_convert</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*                              &nb</font>
+<font color ="#8C8C8C">*& text                                        &nb</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*                              &nb</font>
+<font color ="#8C8C8C">*&      --&gt EXCEL_TAB                                &nbs</font>
+<font color ="#8C8C8C">*&      --&gt INTERN                                 &</font>
+<font color ="#8C8C8C">*&      --&gt LD_SEPARATOR                                &</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*                              &nb</font>
+<div id="000000000001"></div>
+FORM separated_to_intern_convert TABLES i_tab       TYPE ty_t_sender
+                                        i_intern    TYPE ty_t_itab
+                                 USING  i_separator TYPE c.
+
+  DATA: l_sic_tabix LIKE sy-tabix,
+        l_sic_col   TYPE kcd_ex_col.
+  DATA: l_fdpos     LIKE sy-fdpos.
+
+  REFRESH i_intern.
+
+  LOOP AT i_tab.
+    l_sic_tabix = sy-tabix.
+    l_sic_col = 0.
+    WHILE i_tab CA i_separator.
+      l_fdpos = sy-fdpos.
+      l_sic_col = l_sic_col + 1.
+      PERFORM <a href="#000000000002">line_to_cell_separat</a> TABLES i_intern
+                                   USING  i_tab l_sic_tabix l_sic_col
+                                          i_separator l_fdpos.
+    ENDWHILE.
+    IF i_tab &lt&gt space.
+      CLEAR i_intern.
+      i_intern-row = l_sic_tabix.
+      i_intern-col = l_sic_col + 1.
+      i_intern-value = i_tab.
+      APPEND i_intern.
+    ENDIF.
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*                              &nb</font>
+<font color ="#8C8C8C">*& Form LINE_TO_CELL_SEPARAT                                    &</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*                              &nb</font>
+<font color ="#8C8C8C">*& text                                        &nb</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*                              &nb</font>
+<font color ="#8C8C8C">*&      --&gt I_INTERN</font>
+<font color ="#8C8C8C">*&      --&gt I_TAB                                 &n</font>
+<font color ="#8C8C8C">*&      --&gt L_SIC_TABIX                                &n</font>
+<font color ="#8C8C8C">*&      --&gt L_SIC_COL                                &nbs</font>
+<font color ="#8C8C8C">*&      --&gt I_SEPARATOR                                &n</font>
+<font color ="#8C8C8C">*&      --&gt L_FDPOS</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*                              &nb</font>
+<div id="000000000002"></div>
+FORM line_to_cell_separat  TABLES i_intern    TYPE ty_t_itab
+                          USING  i_line
+                                 i_row       LIKE sy-tabix
+                                 ch_cell_col TYPE kcd_ex_col
+                                 i_separator TYPE c
+                                 i_fdpos     LIKE sy-fdpos.
+  DATA: l_string   TYPE ty_s_senderline.
+  DATA  l_sic_int  TYPE i.
+
+  CLEAR i_intern.
+  l_sic_int = i_fdpos.
+  i_intern-row = i_row.
+  l_string = i_line.
+  i_intern-col = ch_cell_col.
+<font color ="#8C8C8C">* csv Dateien mit separator in Zelle: --&gt ;"abc;cd";                          &nbs</font>
+  IF ( i_separator = ';' OR  i_separator = ',' ) AND
+       l_string(1) = gc_esc.
+    PERFORM <a href="#000000000003">line_to_cell_esc_sep</a> USING l_string
+                                       l_sic_int
+                                       i_separator
+                                       i_intern-value.
+  ELSE.
+    IF l_sic_int &gt 0.
+      i_intern-value = i_line(l_sic_int).
+    ENDIF.
+  ENDIF.
+  IF l_sic_int &gt 0.
+    APPEND i_intern.
+  ENDIF.
+  l_sic_int = l_sic_int + 1.
+  i_line = i_line+l_sic_int.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*                              &nb</font>
+<font color ="#8C8C8C">*& Form LINE_TO_CELL_ESC_SEP                                    &</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*                              &nb</font>
+<font color ="#8C8C8C">*& text                                        &nb</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*                              &nb</font>
+<font color ="#8C8C8C">*&      --&gt L_STRING</font>
+<font color ="#8C8C8C">*&      --&gt L_SIC_INT                                &nbs</font>
+<font color ="#8C8C8C">*&      --&gt I_SEPARATOR                                &n</font>
+<font color ="#8C8C8C">*&      --&gt I_INTERN_VALUE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*                              &nb</font>
+<div id="000000000003"></div>
+FORM line_to_cell_esc_sep  USING i_string
+                                 i_sic_int      TYPE i
+                                 i_separator    TYPE c
+                                 i_intern_value TYPE ty_d_itabvalue.
+  DATA: l_int         TYPE i,
+        l_cell_end(2).
+  FIELD-SYMBOLS: &ltl_cell&gt.
+  l_cell_end = gc_esc.
+  l_cell_end+1 = i_separator .
+
+  IF i_string CS gc_esc.
+    i_string = i_string+1.
+    IF i_string CS l_cell_end.
+      l_int = sy-fdpos.
+      ASSIGN i_string(l_int) TO &ltl_cell&gt.
+      i_intern_value = &ltl_cell&gt.
+      l_int = l_int + 2.
+      i_sic_int = l_int.
+      i_string = i_string+l_int.
+    ELSEIF i_string CS gc_esc.
+<font color ="#8C8C8C">*     letzte Celle                                  &nb</font>
+      l_int = sy-fdpos.
+      ASSIGN i_string(l_int) TO &ltl_cell&gt.
+      i_intern_value = &ltl_cell&gt.
+      l_int = l_int + 1.
+      i_sic_int = l_int.
+      i_string = i_string+l_int.
+      l_int = strlen( i_string ).
+      IF l_int &gt 0 . MESSAGE x001(kx) . ENDIF.
+    ELSE.
+      MESSAGE x001(kx) . "was ist mit csv-Format
+    ENDIF.
+  ENDIF.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

@@ -1,0 +1,1104 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XPICF01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XPICF01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*   INCLUDE MM61XPICF01                                                *</font>
+<font color ="#8C8C8C">*--&gt SAPMM61X routines for MRP logic MPN+SUS, FKL+RE, 08/99</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+
+<div id="000000000798"></div>
+FORM pic_material_check_ol
+                           USING    is_mt61d LIKE mt61d
+                           CHANGING is_rm61x LIKE rm61x
+                                    tb_parts TYPE pictb201.
+
+  DATA : lt_parts TYPE pictb201,
+         lt_set   TYPE pictb204,
+         ls_parts TYPE picst201,
+         ls_set   TYPE picst204.
+
+  DATA : lv_picid  LIKE cm61m-picid,
+         lv_piccat LIKE pichd-piccat,
+         lv_picnum LIKE pichd-picnum,
+         lv_mrpgr  LIKE picrl-mrpgr,
+         lv_seq01  LIKE mara-matnr,
+         lv_datfr  LIKE picrl-datfr,
+         lv_lmatn  LIKE picrl-lmatn.
+
+  DATA : ls_mt61d LIKE mt61d.
+
+  DATA: lv_berid TYPE rm61x-berid.            "note number 758663
+
+  REFRESH : tb_parts[], lt_parts[],  lt_set[].
+  CLEAR : ls_parts, ls_set.
+
+<font color ="#8C8C8C">*... check material master : FFF-Class or SUS-ID ?</font>
+  CHECK NOT ( is_mt61d-imatn  IS INITIAL
+              AND is_mt61d-picnum IS INITIAL ).
+
+<font color ="#8C8C8C">*... MPN ?</font>
+  IF NOT is_mt61d-imatn IS INITIAL.
+    lv_piccat = '02'.                  "MPN.
+    lv_picnum =  is_mt61d-imatn.
+  ENDIF.
+
+<font color ="#8C8C8C">*... SUS ?</font>
+  IF NOT is_mt61d-picnum IS INITIAL
+     AND is_mt61d-imatn IS INITIAL.
+    lv_piccat = '01'.                                       "SUS
+    lv_picnum =  is_mt61d-picnum.
+  ENDIF.
+
+<font color ="#8C8C8C">* SUBRAMANIANR: Check MRP Area is actie. If not, don't pass in BERID</font>
+  CALL FUNCTION 'MD_MRP_CHECK_DB_CLIENT'    "note number 758663
+<font color ="#8C8C8C">*   IMPORTING                               "note number 758663</font>
+<font color ="#8C8C8C">*     E_DISFG               =               "note number 758663</font>
+<font color ="#8C8C8C">*     E_UDBVM               =               "note number 758663</font>
+    EXCEPTIONS                              "note number 758663
+      dibr_not_active = 1             "note number 758663
+      OTHERS          = 2.            "note number 758663
+
+  IF sy-subrc = 0.                          "note number 758663
+    lv_berid = is_rm61x-berid.              "note number 758663
+  ELSE.                                     "note number 758663
+    CLEAR: lv_berid.                        "note number 758663
+  ENDIF.                                    "note number 758663
+
+
+  CALL FUNCTION 'PIC10_GET_PICID'
+    EXPORTING
+      iv_matnr      = is_rm61x-matnr
+      iv_werks      = is_rm61x-werks
+      iv_berid      = lv_berid        "note number 758663
+      iv_piccat     = lv_piccat
+      iv_picnum     = lv_picnum
+      iv_dsdat      = is_rm61x-dispd
+      iv_read_parts = 'X'
+    IMPORTING
+      ev_pic_picid  = lv_picid
+      ev_pic_piccat = lv_piccat
+      ev_mpn_mrpgr  = lv_mrpgr
+      ev_mpn_lmatn  = lv_lmatn
+      ev_sus_seq01  = lv_seq01
+      ev_sus_datfr  = lv_datfr
+      tb_chain      = lt_parts
+      tb_mrpset     = lt_set
+    EXCEPTIONS
+      wrong_input   = 1
+      OTHERS        = 2.
+  IF sy-subrc &lt&gt 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+            WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+<font color ="#8C8C8C">*... check PICID</font>
+  CASE lv_picid .
+    WHEN space OR '04'.  " part is fff-class member , but not in MRP SET
+      EXIT.
+    WHEN '01' OR '03'.
+      MESSAGE e001(mpn02) WITH is_rm61x-matnr is_rm61x-werks lv_lmatn
+                               is_rm61x-berid.
+      "Teil ist Non-Leading Part. Disposition nicht erlaubt.
+    WHEN '02'.
+<font color ="#8C8C8C">*... Lpart for MRP Set : Fill initial entry in t_parts</font>
+      READ TABLE lt_set INTO ls_set
+                          WITH KEY matnr = is_rm61x-matnr BINARY SEARCH.
+      CLEAR ls_parts.
+      MOVE-CORRESPONDING ls_set TO ls_parts.
+      ls_parts-seqnr   = 0001.
+      ls_parts-inttype = 'I'.
+      ls_parts-piccat  = '02'.         " MPN
+      APPEND ls_parts TO tb_parts.
+      EXIT .
+    WHEN '05' OR '06' OR '07'.
+<font color ="#8C8C8C">*... SUS -&gt check for oldest (valid) part</font>
+      IF lv_seq01 &lt&gt is_rm61x-matnr.
+<font color ="#8C8C8C">*... Information message : System switches to first part in chain</font>
+        MESSAGE w201(pic01) WITH is_rm61x-matnr lv_seq01.
+        MOVE lv_seq01 TO is_rm61x-matnr.
+      ENDIF.
+<font color ="#8C8C8C">*... build sorted table</font>
+      tb_parts[] = lt_parts[].
+  ENDCASE.
+
+
+ENDFORM.
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  PIC_DO_MRP_EINSTUFIG</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SUS / MPN : Simulates entire MD03 for each part of a SUS Chain or the</font>
+<font color ="#8C8C8C">* Lpart of an MPN MRP Set.</font>
+<font color ="#8C8C8C">* GT_PIC_PARTS MUST be filled by the PAI- material check routine before</font>
+<font color ="#8C8C8C">* and will contain all parts to be planned ( only Lpart for MPN).</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000799"></div>
+FORM pic_do_mrp_einstufig.
+
+  DATA : ls_parts TYPE picst201,
+         lv_subrc TYPE sy-subrc.
+
+  CHECK NOT gt_pic_parts[] IS INITIAL.
+
+  LOOP AT gt_pic_parts INTO ls_parts.
+<font color ="#8C8C8C">*--&gt enqeue all materials of the chain at the beginning</font>
+    PERFORM sperren_mrp_ep USING rm61x-werks rm61x-berid ls_parts-matnr.
+  ENDLOOP.
+
+<font color ="#8C8C8C">*--&gt Kommunikationsaerea fuer Transaktion erstellen (1x per chain)</font>
+  PERFORM <a href ="javascript:Link('MM61XF30_ERSTELLEN_CM61X.html?id=#000000000193');">erstellen_cm61x</a>.
+<font color ="#8C8C8C">*--&gt ATP initialisieren bzw. Puffer deaktivieren, falls CM61X-ATPDA = X</font>
+  PERFORM <a href ="javascript:Link('MM61XF31_ATP_INITIALIZE.html?id=#000000000196');">atp_initialize</a>.
+
+<font color ="#8C8C8C">*--&gt plan entire MRP Set or SUS Chain</font>
+  LOOP AT gt_pic_parts INTO ls_parts.
+<font color ="#8C8C8C">*--&gt switch material master</font>
+    PERFORM <a href ="javascript:Link('MM61XTCI_MATNR_CHECK.html?id=#000000000884');">matnr_check</a> USING ls_parts-matnr
+                              rm61x-werks
+                              rm61x-berid
+                        CHANGING lv_subrc.
+<font color ="#8C8C8C">*--&gt Pruefen RESET-KZ                                          " TODO !!</font>
+    PERFORM check_reset_kz_ep.
+<font color ="#8C8C8C">*--&gt Material disponieren</font>
+    PERFORM disponieren_material_ol.
+<font color ="#8C8C8C">*    change 15/02/00 : don't save MPN when display planning result is</font>
+<font color ="#8C8C8C">*    active, FKL</font>
+    IF ls_parts-piccat = '01'
+    OR ( ls_parts-piccat = '02' AND cm61x-anzdl IS INITIAL ).
+<font color ="#8C8C8C">*--&gt Verbuchung aufrufen</font>
+      PERFORM call_verbuchung_ol.
+<font color ="#8C8C8C">*--&gt Verarbeitungskennzeichen in CM61D sichern (Statistik)</font>
+      PERFORM save_kzxxx_cm61d.
+    ENDIF.
+  ENDLOOP.
+
+ENDFORM.                               " PIC_DO_MRP_EINSTUFIG
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  PIC_MERGE_MDPSX</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  p1        text</font>
+<font color ="#8C8C8C">*  &lt--  p2        text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000800"></div>
+FORM pic_merge_mdpsx CHANGING cv_rc LIKE sy-subrc.
+
+  CLEAR cv_rc.
+
+  CHECK NOT cm61m-picid IS INITIAL.
+
+  CASE cm61m-picid.
+    WHEN '01' OR '03' OR '04'.
+<font color ="#8C8C8C">*... for MPN Non-Lparts or FFF-Class parts : exit</font>
+      EXIT.
+    WHEN '02'.
+<font color ="#8C8C8C">*... for MPN Lpart : plan MPN MRPSET</font>
+      CALL FUNCTION 'PIC10_GENERATE_MDPSX'
+        EXPORTING
+          is_cm61d              = cm61d
+          is_cm61w              = cm61w
+          is_t399d              = t399d
+          is_t438a              = t438a
+          iv_plsc               = plsc
+          iv_init               = 'X'
+          iv_itype              = '02'                "MPN
+        TABLES
+          mdpsx                 = mdpsx
+          mdpsl                 = mdpsl
+          mdpso                 = mdpso
+<font color ="#8C8C8C">*         MPNBX                 = mpnbx</font>
+          mdlpy                 = mdlpy
+          lortx                 = lortx
+          equkx                 = equkx
+          equmx                 = equmx
+          equpx                 = equpx
+        CHANGING
+          cs_cm61x              = cm61x
+          cs_cm61m              = cm61m
+          cs_mt61d              = mt61d
+          cs_mdkp               = mdkp
+          cs_mdsta              = mdsta
+          cs_cm61b              = cm61b
+        EXCEPTIONS
+          wrong_input           = 1
+          call_for_invalid_part = 2
+          OTHERS                = 3.
+      IF sy-subrc &lt&gt 0.
+        MOVE sy-subrc TO cv_rc.
+        EXIT.
+      ENDIF.
+
+    WHEN '06'.
+<font color ="#8C8C8C">*... for first part of SUS chain, call for initialization</font>
+      CALL FUNCTION 'PIC10_GENERATE_MDPSX'
+        EXPORTING
+          is_cm61d              = cm61d
+          is_cm61w              = cm61w
+          is_t399d              = t399d
+          is_t438a              = t438a
+          iv_plsc               = plsc
+          iv_init               = 'X'
+          iv_itype              = '01'  " SUS
+        TABLES
+          mdpsx                 = mdpsx
+          mdpsl                 = mdpsl
+        CHANGING
+          cs_cm61x              = cm61x
+          cs_cm61m              = cm61m
+          cs_mt61d              = mt61d
+          cs_mdkp               = mdkp
+          cs_mdsta              = mdsta
+          cs_cm61b              = cm61b
+        EXCEPTIONS
+          wrong_input           = 1
+          call_for_invalid_part = 2
+          OTHERS                = 3.
+      IF sy-subrc &lt&gt 0.
+        MOVE sy-subrc TO cv_rc.
+        EXIT.
+      ENDIF.
+
+    WHEN '05' OR '07'.
+<font color ="#8C8C8C">*... for any other part of SUS chain, merge mdpsx</font>
+      CALL FUNCTION 'PIC10_GENERATE_MDPSX'
+        EXPORTING
+          is_cm61d              = cm61d
+          is_cm61w              = cm61w
+          is_t399d              = t399d
+          is_t438a              = t438a
+          iv_plsc               = plsc
+          iv_init               = space
+          iv_itype              = '01'  " SUS
+        TABLES
+          mdpsx                 = mdpsx
+          mdpsl                 = mdpsl
+        CHANGING
+          cs_cm61x              = cm61x
+          cs_cm61m              = cm61m
+          cs_mt61d              = mt61d
+          cs_mdkp               = mdkp
+          cs_mdsta              = mdsta
+          cs_cm61b              = cm61b
+        EXCEPTIONS
+          wrong_input           = 1
+          call_for_invalid_part = 2
+          OTHERS                = 3.
+      IF sy-subrc &lt&gt 0.
+        MOVE sy-subrc TO cv_rc.
+        EXIT.
+      ENDIF.
+
+  ENDCASE.
+
+ENDFORM.                               " PIC_MERGE_MDPSX
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  PIC_DO_MRP_MEHRSTUFIG</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  p1        text</font>
+<font color ="#8C8C8C">*  &lt--  p2        text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000801"></div>
+FORM pic_do_mrp_mehrstufig.
+
+  DATA : ls_parts TYPE picst201.
+  DATA : lt_picpsrl TYPE TABLE OF v_picpsrl,
+         lv_picnum  TYPE pic_picnum,
+         lv_berid   TYPE berid.
+  DATA : lt_sel TYPE pph_matnr_werks_berid_sel_tab,
+         ls_sel LIKE pph_matnr_werks_berid_sel.
+  DATA:  lo_mat_buffer TYPE REF TO cl_pph_hana_access_material.
+  DATA : lv_buffer_result     TYPE char1.
+  FIELD-SYMBOLS:
+    &ltfs_gt_pic_parts&gt LIKE LINE OF gt_pic_parts.
+
+  CHECK NOT gt_pic_parts[] IS INITIAL.
+
+  LOOP AT gt_pic_parts INTO ls_parts.
+    IF ls_parts-piccat = '02'.
+      lv_berid = ls_parts-berid.
+      SELECT SINGLE picnum INTO lv_picnum FROM v_picpsrl    "reading fff class(picnum)
+                   WHERE lmatn = ls_parts-matnr.
+
+      IF lv_picnum IS NOT INITIAL.
+<font color ="#8C8C8C">* Reading materials of MNP-MRP set for MRP planning</font>
+        CALL FUNCTION 'PIC00_READ_VPICPSRL'
+          EXPORTING
+            i_matnr           = ls_parts-matnr
+            i_picnum          = lv_picnum
+            i_werks           = ls_parts-werks
+            i_berid           = ls_parts-berid
+          TABLES
+            et_vpicpsrl       = lt_picpsrl
+          EXCEPTIONS
+            missing_parameter = 1
+            notfound_pic      = 2
+            OTHERS            = 3.
+        IF sy-subrc &lt&gt 0.
+<font color ="#8C8C8C">* Implement suitable error handling here</font>
+          MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+
+  IF lt_picpsrl[] IS NOT INITIAL.
+    MOVE-CORRESPONDING lt_picpsrl TO gt_pic_parts.
+
+    LOOP AT gt_pic_parts ASSIGNING &ltfs_gt_pic_parts&gt.
+      CALL FUNCTION 'PIC10_GET_PICID'
+        EXPORTING
+          iv_matnr       = &ltfs_gt_pic_parts&gt-matnr
+          iv_werks       = &ltfs_gt_pic_parts&gt-werks
+          iv_berid       = &ltfs_gt_pic_parts&gt-berid
+        IMPORTING
+          ev_pic_picid   = &ltfs_gt_pic_parts&gt-picid
+        EXCEPTIONS
+          wrong_input    = 1
+          internal_error = 2
+          OTHERS         = 3.
+      IF sy-subrc &lt&gt 0.
+<font color ="#8C8C8C">* Implement suitable error handling here</font>
+        MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+      ENDIF.
+      IF &ltfs_gt_pic_parts&gt-inttype IS INITIAL.
+        &ltfs_gt_pic_parts&gt-inttype = 'I'.
+      ENDIF.
+      IF &ltfs_gt_pic_parts&gt-berid IS INITIAL.
+        &ltfs_gt_pic_parts&gt-berid = lv_berid.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+
+  LOOP AT gt_pic_parts INTO ls_parts.
+<font color ="#8C8C8C">*--&gt enqeue all materials of the chain at the beginning</font>
+    PERFORM sperren_mrp_ep USING rm61x-werks rm61x-berid ls_parts-matnr.
+
+<font color ="#8C8C8C">* HANA-Optimization: Preread for Supersession Chain</font>
+    IF cl_pph_mdpsx_selection=&gtget_hana_active( ) = abap_true.
+      MOVE ls_parts-matnr TO ls_sel-matnr.
+      MOVE ls_parts-werks TO ls_sel-werks.
+      MOVE ls_parts-berid TO ls_sel-berid.
+      APPEND ls_sel TO lt_sel.
+    ENDIF.
+  ENDLOOP.
+
+<font color ="#8C8C8C">* gt_pic_parts should contains only leading part in case of MPN-MRP set</font>
+  LOOP AT gt_pic_parts INTO ls_parts.
+    IF ls_parts-piccat = '02' AND ls_parts-picid = '01'.
+      DELETE gt_pic_parts INDEX sy-tabix.
+    ENDIF.
+  ENDLOOP.
+
+<font color ="#8C8C8C">* HANA-Optimization: Preread for Supersession Chain</font>
+  IF cl_pph_mdpsx_selection=&gtget_hana_active( ) = abap_true.
+<font color ="#8C8C8C">* Pre-Read for Material Master</font>
+    lo_mat_buffer = cl_pph_hana_access_material=&gtget_instance( ).
+<font color ="#8C8C8C">** New package: Refresh material buffer</font>
+<font color ="#8C8C8C">*  lo_mat_buffer-&gtrefresh_mt61d_and_cm61b( ).</font>
+    lo_mat_buffer-&gtprepare_mt61d_bulk_opensql( lt_sel ).
+    lv_buffer_result = cl_pph_mdpsx_selection=&gtgc_buffer_mode_p."N_3399478
+<font color ="#8C8C8C">* Preread Planning situation for Supersession Chain</font>
+<font color ="#8C8C8C">* Measure runtime for packages</font>
+    get_start_time time5.
+    IF rm61x-anzdl = abap_true.
+      CALL METHOD cl_pph_mdpsx_selection=&gtcontrol_hana_switches
+        EXPORTING
+          iv_agg_sel_finished     = abap_true
+          iv_read_nonagg_buffered = abap_true.
+      CALL METHOD cl_pph_mdpsx_selection=&gtsel_matnr_werks_berid_noag_s4h
+        EXPORTING
+          it_matnr_werks_berid = lt_sel.
+    ELSE.
+      CALL METHOD cl_pph_mdpsx_selection=&gtsel_matnr_werks_berid_agg_s4h
+        EXPORTING
+          it_matnr_werks_berid = lt_sel
+          iv_buffer_result = lv_buffer_result.
+    ENDIF.
+    run_time tdiff time6 time5.
+    gv_rtime_pre = gv_rtime_pre + tdiff.
+<font color ="#8C8C8C">* if material list shall be displayed use MRP in memory</font>
+    IF rm61x-anzls = abap_true.
+      CALL METHOD cl_pph_mdpsx_selection=&gtcontrol_hana_switches
+        EXPORTING
+          iv_switch_on_memory = abap_true.
+    ENDIF.
+  ENDIF.
+
+  LOOP AT gt_pic_parts INTO ls_parts.
+<font color ="#8C8C8C">*--&gt Sichern aktuelles Material</font>
+    MOVE ls_parts-matnr TO cm61d-matnr.
+<font color ="#8C8C8C">*--&gt Eingabematerial disponieren</font>
+    get_start_time time3.
+    PERFORM bearbeiten_material_mp USING xflag.                " TODO !!
+    CLEAR tdiff.
+    run_time tdiff time4 time3.
+<font color ="#8C8C8C">*--&gt Statistik erfassen</font>
+    PERFORM erfassen_statistik USING tdiff.
+<font color ="#8C8C8C">*--&gt Werk für Rekursivitätsprüfung merken</font>
+    REFRESH rekwk.
+    MOVE cm61d-matnr TO rekmt-matnr.
+    MOVE cm61d-berid TO rekwk-berid.
+    MOVE cm61d-werks TO rekwk-werks.
+    APPEND rekwk.
+  ENDLOOP.
+
+  LOOP AT gt_pic_parts INTO ls_parts.
+<font color ="#8C8C8C">*--&gt Material für Einzelplanung entsperren</font>
+    PERFORM entsperren_mrp USING rm61x-werks rm61x-berid ls_parts-matnr.
+  ENDLOOP.
+
+ENDFORM.                               " PIC_DO_MRP_MEHRSTUFIG
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  PIC_MATERIAL_CHECK_BT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtP_RM61X  text</font>
+<font color ="#8C8C8C">*      --&gtP_MT61D  text</font>
+<font color ="#8C8C8C">*      &lt--P_GT_PIC_PARTS[]  text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000802"></div>
+FORM pic_material_check_bt
+                           USING    is_rm61x LIKE rm61x
+                                    is_mt61d LIKE mt61d
+                           CHANGING cv_rc    TYPE char1
+                                    tb_parts TYPE pictb201.
+
+  DATA : lt_parts TYPE pictb201,
+         lt_set   TYPE pictb204,
+         ls_parts TYPE picst201,
+         ls_set   TYPE picst204.
+
+  DATA : lv_picid  LIKE cm61m-picid,
+         lv_piccat LIKE pichd-piccat,
+         lv_picnum LIKE pichd-picnum,
+         lv_mrpgr  LIKE picrl-mrpgr,
+         lv_seq01  LIKE mara-matnr,
+         lv_datfr  LIKE picrl-datfr,
+         lv_lmatn  LIKE picrl-lmatn.
+
+  DATA : ls_mt61d LIKE mt61d.
+
+  REFRESH : tb_parts[], lt_parts[],  lt_set[].
+  CLEAR : ls_parts, ls_set, cv_rc.
+
+<font color ="#8C8C8C">*... check material master : FFF-Class or SUS-ID ?</font>
+  CHECK NOT ( is_mt61d-imatn  IS INITIAL
+              AND is_mt61d-picnum IS INITIAL ).
+
+<font color ="#8C8C8C">*... MPN ?</font>
+  IF NOT is_mt61d-imatn IS INITIAL.
+    lv_piccat = '02'.                                       "MPN
+    lv_picnum =  is_mt61d-imatn.
+  ENDIF.
+
+<font color ="#8C8C8C">*... SUS ?</font>
+  IF NOT is_mt61d-picnum IS INITIAL
+     AND is_mt61d-imatn IS INITIAL.
+    lv_piccat = '01'.                                       "SUS
+    lv_picnum =  is_mt61d-picnum.
+  ENDIF.
+
+  CALL FUNCTION 'PIC10_GET_PICID'
+    EXPORTING
+      iv_matnr      = is_mt61d-matnr
+      iv_werks      = is_mt61d-werks
+      iv_berid      = is_mt61d-berid
+      iv_piccat     = lv_piccat
+      iv_picnum     = lv_picnum
+      iv_dsdat      = is_rm61x-dispd
+      iv_read_parts = 'X'
+    IMPORTING
+      ev_pic_picid  = lv_picid
+      ev_pic_piccat = lv_piccat
+      ev_mpn_mrpgr  = lv_mrpgr
+      ev_mpn_lmatn  = lv_lmatn
+      ev_sus_seq01  = lv_seq01
+      ev_sus_datfr  = lv_datfr
+      tb_chain      = lt_parts
+      tb_mrpset     = lt_set
+    EXCEPTIONS
+      wrong_input   = 1
+      OTHERS        = 2.
+  IF sy-subrc &lt&gt 0.
+    MOVE char1 TO cv_rc.
+    EXIT.
+  ENDIF.
+
+<font color ="#8C8C8C">*... check PICID</font>
+  CASE lv_picid .
+    WHEN space OR '04'. " part is fff-class member, but not in MRP SET
+      EXIT.
+    WHEN '01' OR '03'.                 " part is non-Lpart . exit.
+      MOVE char1 TO cv_rc.
+      EXIT .
+    WHEN '02'.
+<font color ="#8C8C8C">*... Lpart for MRP Set : Fill initial entry in t_parts</font>
+      READ TABLE lt_set INTO ls_set
+                          WITH KEY matnr = is_mt61d-matnr BINARY SEARCH.
+      IF sy-subrc &lt&gt 0 .
+        MOVE char1 TO cv_rc.
+        EXIT.
+      ENDIF.
+      CLEAR ls_parts.
+      MOVE-CORRESPONDING ls_set TO ls_parts.
+      ls_parts-seqnr   = 0001.
+      ls_parts-inttype = 'I'.
+      ls_parts-piccat  = '02'.         " MPN
+      APPEND ls_parts TO tb_parts.
+      EXIT .
+    WHEN '05' OR '06' OR '07'.
+<font color ="#8C8C8C">*... build sorted table</font>
+      tb_parts[] = lt_parts[].
+  ENDCASE.
+
+ENDFORM.                               " PIC_MATERIAL_CHECK_BT
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  PIC_SET_REKWK</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000803"></div>
+FORM pic_set_rekwk.
+
+  DATA : ls_parts TYPE picst201.
+
+  READ TABLE gt_pic_parts INTO ls_parts INDEX 1.
+<font color ="#8C8C8C">*--&gt Werk für Rekursivitätsprüfung merken</font>
+  REFRESH rekwk.
+  MOVE ls_parts-matnr TO rekmt-matnr.
+  MOVE ls_parts-berid TO rekwk-berid.
+  MOVE ls_parts-werks TO rekwk-werks.
+  APPEND rekwk.
+
+ENDFORM.                               " PIC_SET_REKWK
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  PIC_MDVM_CHECK_BT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000804"></div>
+FORM pic_mdvm_check_bt USING    is_mt61d LIKE mt61d
+                       CHANGING cv_rc    TYPE char1
+                                tb_parts TYPE pictb201.
+
+  DATA : lt_parts TYPE pictb201,
+         lt_set   TYPE pictb204,
+         ls_parts TYPE picst201,
+         ls_set   TYPE picst204.
+
+  DATA : lv_picid  LIKE cm61m-picid,
+         lv_piccat LIKE pichd-piccat,
+         lv_picnum LIKE pichd-picnum,
+         lv_mrpgr  LIKE picrl-mrpgr,
+         lv_seq01  LIKE mara-matnr,
+         lv_datfr  LIKE picrl-datfr,
+         lv_lmatn  LIKE picrl-lmatn.
+
+  DATA : ls_mt61d LIKE mt61d.
+
+  REFRESH : tb_parts[], lt_parts[],  lt_set[].
+  CLEAR : ls_parts, ls_set, cv_rc.
+
+<font color ="#8C8C8C">*... check material master : FFF-Class or SUS-ID ?</font>
+  CHECK NOT ( is_mt61d-imatn  IS INITIAL
+              AND is_mt61d-picnum IS INITIAL ).
+
+<font color ="#8C8C8C">*... MPN ?</font>
+  IF NOT is_mt61d-imatn IS INITIAL.
+    lv_piccat = '02'.                                       "MPN
+    lv_picnum =  is_mt61d-imatn.
+  ENDIF.
+
+<font color ="#8C8C8C">*... SUS ?</font>
+  IF NOT is_mt61d-picnum IS INITIAL
+     AND is_mt61d-imatn IS INITIAL.
+    lv_piccat = '01'.                                       "SUS
+    lv_picnum =  is_mt61d-picnum.
+  ENDIF.
+
+  CALL FUNCTION 'PIC10_GET_PICID'
+    EXPORTING
+      iv_matnr      = is_mt61d-matnr
+      iv_werks      = is_mt61d-werks
+      iv_berid      = is_mt61d-berid
+      iv_piccat     = lv_piccat
+      iv_picnum     = lv_picnum
+<font color ="#8C8C8C">*     IV_DSDAT      = IS_RM61X-DISPD</font>
+      iv_read_parts = 'X'
+    IMPORTING
+      ev_pic_picid  = lv_picid
+      ev_pic_piccat = lv_piccat
+      ev_mpn_mrpgr  = lv_mrpgr
+      ev_mpn_lmatn  = lv_lmatn
+      ev_sus_seq01  = lv_seq01
+      ev_sus_datfr  = lv_datfr
+      tb_chain      = lt_parts
+      tb_mrpset     = lt_set
+    EXCEPTIONS
+      wrong_input   = 1
+      OTHERS        = 2.
+  IF sy-subrc &lt&gt 0.
+    MOVE char1 TO cv_rc.
+    EXIT.
+  ENDIF.
+
+<font color ="#8C8C8C">*... check PICID</font>
+  CASE lv_picid .
+    WHEN space OR '04'. " part is fff-class member, but not in MRP SET
+      EXIT.
+    WHEN '01' OR '03'.                 " part is non-Lpart . exit.
+      MOVE char1 TO cv_rc.
+      EXIT .
+    WHEN '02'.
+<font color ="#8C8C8C">*... Lpart for MRP Set : Fill initial entry in t_parts</font>
+      READ TABLE lt_set INTO ls_set
+                          WITH KEY matnr = is_mt61d-matnr BINARY SEARCH.
+      CLEAR ls_parts.
+      MOVE-CORRESPONDING ls_set TO ls_parts.
+      ls_parts-seqnr   = 0001.
+      ls_parts-inttype = 'I'.
+      ls_parts-piccat  = '02'.         " MPN
+      APPEND ls_parts TO tb_parts.
+      EXIT .
+<font color ="#8C8C8C">**    WHEN '05' OR '07'.</font>
+<font color ="#8C8C8C">***... non-oldest Chain parts</font>
+<font color ="#8C8C8C">**      MOVE char1 TO cv_rc.</font>
+<font color ="#8C8C8C">**      EXIT.</font>
+<font color ="#8C8C8C">**    WHEN '06'.</font>
+<font color ="#8C8C8C">***... First Part of SUS-Chain : build sorted table</font>
+<font color ="#8C8C8C">**      tb_parts[] = lt_parts[].</font>
+"N_2897753
+" Changed logic same as when run MD02. Even when last part of SUS chain is received, lt_parts is build and sent for planning.
+    WHEN '05' OR '06' OR '07'.
+<font color ="#8C8C8C">*... build sorted table</font>
+      tb_parts[] = lt_parts[].
+"N_2897753
+  ENDCASE.
+
+
+ENDFORM.                               " PIC_MDVM_CHECK_BT
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  PIC_DO_MRP_BT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000805"></div>
+FORM pic_do_mrp_bt.
+
+  DATA : ls_parts TYPE picst201.
+  DATA : lt_picpsrl TYPE TABLE OF v_picpsrl,
+         lv_picnum  TYPE pic_picnum,
+         lv_berid   TYPE berid.
+  DATA : ls_matnr TYPE matnr.                "note 698416
+  DATA : lt_sel TYPE pph_matnr_werks_berid_sel_tab,
+         ls_sel LIKE pph_matnr_werks_berid_sel.
+  DATA : lo_mat_buffer TYPE REF TO cl_pph_hana_access_material.
+  DATA : ev_buffer TYPE char1.
+  FIELD-SYMBOLS:
+   &ltfs_gt_pic_parts&gt LIKE LINE OF gt_pic_parts.
+
+  CHECK NOT gt_pic_parts[] IS INITIAL.
+  CLEAR  am61x-rcode.
+  ev_buffer = 'P'.
+
+<font color ="#8C8C8C">* new : mat.enqueue comes later within Bearbeiten_Material_PL !     "FKL</font>
+<font color ="#8C8C8C">* LOOP AT GT_PIC_PARTS INTO LS_PARTS.</font>
+<font color ="#8C8C8C">*--&gt enqeue all materials of the chain at the beginning</font>
+<font color ="#8C8C8C">*   PERFORM SPERREN_MRP_MP USING CM61D-WERKS CM61D-BERID CM61D-MATNR.</font>
+<font color ="#8C8C8C">*   IF AM61X-RCODE NE CHAR0.</font>
+<font color ="#8C8C8C">*     PERFORM WRITE_MATERIAL_IGNORE.</font>
+<font color ="#8C8C8C">*     EXIT.</font>
+<font color ="#8C8C8C">*   ENDIF.</font>
+<font color ="#8C8C8C">* ENDLOOP.</font>
+
+<font color ="#8C8C8C">*--&gt exit chain</font>
+  IF am61x-rcode NE 0.
+    EXIT.
+  ENDIF.
+
+  MOVE cm61d-matnr TO ls_matnr.               "note 698416
+
+<font color ="#8C8C8C">* Adding non-leading materials of MPN-MRP set in gt_pic_parts</font>
+  LOOP AT gt_pic_parts INTO ls_parts.
+    IF ls_parts-piccat = '02'.
+      lv_berid = ls_parts-berid.
+      SELECT SINGLE picnum INTO lv_picnum FROM v_picpsrl    "reading fff class(picnum)
+                   WHERE lmatn = ls_parts-matnr.
+
+      IF lv_picnum IS NOT INITIAL.
+<font color ="#8C8C8C">* Reading materials of MNP-MRP set for MRP planning</font>
+        CALL FUNCTION 'PIC00_READ_VPICPSRL'
+          EXPORTING
+            i_matnr           = ls_parts-matnr
+            i_picnum          = lv_picnum
+            i_werks           = ls_parts-werks
+            i_berid           = ls_parts-berid
+          TABLES
+            et_vpicpsrl       = lt_picpsrl
+          EXCEPTIONS
+            missing_parameter = 1
+            notfound_pic      = 2
+            OTHERS            = 3.
+        IF sy-subrc &lt&gt 0.
+<font color ="#8C8C8C">* Implement suitable error handling here</font>
+          MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+
+  IF lt_picpsrl[] IS NOT INITIAL.
+    MOVE-CORRESPONDING lt_picpsrl TO gt_pic_parts.
+
+    LOOP AT gt_pic_parts ASSIGNING &ltfs_gt_pic_parts&gt.
+      CALL FUNCTION 'PIC10_GET_PICID'
+        EXPORTING
+          iv_matnr       = &ltfs_gt_pic_parts&gt-matnr
+          iv_werks       = &ltfs_gt_pic_parts&gt-werks
+          iv_berid       = &ltfs_gt_pic_parts&gt-berid
+        IMPORTING
+          ev_pic_picid   = &ltfs_gt_pic_parts&gt-picid
+        EXCEPTIONS
+          wrong_input    = 1
+          internal_error = 2
+          OTHERS         = 3.
+      IF sy-subrc &lt&gt 0.
+<font color ="#8C8C8C">* Implement suitable error handling here</font>
+        MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+      ENDIF.
+      IF &ltfs_gt_pic_parts&gt-inttype IS INITIAL.
+        &ltfs_gt_pic_parts&gt-inttype = 'I'.
+      ENDIF.
+      IF &ltfs_gt_pic_parts&gt-berid IS INITIAL.
+        &ltfs_gt_pic_parts&gt-berid = lv_berid.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+
+<font color ="#8C8C8C">* HANA-Optimization: Preread for Supersession Chain</font>
+  IF cl_pph_mdpsx_selection=&gtget_hana_active( ) = abap_true.
+<font color ="#8C8C8C">*--&gt Preread for MRP on HANA</font>
+    CLEAR: lt_sel,
+           ls_sel.
+<font color ="#8C8C8C">* Get material package: Supersession Chain</font>
+    LOOP AT gt_pic_parts INTO ls_parts.
+      IF ls_parts-picid &lt&gt '02' AND ls_parts-picid &lt&gt '06'.
+        MOVE ls_parts-matnr TO ls_sel-matnr.
+        MOVE ls_parts-werks TO ls_sel-werks.
+        MOVE ls_parts-berid TO ls_sel-berid.
+        APPEND ls_sel TO lt_sel.
+      ENDIF.
+    ENDLOOP.
+
+<font color ="#8C8C8C">* gt_pic_parts should contains only leading part in case of MPN-MRP set</font>
+    LOOP AT gt_pic_parts INTO ls_parts.
+      IF ls_parts-piccat = '02' AND ls_parts-picid = '01'.
+        DELETE gt_pic_parts INDEX sy-tabix.
+      ENDIF.
+    ENDLOOP.
+
+<font color ="#8C8C8C">* Pre-Read for Material Master</font>
+    lo_mat_buffer = cl_pph_hana_access_material=&gtget_instance( ).
+<font color ="#8C8C8C">** New package: Refresh material buffer</font>
+<font color ="#8C8C8C">*  lo_mat_buffer-&gtrefresh_mt61d_and_cm61b( ).</font>
+    lo_mat_buffer-&gtprepare_mt61d_bulk_opensql( lt_sel ).
+<font color ="#8C8C8C">* Preread Planning situation for Supersession Chain</font>
+<font color ="#8C8C8C">* Measure runtime for packages</font>
+    get_start_time time5.
+    IF rm61x-anzdl = abap_true.
+      CALL METHOD cl_pph_mdpsx_selection=&gtcontrol_hana_switches
+        EXPORTING
+          iv_agg_sel_finished     = abap_true
+          iv_read_nonagg_buffered = abap_true.
+      CALL METHOD cl_pph_mdpsx_selection=&gtsel_matnr_werks_berid_noag_s4h
+        EXPORTING
+          it_matnr_werks_berid = lt_sel.
+    ELSE.
+      CALL METHOD cl_pph_mdpsx_selection=&gtsel_matnr_werks_berid_agg_s4h
+        EXPORTING
+          it_matnr_werks_berid = lt_sel
+          iv_buffer_result     = ev_buffer.
+    ENDIF.
+    run_time tdiff time6 time5.
+    gv_rtime_pre = gv_rtime_pre + tdiff.
+  ENDIF.
+
+  LOOP AT gt_pic_parts INTO ls_parts.
+<font color ="#8C8C8C">*--&gt reset stop indicator for SUS-Chain !</font>
+    CLEAR cm61x-picstop.
+<font color ="#8C8C8C">*--&gt Sichern aktuelles Material</font>
+    MOVE ls_parts-matnr TO cm61d-matnr.
+<font color ="#8C8C8C">* Fot materials not part of BOM mixed with materials that are part of BOM in a SUS Chain</font>
+<font color ="#8C8C8C">* Data that is filled in CM61D is not correct - especially the DISSIT.</font>
+    PERFORM read_mt61d USING cm61d-matnr cm61d-werks cm61d-berid.
+    IF mt61d-disst IS INITIAL.
+      cm61d-disst = maxds.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Eingabematerial disponieren</font>
+    get_start_time time3.
+    PERFORM bearbeiten_material_pl.
+    CLEAR tdiff.
+    run_time tdiff time4 time3.
+    IF cm61x-stopx = xflag.
+      EXIT.
+    ENDIF.
+<font color ="#8C8C8C">**--&gt Stop plannning of entire SUS-Chain if necessary              "FKL</font>
+<font color ="#8C8C8C">*    IF CM61X-PICSTOP = XFLAG.</font>
+<font color ="#8C8C8C">*      EXIT.</font>
+<font color ="#8C8C8C">*    ENDIF.</font>
+<font color ="#8C8C8C">*--&gt Statistik erfassen</font>
+    IF cm61d-nomrp IS INITIAL.
+      PERFORM erfassen_statistik USING tdiff.
+    ENDIF.
+  ENDLOOP.
+
+  MOVE ls_matnr TO cm61d-matnr.                "note 698416
+
+  IF cm61x-stopx = xflag.              "only for customer-exit.
+    EXIT.
+  ENDIF.
+
+<font color ="#8C8C8C">*  LOOP AT GT_PIC_PARTS INTO LS_PARTS.</font>
+<font color ="#8C8C8C">*--&gt Material für Einzelplanung entsperren</font>
+<font color ="#8C8C8C">*   PERFORM ENTSPERREN_MRP USING MT61D-WERKS MT61D-BERID LS_PARTS-MATNR.</font>
+<font color ="#8C8C8C">*  ENDLOOP.</font>
+
+ENDFORM.                               " PIC_DO_MRP_BT
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  PIC_DO_LFR_EINSTUFIG</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*   Copy of MS03 ( LFR online )</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000806"></div>
+FORM pic_do_lfr_einstufig.
+
+  DATA : ls_parts TYPE picst201,
+         lv_subrc TYPE sy-subrc.
+
+  CHECK NOT gt_pic_parts[] IS INITIAL.
+
+  LOOP AT gt_pic_parts INTO ls_parts.
+<font color ="#8C8C8C">*--&gt Material für Einzelplanung sperren</font>
+    PERFORM sperren_lfr_el USING rm61x-plscn
+                                 rm61x-werks rm61x-berid ls_parts-matnr.
+  ENDLOOP.
+
+<font color ="#8C8C8C">*--&gt Kommunikationsaerea fuer Transaktion erstellen (1x per chain)</font>
+  PERFORM <a href ="javascript:Link('MM61XF30_ERSTELLEN_CM61X.html?id=#000000000193');">erstellen_cm61x</a>.
+<font color ="#8C8C8C">*--&gt ATP initialisieren bzw. Puffer deaktivieren, falls CM61X-ATPDA = X</font>
+<font color ="#8C8C8C">* PERFORM ATP_INITIALIZE. " not for LFR</font>
+
+<font color ="#8C8C8C">*--&gt plan entire MRP Set or SUS Chain</font>
+  LOOP AT gt_pic_parts INTO ls_parts.
+<font color ="#8C8C8C">*--&gt switch material master</font>
+    PERFORM <a href ="javascript:Link('MM61XTCI_MATNR_CHECK.html?id=#000000000884');">matnr_check</a> USING ls_parts-matnr
+                              rm61x-werks
+                              rm61x-berid
+                        CHANGING lv_subrc.
+<font color ="#8C8C8C">*--&gt Pruefen RESET-KZ                                          " TODO !!</font>
+    PERFORM check_reset_kz_ep.
+<font color ="#8C8C8C">*--&gt Material planen</font>
+    PERFORM <a href ="javascript:Link('MM61XFOL_DO_LFR_MATERIAL_OL.html?id=#000000000565');">do_lfr_material_ol</a>.
+<font color ="#8C8C8C">*    change 15/02/00 : don't save MPN when display planning result is</font>
+<font color ="#8C8C8C">*    active, FKL</font>
+    IF ls_parts-piccat = '01'
+    OR ( ls_parts-piccat = '02' AND cm61x-anzdl IS INITIAL ).
+<font color ="#8C8C8C">*--&gt Verbuchung aufrufen</font>
+      PERFORM call_verbuchung_ol.
+<font color ="#8C8C8C">*--&gt Verarbeitungskennzeichen in CM61D sichern (Statistik)</font>
+      PERFORM save_kzxxx_cm61d.
+    ENDIF.
+  ENDLOOP.
+
+ENDFORM.                               " PIC_DO_LFR_EINSTUFIG
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  PIC_DO_LFR_MEHRSTUFIG</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Copy of MS02 ( LFR online multi lvl)</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000807"></div>
+FORM pic_do_lfr_mehrstufig.
+
+  DATA : ls_parts TYPE picst201.
+
+  CHECK NOT gt_pic_parts[] IS INITIAL.
+
+  LOOP AT gt_pic_parts INTO ls_parts.
+<font color ="#8C8C8C">*--&gt Material für Einzelplanung sperren</font>
+    PERFORM sperren_lfr_el USING rm61x-plscn
+                                 rm61x-werks rm61x-berid ls_parts-matnr.
+  ENDLOOP.
+
+  LOOP AT gt_pic_parts INTO ls_parts.
+<font color ="#8C8C8C">*--&gt Sichern aktuelles Material</font>
+    MOVE ls_parts-matnr TO cm61d-matnr.
+<font color ="#8C8C8C">*--&gt Eingabematerial disponieren</font>
+    get_start_time time3.
+<font color ="#8C8C8C">**    PERFORM BEARBEITEN_MATERIAL_ML USING XFLAG.</font>
+<font color ="#8C8C8C">*--&gt Materialabhängige Tabellen zurücksetzen</font>
+    CLEAR mdkp.
+    CLEAR mdsta.
+    CLEAR statn.
+    PERFORM init_suchsteuerung.
+<font color ="#8C8C8C">*--&gt View Materialstamm lesen</font>
+    PERFORM read_mt61d USING cm61d-matnr cm61d-werks cm61d-berid.
+    IF sy-subrc NE 0.
+      MOVE char1 TO am61x-rcode.
+      EXIT.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Dispositionsmerkmal ueberpruefen</font>
+    PERFORM check_dismm USING mt61d-dismm.
+    IF am61x-rcode NE char0.
+      MOVE char1 TO am61x-rcode.
+      EXIT.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Materialdaten ergaenzen</font>
+    PERFORM ergaenzen_material_ip.
+<font color ="#8C8C8C">*--&gt Pruefen RESET-KZ</font>
+    PERFORM check_reset_kz_ep.
+<font color ="#8C8C8C">*--&gt Haltepunkt anzeigen</font>
+    PERFORM show_next_haltepunkt.
+<font color ="#8C8C8C">*--&gt Send Message</font>
+<font color ="#8C8C8C">* PERFORM send_message_900 USING cm61d-matnr cm61d-werks cm61d-berid.</font>
+<font color ="#8C8C8C">*--&gt Material planen</font>
+    PERFORM material_planen_bt.
+    IF am61x-rcode NE char0.
+      EXIT.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Dispositionsergebnis anzeigen</font>
+    PERFORM show_dispo_ergebnis_mp.
+<font color ="#8C8C8C">*--&gt Stuecklisten aufloesen nach Dialog             "TODO noetig ?</font>
+    PERFORM stueckliste_aufloesen_bt.
+    IF am61x-rcode NE char0.
+      EXIT.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Dispositionsergebnis verbuchen</font>
+    PERFORM call_verbuchung_mp.
+    IF am61x-rcode NE char0.
+      EXIT.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Verarbeitungskennzeichen in CM61D sichern (Statistik)</font>
+    PERFORM save_kzxxx_cm61d.
+<font color ="#8C8C8C">*--&gt Returncode zuruecksetzen</font>
+    MOVE char0 TO am61x-rcode.
+<font color ="#8C8C8C">***</font>
+    CLEAR tdiff.
+    run_time tdiff time4 time3.
+<font color ="#8C8C8C">*--&gt Statistik erfassen</font>
+    PERFORM erfassen_statistik USING tdiff.
+<font color ="#8C8C8C">*--&gt Werk für Rekursivitätsprüfung merken</font>
+    REFRESH rekwk.
+    MOVE cm61d-matnr TO rekmt-matnr.
+    MOVE cm61d-berid TO rekwk-berid.
+    MOVE cm61d-werks TO rekwk-werks.
+    APPEND rekwk.
+  ENDLOOP.
+
+  LOOP AT gt_pic_parts INTO ls_parts.
+<font color ="#8C8C8C">*--&gt Material für Einzelplanung entsperren</font>
+    PERFORM entsperren_lfr USING rm61x-plscn
+                                 rm61x-werks rm61x-berid ls_parts-matnr.
+  ENDLOOP.
+
+ENDFORM.                               " PIC_DO_LFR_MEHRSTUFIG
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  PIC_DO_LFR_BT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*   Copy of MS01 . LFR complete planning.</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000808"></div>
+FORM pic_do_lfr_bt.
+
+  DATA : ls_parts TYPE picst201.
+
+  CHECK NOT gt_pic_parts[] IS INITIAL.
+
+  CLEAR am61x-rcode.
+
+<font color ="#8C8C8C">* new : mat.enqueue comes later within Bearbeiten_Material_PL !     "FKL</font>
+<font color ="#8C8C8C">* LOOP AT GT_PIC_PARTS INTO LS_PARTS.</font>
+<font color ="#8C8C8C">*--&gt enqeue all materials of the chain at the beginning</font>
+<font color ="#8C8C8C">*   SPERREN_LFR_ML USING CM61D-WERKS CM61D-BERID LS_PARTS-MATNR.</font>
+<font color ="#8C8C8C">*   IF AM61X-RCODE NE CHAR0.</font>
+<font color ="#8C8C8C">*     PERFORM WRITE_MATERIAL_IGNORE.</font>
+<font color ="#8C8C8C">*     EXIT.</font>
+<font color ="#8C8C8C">*   ENDIF.</font>
+<font color ="#8C8C8C">* ENDLOOP.</font>
+
+<font color ="#8C8C8C">*--&gt exit chain</font>
+  IF am61x-rcode NE 0.
+    EXIT.
+  ENDIF.
+
+  LOOP AT gt_pic_parts INTO ls_parts.
+<font color ="#8C8C8C">*--&gt reset stop indicator for SUS-Chain !</font>
+    CLEAR cm61x-picstop.
+<font color ="#8C8C8C">*--&gt Sichern aktuelles Material</font>
+    MOVE ls_parts-matnr TO cm61d-matnr.
+<font color ="#8C8C8C">*--&gt Eingabematerial disponieren</font>
+    get_start_time time3.
+    PERFORM bearbeiten_material_lfrpl.
+    CLEAR tdiff.
+    run_time tdiff time4 time3.
+    IF cm61x-stopx = xflag.
+      EXIT.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Stop plannning of entire SUS-Chain if necessary              "FKL</font>
+    IF cm61x-picstop = xflag.
+      EXIT.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Statistik erfassen</font>
+    IF cm61d-nomrp IS INITIAL.
+      PERFORM erfassen_statistik USING tdiff.
+    ENDIF.
+  ENDLOOP.
+
+  IF cm61x-stopx = xflag.              "only for customer-exit.
+    EXIT.
+  ENDIF.
+
+<font color ="#8C8C8C">*  LOOP AT GT_PIC_PARTS INTO LS_PARTS.</font>
+<font color ="#8C8C8C">*--&gt Material für Einzelplanung entsperren</font>
+<font color ="#8C8C8C">*   PERFORM ENTSPERREN_LFR USING CM61X-PLSCN</font>
+<font color ="#8C8C8C">*                          USING CM61D-WERKS CM61D-BERID LS_PARTS-MATNR.</font>
+<font color ="#8C8C8C">*  ENDLOOP.</font>
+
+ENDFORM.                               " PIC_DO_LFR_BT
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  PIC_SEND_MESSAGE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtP_RM61X_MATNR  text</font>
+<font color ="#8C8C8C">*      --&gtP_RM61X_WERKS  text</font>
+<font color ="#8C8C8C">*      --&gtP_RM61X_BERID  text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000809"></div>
+FORM pic_send_message USING    p_rm61x_matnr
+                               p_rm61x_werks
+                               p_rm61x_berid.
+
+ENDFORM.                    " PIC_SEND_MESSAGE
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

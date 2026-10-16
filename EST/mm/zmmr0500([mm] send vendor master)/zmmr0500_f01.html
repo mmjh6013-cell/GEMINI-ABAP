@@ -1,0 +1,230 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZMMR0500_F01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZMMR0500_F01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZMMR1010_F01</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form INITIALIZATION</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000032"></div>
+FORM INITIALIZATION .
+
+  S_CRDAT-LOW = SY-DATUM - 1.
+  S_CRDAT-HIGH = SY-DATUM.
+  APPEND S_CRDAT.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form AT_SELECTION_SCREEN_OUTPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000033"></div>
+FORM AT_SELECTION_SCREEN_OUTPUT .
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form AT_SELECTION_SCREEN</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000034"></div>
+FORM AT_SELECTION_SCREEN .
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form GET_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000035"></div>
+FORM GET_DATA .
+
+  DATA: LS_CHECK     LIKE ZMMS0500,
+        LS_CHECK_ORI LIKE LS_CHECK,
+        LT_CHECK     LIKE TABLE OF LS_CHECK.
+
+  SELECT CASE A~KTOKK
+           WHEN '1010' THEN @SPACE
+           WHEN '1020' THEN 'C'
+             END AS GUBUN,
+         A~LIFNR, A~NAME1,
+         CONCAT_WITH_SPACE( A~MCOD3, A~STRAS, 1 ) AS ZADDRESS,
+         A~STCD2, A~J_1KFREPRE, A~LAND1, A~PSTLZ AS PSTL2,
+         B~LOEVM, B~EKORG
+    FROM LFA1 AS A INNER JOIN LFM1 AS B
+                                ON B~LIFNR = A~LIFNR
+                   INNER JOIN BUT000 AS C
+                           ON C~PARTNER = B~LIFNR
+   WHERE B~EKORG = @P_EKORG
+     AND A~LIFNR IN @S_LIFNR
+     AND ( C~CRDAT IN @S_CRDAT OR
+           C~CHDAT IN @S_CRDAT )
+    INTO CORRESPONDING FIELDS OF TABLE @GT_DATA.
+
+  IF GT_DATA IS INITIAL.
+    CASE SY-BATCH.
+      WHEN ABAP_TRUE.
+        MESSAGE S000 WITH TEXT-E01.
+
+      WHEN SPACE.
+        "No Data
+        MESSAGE S000 WITH TEXT-E01 DISPLAY LIKE 'E'.
+
+    ENDCASE.
+
+    LEAVE LIST-PROCESSING.
+
+  ENDIF.
+
+  "## #### ##
+  SELECT B~EKORG,
+         B~LIFNR,
+         B~NAME1,
+         B~GUBUN,
+         B~LOEVM,
+         B~ZADDRESS,
+         B~PSTL2,
+         B~STCD2,
+         B~J_1KFREPRE,
+         B~LAND1
+    FROM @GT_DATA AS A INNER JOIN ZMMT0500 AS B
+                               ON B~EKORG = A~EKORG
+                              AND B~LIFNR = A~LIFNR
+                              AND B~IF_DATE = @SY-DATUM
+    INTO CORRESPONDING FIELDS OF TABLE @LT_CHECK.
+  SORT LT_CHECK BY EKORG LIFNR.
+
+  LOOP AT GT_DATA ASSIGNING FIELD-SYMBOL(&ltLS_DATA&gt).
+    READ TABLE LT_CHECK INTO LS_CHECK
+                       WITH KEY EKORG = &ltLS_DATA&gt-EKORG
+                                LIFNR = &ltLS_DATA&gt-LIFNR
+                                BINARY SEARCH.
+    IF SY-SUBRC = 0.
+      MOVE-CORRESPONDING &ltLS_DATA&gt TO LS_CHECK_ORI.
+
+      IF LS_CHECK_ORI = LS_CHECK.
+        &ltLS_DATA&gt-ICON2 = ICON_LED_GREEN.
+
+      ENDIF.
+
+    ENDIF.
+
+  ENDLOOP.
+
+  DESCRIBE TABLE GT_DATA LINES DATA(LV_LINE).
+  MESSAGE S012 WITH LV_LINE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SEND_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000036"></div>
+FORM SEND_DATA .
+
+  DATA: LS_RETURN LIKE ZMMS0501,
+        LT_DATA_F LIKE TABLE OF ZMMS0500,
+        LS_DATA_F LIKE ZMMS0500.
+
+  DATA: LT_ROW TYPE LVC_T_ROW.
+
+  CASE SY-BATCH.
+    WHEN SPACE.
+      CALL METHOD GO_GRID-&gtGET_SELECTED_ROWS
+        IMPORTING
+          ET_INDEX_ROWS = LT_ROW.
+
+      IF LT_ROW IS INITIAL.
+        MESSAGE S008 DISPLAY LIKE 'E'.
+        RETURN.
+
+      ENDIF.
+
+      LOOP AT LT_ROW INTO DATA(LS_ROW).
+        READ TABLE GT_DATA INTO DATA(LS_DATA) INDEX LS_ROW-INDEX.
+        CHECK SY-SUBRC = 0.
+        MOVE-CORRESPONDING LS_DATA TO LS_DATA_F.
+        APPEND LS_DATA_F TO LT_DATA_F.
+
+      ENDLOOP.
+
+    WHEN ABAP_TRUE.
+      LOOP AT GT_DATA INTO LS_DATA.
+        MOVE-CORRESPONDING LS_DATA TO LS_DATA_F.
+        APPEND LS_DATA_F TO LT_DATA_F.
+
+      ENDLOOP.
+
+  ENDCASE.
+
+  CALL FUNCTION <a href ="zmm_set_vendor/zmm_set_vendor.html">'ZMM_SET_VENDOR'</a>
+    IMPORTING
+      ES_RETURN = LS_RETURN
+    TABLES
+      IT_DATA   = LT_DATA_F.
+
+  "### S ### F (### ## ## # E)
+  CASE LS_RETURN-STATUS.
+    WHEN 'F' OR 'E'.
+      MESSAGE S000 WITH LS_RETURN-MESSAGE DISPLAY LIKE 'E'.
+
+    WHEN 'S'.
+      MESSAGE S000 WITH LS_RETURN-MESSAGE.
+
+  ENDCASE.
+
+  CHECK SY-BATCH = SPACE.
+  CASE LS_RETURN-STATUS.
+    WHEN 'E'.
+      DATA(LV_ICON) = ICON_LED_RED.
+
+    WHEN 'S'.
+      LV_ICON = ICON_LED_GREEN.
+
+  ENDCASE.
+
+  LOOP AT LT_ROW INTO LS_ROW.
+    MODIFY GT_DATA FROM VALUE #( ICON = LV_ICON )
+                   INDEX LS_ROW-INDEX
+                   TRANSPORTING ICON .
+
+  ENDLOOP.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

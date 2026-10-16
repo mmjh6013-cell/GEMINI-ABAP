@@ -1,0 +1,153 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZPPR0010_TOP</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZPPR0010_TOP</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include ZPPR0010_TOP                              - Report ZPPR0010</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">**********************************************************************</font>
+<font color ="#8C8C8C">* TABLES</font>
+<font color ="#8C8C8C">**********************************************************************</font>
+TABLES : mara, mkal, t100, mapl, mast, plpo.
+
+<font color ="#8C8C8C">**********************************************************************</font>
+<font color ="#8C8C8C">* Class instance</font>
+<font color ="#8C8C8C">**********************************************************************</font>
+CLASS cl_gui_cfw DEFINITION LOAD.
+
+DATA: g_docking        TYPE REF TO cl_gui_docking_container,
+      g_grid           TYPE REF TO cl_gui_alv_grid,
+      g_event_receiver TYPE REF TO lcl_event_receiver.
+
+<font color ="#8C8C8C">**********************************************************************</font>
+<font color ="#8C8C8C">* Internal table and Work Area</font>
+<font color ="#8C8C8C">**********************************************************************</font>
+<font color ="#8C8C8C">* to use AT NEW, re-organize field order..                             &nbs</font>
+DATA: BEGIN OF gs_routing.
+        include structure <a href ="zpps0040/dictionary-zpps0040.html">zpps0040</a>. "VGW02# VGW02 ~ 06## ###
+<font color ="#8C8C8C">*        WERKS       LIKE MARC-WERKS, "###                     &n</font>
+<font color ="#8C8C8C">*        MATNR       LIKE MARA-MATNR, "####                     &</font>
+<font color ="#8C8C8C">*        MAKTX       LIKE MAKT-MAKTX, "##                     &nb</font>
+<font color ="#8C8C8C">*        PLNAL       LIKE PLKO-PLNAL, "#####</font>
+<font color ="#8C8C8C">*        STTAG       LIKE SY-DATUM,   "####                   &nb</font>
+<font color ="#8C8C8C">*        ARBPL       LIKE CRHD-ARBPL, "###                     &n</font>
+<font color ="#8C8C8C">*        BMSCH       LIKE PLKO-BMSCH, "## ####</font>
+<font color ="#8C8C8C">*        VGW01       LIKE PLPO-VGW01, "####                     &</font>
+<font color ="#8C8C8C">*        VGW02       LIKE PLPO-VGW02, "#### ( VGW02  ~ VGW06  )</font>
+DATA:   sel,
+        st_icon(4),
+        message(80),
+        celltab     TYPE lvc_t_styl,
+        main_line,    "main line flag
+<font color ="#8C8C8C">*        plnal       TYPE plko-plnal,</font>
+<font color ="#8C8C8C">*        ktext       TYPE plko-ktext,</font>
+      END OF gs_routing.
+DATA: gt_routing LIKE TABLE OF gs_routing.
+
+DATA : BEGIN OF gs_plpo,
+         matnr TYPE matnr,
+         werks TYPE werks_d,
+         plnnr TYPE mapl-plnnr,
+         vornr TYPE plpo-vornr,
+         steus TYPE plpo-steus,
+         arbpl TYPE crhd-arbpl,
+       END OF gs_plpo.
+DATA : gt_plpo LIKE TABLE OF gs_plpo.
+
+DATA: gt_dd03l TYPE TABLE OF dd03l WITH HEADER LINE.
+
+DATA: g_struc_name TYPE tabname.
+
+FIELD-SYMBOLS: &ltgt_main&gt TYPE STANDARD TABLE,
+               &ltgs_main&gt TYPE any.
+
+DATA : BEGIN OF gs_main,
+         werks    LIKE marc-werks,      "###
+         matnr    LIKE mara-matnr,      "####
+         maktx    LIKE makt-maktx,      "##
+         mtart    LIKE mara-mtart,      "####
+         datuv    LIKE mapl-datuv,      "#####
+         annam    LIKE mapl-annam,      "###
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*       zzcatype   LIKE mara-zzcatype,   "##</font>
+<font color ="#8C8C8C">*       zzcountry  LIKE mara-zzcountry,  "##(##)</font>
+<font color ="#8C8C8C">*       zzplatform LIKE mara-zzplatform, "###</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------</font>
+
+         plnnr    LIKE mapl-plnnr,      "##
+         planl    LIKE mapl-plnal,      "## ###
+         vornr    LIKE plpo-vornr,      "##
+         arbpl    LIKE crhd-arbpl,      "##
+         arbpl_t  LIKE crtx-ktext,      "###
+         kostl    TYPE crco-kostl,      "### ##
+         kostl_t  TYPE cskt-ktext,      "### ###
+         bmsch    LIKE plpo-bmsch,      "####
+         meinh    LIKE plpo-meinh,
+         zhour    LIKE plpo-vgw01,      "## ##
+         zsecond  LIKE plpo-vgw01,      "## #
+         per_unit LIKE plpo-vgw01,      "# / ## = ##
+         vgw01    LIKE plpo-vgw01,      "## ##
+         vge01    LIKE plpo-vge01,
+<font color ="#8C8C8C">*         vgw02    LIKE plpo-vgw02,      "## ##</font>
+<font color ="#8C8C8C">*         vge02    LIKE plpo-vge02,</font>
+<font color ="#8C8C8C">*         vgw03    LIKE plpo-vgw03,      "## ##</font>
+<font color ="#8C8C8C">*         vge03    LIKE plpo-vge03,</font>
+<font color ="#8C8C8C">*         vgw04    LIKE plpo-vgw04,      "## ##</font>
+<font color ="#8C8C8C">*         vge04    LIKE plpo-vge04,</font>
+<font color ="#8C8C8C">*         vgw05    LIKE plpo-vgw05,      "## ##</font>
+<font color ="#8C8C8C">*         vge05    LIKE plpo-vge05,</font>
+<font color ="#8C8C8C">*         vgw06    LIKE plpo-vgw06,      "## ##</font>
+<font color ="#8C8C8C">*         vge06    LIKE plpo-vge06,</font>
+         andat    LIKE plpo-andat.      "### ###
+DATA: sel,
+      st_icon(4),
+      message(80),
+      celltab     TYPE lvc_t_styl,
+      main_line,    "main line flag
+      plnal       TYPE plko-plnal,
+      ktext       TYPE plko-ktext,
+      END OF gs_main.
+
+DATA: gt_main LIKE TABLE OF gs_main.
+
+<font color ="#8C8C8C">* For ALV</font>
+DATA: gt_fieldcat TYPE lvc_t_fcat,
+      gs_layout   TYPE lvc_s_layo,
+      gt_sort     TYPE lvc_t_sort,
+      gt_exclude  TYPE ui_functions,
+      gs_variant  TYPE disvariant,
+      g_pos       TYPE i.
+
+<font color ="#8C8C8C">**********************************************************************</font>
+<font color ="#8C8C8C">* Comman variable</font>
+<font color ="#8C8C8C">**********************************************************************</font>
+<font color ="#8C8C8C">* for BDC                                       &n</font>
+DATA: bdc_data   LIKE bdcdata    OCCURS 0 WITH HEADER LINE,
+      gt_msgtab  LIKE bdcmsgcoll OCCURS 0 WITH HEADER LINE,
+      gs_options LIKE ctu_params.
+
+
+DATA: ok_code  LIKE sy-ucomm,
+      g_saveok LIKE sy-ucomm.
+
+DATA: gv_error.
+
+
+CONSTANTS : gc_fert TYPE mara-mtart VALUE 'FERT'.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

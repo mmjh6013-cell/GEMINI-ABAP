@@ -1,0 +1,277 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>LZFGPP01F02</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: LZFGPP01F02</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">***INCLUDE LZFGPP01F02.</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form call_bdc_pop1</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt IV_MATNR</font>
+<font color ="#8C8C8C">*&      --&gt IV_TRGQTY</font>
+<font color ="#8C8C8C">*&      &lt-- LV_ERR</font>
+<font color ="#8C8C8C">*&      &lt-- LV_MESSAGE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000009"></div>
+FORM call_bdc_pop1 USING pv_matnr
+                         pv_trgqty
+                         pv_piid
+                   CHANGING pv_err
+                            pv_message.
+
+  DATA : lv_trgqty TYPE char15.
+
+  DATA : lv_message TYPE string,
+         lv_flag.
+
+  REFRESH : gt_bdc, gt_msg.
+
+  lv_trgqty = |{ pv_trgqty }|.
+  CONDENSE lv_trgqty.
+
+<font color ="#8C8C8C">*  " Memory ID ###</font>
+<font color ="#8C8C8C">*  SET PARAMETER ID 'PIID' FIELD space.</font>
+
+  " ## ## ID ## ##
+  PERFORM <a href ="javascript:Link('LZFGPP01F01.html?id=#000000000006');">dynpro_proc</a> USING :
+                               'X' 'SAPLVHUPO'                '0101',
+                               ' ' 'BDC_CURSOR'               'PIKP-PIID',
+                               ' ' 'BDC_OKCODE'               '=ENT2',
+                               ' ' 'PIKP-PIID'                pv_piid.
+
+  " ### ###(Pallet) ##
+  PERFORM <a href ="javascript:Link('LZFGPP01F01.html?id=#000000000006');">dynpro_proc</a> USING :
+                               'X' 'SAPLVHUPO'                '0610',
+                               ' ' 'BDC_CURSOR'               'PIPO_ROW-COMPONENT(01)',
+                               ' ' 'BDC_OKCODE'               '/00',
+                               ' ' 'PIPO_ROW-COMPONENT(01)'   'ZPALLET'.
+
+  " ## ## ## ##
+  PERFORM <a href ="javascript:Link('LZFGPP01F01.html?id=#000000000006');">dynpro_proc</a> USING :
+                               'X' 'SAPLVHUPO'                '0610',
+                               ' ' 'BDC_CURSOR'               'PIPO_ROW-DETAIL_ITEMTYPE(02)',
+                               ' ' 'BDC_OKCODE'               '=INMA',
+                               ' ' 'PIKP-CONTENT'             pv_piid.
+
+  " ## ## ## # ## ## ##
+  PERFORM <a href ="javascript:Link('LZFGPP01F01.html?id=#000000000006');">dynpro_proc</a> USING :
+                               'X' 'SAPLVHUPO'                '0610',
+                               ' ' 'BDC_CURSOR'               'PIPO_ROW-MINQTY(02)',
+                               ' ' 'BDC_OKCODE'               '/00',
+                               ' ' 'PIPO_ROW-COMPONENT(02)'   pv_matnr,
+                               ' ' 'PIPO_ROW-TRGQTY(02)'      lv_trgqty,
+                               ' ' 'PIPO_ROW-MINQTY(02)'      '1'.
+
+  " ## ## ## ##
+  PERFORM <a href ="javascript:Link('LZFGPP01F01.html?id=#000000000006');">dynpro_proc</a> USING :
+                               'X' 'SAPLVHUPO'                '0610',
+                               ' ' 'BDC_CURSOR'               'PIPO_ROW-COMPONENT(01)',
+                               ' ' 'BDC_OKCODE'               '=SAVE',
+                               ' ' 'PIKP-CONTENT'             pv_piid.
+
+  " ## ## ## ##
+  PERFORM <a href ="javascript:Link('LZFGPP01F01.html?id=#000000000006');">dynpro_proc</a> USING :
+                               'X' 'SAPLSPO1'                 '0500',
+                               ' ' 'BDC_OKCODE'               '=OPT1'.
+
+  CALL TRANSACTION 'POP1' USING gt_bdc
+                          OPTIONS FROM gs_options
+                          MESSAGES INTO gt_msg.
+
+  PERFORM <a href ="javascript:Link('LZFGPP01F01.html?id=#000000000007');">get_bdc_message</a> CHANGING lv_flag
+                                   lv_message.
+
+  IF lv_flag = 'E'.
+    pv_err = abap_true.
+  ENDIF.
+
+  pv_message = lv_message.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_result</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000010"></div>
+FORM set_result USING pv_err
+                      pv_message
+                 CHANGING ps_reply TYPE zcms0060.
+
+  " BDC ## #
+  IF pv_err = abap_true.
+    " Export ##
+    ps_reply-type = 'E'.
+    ps_reply-message = pv_message.
+
+    " BDC ## #
+  ELSE.
+    " ## ##
+    ps_reply-type = 'S'.
+    ps_reply-message = pv_message.
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form call_bdc_pof1</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt IV_WERKS</font>
+<font color ="#8C8C8C">*&      --&gt IV_MATNR</font>
+<font color ="#8C8C8C">*&      --&gt LV_PIID</font>
+<font color ="#8C8C8C">*&      &lt-- LV_ERR</font>
+<font color ="#8C8C8C">*&      &lt-- LV_MESSAGE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000011"></div>
+FORM call_bdc_pof1 USING pv_werks
+                         pv_matnr
+                         pv_piid
+                   CHANGING pv_err
+                            pv_message.
+
+  DATA : lv_datab TYPE kodatab,
+         lv_datbi TYPE kodatbi.
+
+  DATA : lv_message TYPE string,
+         lv_flag.
+
+  REFRESH : gt_bdc, gt_msg.
+
+  lv_datab = |{ sy-datum(4) }{ sy-datum+4(2) }01|.
+
+  " ## ## ##
+  PERFORM <a href ="javascript:Link('LZFGPP01F01.html?id=#000000000006');">dynpro_proc</a> USING :
+                               'X' 'SAPMV13P'                 '0100',
+                               ' ' 'BDC_CURSOR'               'P000-KSCHL',
+                               ' ' 'BDC_OKCODE'               '/00',
+                               ' ' 'P000-KSCHL'               'STOC'.
+
+  " # ## ##(Plant + Matnr)
+  PERFORM <a href ="javascript:Link('LZFGPP01F01.html?id=#000000000006');">dynpro_proc</a> USING :
+                               'X' 'SAPLV14A'                 '0100',
+                               ' ' 'BDC_CURSOR'               'RV130-SELKZ(02)',
+                               ' ' 'BDC_OKCODE'               '=WEIT',
+                               ' ' 'RV130-SELKZ(01)'          '',
+                               ' ' 'RV130-SELKZ(02)'          'X'.
+
+  " #### ## ### ## ##
+  PERFORM <a href ="javascript:Link('LZFGPP01F01.html?id=#000000000006');">dynpro_proc</a> USING :
+                               'X' 'SAPMV13P'                 '1200',
+                               ' ' 'BDC_CURSOR'               'KOMGP-MATNR(01)',
+                               ' ' 'BDC_OKCODE'               '/00',
+                               ' ' 'KOMGP-WERKS'              pv_werks,
+                               ' ' 'P000-DATAB'               lv_datab,
+                               ' ' 'P000-DATBI'               '9999.12.31',
+                               ' ' 'KOMGP-MATNR(01)'          pv_matnr,
+                               ' ' 'KONDP-PACKNR(01)'         pv_piid.
+
+  " ##
+  PERFORM <a href ="javascript:Link('LZFGPP01F01.html?id=#000000000006');">dynpro_proc</a> USING :
+                               'X' 'SAPMV13P'                 '1200',
+                               ' ' 'BDC_CURSOR'               'KONDP-PACKNR(01)',
+                               ' ' 'BDC_OKCODE'               '=SICH'.
+
+  CALL TRANSACTION 'POF1' USING gt_bdc
+                          OPTIONS FROM gs_options
+                          MESSAGES INTO gt_msg.
+
+  PERFORM <a href ="javascript:Link('LZFGPP01F01.html?id=#000000000007');">get_bdc_message</a> CHANGING lv_flag
+                                   lv_message.
+
+  IF lv_flag = 'E'.
+    pv_err = abap_true.
+  ENDIF.
+
+  pv_message = lv_message.
+
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form call_bdc_md62</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      &lt-- ES_REPLY</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000012"></div>
+FORM call_bdc_md62 USING pv_werks pv_pbdnr
+                   CHANGING ps_reply TYPE zcms0060.
+
+  DATA : lv_message TYPE string,
+         lv_flag.
+
+  CLEAR gs_options.
+  gs_options-dismode  = 'N'.
+  gs_options-nobinpt  = 'X'.
+  gs_options-updmode  = 'S'.
+  gs_options-racommit = 'X'.
+
+  REFRESH : gt_msg, gt_bdc.
+
+  PERFORM <a href ="javascript:Link('LZFGPP01F01.html?id=#000000000006');">dynpro_proc</a> USING :
+                             'X' 'SAPMM60X'                 '0106',
+                             ' ' 'BDC_CURSOR'               'RM60X-ENTLU',
+                             ' ' 'BDC_OKCODE'               '=ANF1',
+                             ' ' 'AM60X-MATAW'              '',
+                             ' ' 'AM60X-PBDAW'              'X',
+                             ' ' 'AM60X-PBDNR'              pv_pbdnr,
+                             ' ' 'AM60X-WERKS'              pv_werks,
+                             ' ' 'AM60X-VERAW'              'X',
+                             ' ' 'RM60X-VERSB'              '00',
+                             ' ' 'RM60X-ENTLU'              'W'.
+
+  PERFORM <a href ="javascript:Link('LZFGPP01F01.html?id=#000000000006');">dynpro_proc</a> USING :
+                             'X' 'SAPLM60E'                 '0200',
+                             ' ' 'BDC_OKCODE'               '=ALMK'.
+
+  PERFORM <a href ="javascript:Link('LZFGPP01F01.html?id=#000000000006');">dynpro_proc</a> USING :
+                             'X' 'SAPLM60E'                 '0200',
+                             ' ' 'BDC_OKCODE'               '=POLO',
+                             ' ' 'BDC_CURSOR'               'PBPT-MATNR(05)'.
+
+  PERFORM <a href ="javascript:Link('LZFGPP01F01.html?id=#000000000006');">dynpro_proc</a> USING :
+                             'X' 'SAPLSPO1'                 '0500',
+                             ' ' 'BDC_OKCODE'               '=OPT1'.
+
+  PERFORM <a href ="javascript:Link('LZFGPP01F01.html?id=#000000000006');">dynpro_proc</a> USING :
+                             'X' 'SAPLM60E'                 '0200',
+                             ' ' 'BDC_OKCODE'               '=SICH'.
+
+  CALL TRANSACTION 'MD62' USING gt_bdc
+                          OPTIONS FROM gs_options
+                          MESSAGES INTO gt_msg.
+
+  PERFORM <a href ="javascript:Link('LZFGPP01F01.html?id=#000000000007');">get_bdc_message</a> CHANGING lv_flag
+                                   lv_message.
+
+  IF lv_flag = 'E'.
+    ps_reply-type = lv_flag.
+  ENDIF.
+
+  ps_reply-message = lv_message.
+
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

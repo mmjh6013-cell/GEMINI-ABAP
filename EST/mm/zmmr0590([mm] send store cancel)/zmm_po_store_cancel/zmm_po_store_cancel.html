@@ -1,0 +1,136 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZMM_PO_STORE_CANCEL</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZMM_PO_STORE_CANCEL</b></font>
+<hr>
+<pre width="100">
+FUNCTION ZMM_PO_STORE_CANCEL.
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*"*"Local Interface:</font>
+<font color ="#8C8C8C">*"  IMPORTING</font>
+<font color ="#8C8C8C">*"     VALUE(IS_DATA) TYPE  ZMMS0590 OPTIONAL</font>
+<font color ="#8C8C8C">*"  EXPORTING</font>
+<font color ="#8C8C8C">*"     VALUE(ES_RETURN) TYPE  ZMMS0501</font>
+<font color ="#8C8C8C">*"     VALUE(ES_DATA) TYPE  ZMMS0590</font>
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+
+<font color ="#8C8C8C">*       <a href ="global-zmm_po_store_cancel.html">Global data declarations</a></font>
+  DATA: LV_MBLNR            TYPE BAPI2017_GM_HEAD_02-MAT_DOC,
+        LV_MJAHR            TYPE BAPI2017_GM_HEAD_02-DOC_YEAR,
+        LS_GOODSMVT_HEADRET TYPE BAPI2017_GM_HEAD_RET.
+
+  DATA: LV_DELIVERY       TYPE BAPIOBDLVHDRCHG-DELIV_NUMB,
+        LS_HEADER_DATA    TYPE BAPIIBDLVHDRCHG,
+        LS_HEADER_CONTROL TYPE BAPIIBDLVHDRCTRLCHG,
+        LT_RETURN         TYPE TABLE OF BAPIRET2.
+
+  IF IS_DATA IS INITIAL.
+    ES_RETURN-STATUS  = 'E'.
+    ES_RETURN-MESSAGE = 'No Data'.
+    EXIT.
+
+  ENDIF.
+
+  MOVE-CORRESPONDING IS_DATA TO ES_DATA.
+
+  " ##(MIGO) ##
+  IF IS_DATA-SMBLN IS INITIAL.
+    CLEAR: LV_MBLNR, LV_MJAHR, LT_RETURN.
+    LV_MBLNR = IS_DATA-MBLNR.
+    LV_MJAHR = IS_DATA-MJAHR.
+
+    CALL FUNCTION 'BAPI_GOODSMVT_CANCEL'
+      EXPORTING
+        MATERIALDOCUMENT = LV_MBLNR
+        MATDOCUMENTYEAR  = LV_MJAHR
+      IMPORTING
+        GOODSMVT_HEADRET = LS_GOODSMVT_HEADRET
+      TABLES
+        RETURN           = LT_RETURN.
+
+    READ TABLE LT_RETURN INTO DATA(LS_RET) WITH KEY TYPE = 'E'.
+    IF SY-SUBRC &lt&gt 0.
+      READ TABLE LT_RETURN INTO LS_RET WITH KEY TYPE = 'A'.
+    ENDIF.
+
+    IF SY-SUBRC &lt&gt 0.
+      CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+        EXPORTING
+          WAIT = 'X'.
+
+      ES_DATA-SMBLN = LS_GOODSMVT_HEADRET-MAT_DOC.
+      ES_DATA-SJAHR = LS_GOODSMVT_HEADRET-DOC_YEAR.
+
+    ELSE.
+      CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
+
+      ES_RETURN-STATUS  = 'E'.
+      ES_RETURN-MESSAGE = LS_RET-MESSAGE.
+      EXIT.
+
+    ENDIF.
+
+  ENDIF.
+
+  " Inbound ##
+  IF IS_DATA-VBELN IS NOT INITIAL.
+    " Inbound ## ##
+    CLEAR LT_RETURN.
+    LS_HEADER_CONTROL-DELIV_NUMB = LS_HEADER_DATA-DELIV_NUMB = LV_DELIVERY = IS_DATA-VBELN.
+    LS_HEADER_CONTROL-DLV_DEL    = 'X'.
+
+    CALL FUNCTION 'BAPI_INB_DELIVERY_CHANGE'
+      EXPORTING
+        HEADER_DATA    = LS_HEADER_DATA
+        HEADER_CONTROL = LS_HEADER_CONTROL
+        DELIVERY       = LV_DELIVERY
+      TABLES
+        RETURN         = LT_RETURN.
+
+    READ TABLE LT_RETURN INTO LS_RET WITH KEY TYPE = 'E'.
+    IF SY-SUBRC &lt&gt 0.
+      READ TABLE LT_RETURN INTO LS_RET WITH KEY TYPE = 'A'.
+    ENDIF.
+
+    IF SY-SUBRC &lt&gt 0.
+      CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+        EXPORTING
+          WAIT = 'X'.
+
+    ELSE.
+      CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
+
+      SELECT SINGLE TEXT
+        FROM T100
+       WHERE SPRSL = @SY-LANGU
+         AND ARBGB = @LS_RET-ID
+         AND MSGNR = @LS_RET-NUMBER
+        INTO @LS_RET-MESSAGE.
+
+      ES_RETURN-STATUS  = 'E'.
+      ES_RETURN-MESSAGE = LS_RET-MESSAGE.
+
+      EXIT.
+
+    ENDIF.
+
+  ENDIF.
+
+  CHECK ES_RETURN-STATUS &lt&gt 'E'.
+  ES_RETURN-STATUS = 'S'.
+
+ENDFUNCTION.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

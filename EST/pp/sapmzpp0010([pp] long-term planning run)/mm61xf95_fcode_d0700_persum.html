@@ -1,0 +1,172 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF95_FCODE_D0700_PERSUM</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF95_FCODE_D0700_PERSUM</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*      F codes Periodensummen</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<div id="000000000516"></div>
+FORM  fcode_d0700_persum CHANGING ev_found.
+  ev_found = gc_true.
+<font color ="#8C8C8C">*--&gt Pruefen Funktionscode</font>
+  CASE am61x-xcode.
+<font color ="#8C8C8C">*--&gt Splitt Summenzeile</font>
+    WHEN fc-spsu.
+      PERFORM fcode_spsu_tc.
+      IF am61x-rcode = char1. EXIT. ENDIF.       "keine MDSUX -&gt Abbruch
+<font color ="#8C8C8C">*    PERFORM GET_INITIAL_FIELD_LENGTH.</font>
+      PERFORM get_columtc_size.
+      PERFORM <a href ="javascript:Link('MM61XTCI_MODIFYTC_SCREEN_750_C.html?id=#000000000891');">modifytc_screen_750_colums</a>.
+      MOVE psezsi_activ TO mdst-anzei. "Flag für PS-EZ Splitscreen setz.
+      MOVE '0750' TO am61x-icdyn.      "Einzelzeilen Include Screen
+      MOVE 'SAPMM61X' TO am61x-icpro.
+      SET SCREEN '0735'. EXIT.         "Rahmenscreen
+<font color ="#8C8C8C">*--&gt Bestellvorschlag veraendern</font>
+    WHEN fc-bvvr OR fc-xxvr.
+      IF mdst-anzei = psezsi_activ.    "Fuer PSEZSI eigener Aufruf
+        ev_found = gc_false. EXIT.
+      ELSE.
+        PERFORM fcode_bvvr_su. EXIT.
+      ENDIF.
+<font color ="#8C8C8C">*--&gt Bestellvorschlag erfassen</font>
+    WHEN fc-bver.
+      PERFORM fcode_bver_su. EXIT.
+<font color ="#8C8C8C">*--&gt Periodenwechsel</font>
+    WHEN fc-perw.
+      PERFORM fcode_perw. EXIT.
+<font color ="#8C8C8C">*--&gt Periodenwechsel minus</font>
+    WHEN fc-prwm.
+      PERFORM fcode_prwm. EXIT.
+<font color ="#8C8C8C">*--&gt Periodenwechsel</font>
+    WHEN 'PS_D'.
+      mdst-inper = tagex.
+      PERFORM fcode_pstab.
+      PERFORM <a href ="javascript:Link('MM61XF92_CHECK_RETURN_TO_PS.html?id=#000000000439');">check_return_to_ps</a>.
+    WHEN 'PS_W'.
+      mdst-inper = woche.
+      PERFORM fcode_pstab.
+      PERFORM <a href ="javascript:Link('MM61XF92_CHECK_RETURN_TO_PS.html?id=#000000000439');">check_return_to_ps</a>.
+    WHEN 'PS_M'.
+      mdst-inper = monat.
+      PERFORM fcode_pstab.
+      PERFORM <a href ="javascript:Link('MM61XF92_CHECK_RETURN_TO_PS.html?id=#000000000439');">check_return_to_ps</a>.
+    WHEN 'PS_K'.
+      mdst-inper = pkper.
+      IF mdst-mrppp IS INITIAL.
+        PERFORM set_plan_cal.
+      ENDIF.
+      PERFORM fcode_pstab.
+      PERFORM <a href ="javascript:Link('MM61XF92_CHECK_RETURN_TO_PS.html?id=#000000000439');">check_return_to_ps</a>.
+    WHEN 'PS_B'.
+      IF NOT mt61d-periv IS INITIAL.
+        mdst-inper = buper.
+      ELSE.
+        mdst-inper = tagex.
+      ENDIF.
+      PERFORM fcode_pstab.
+      PERFORM <a href ="javascript:Link('MM61XF92_CHECK_RETURN_TO_PS.html?id=#000000000439');">check_return_to_ps</a>.
+    WHEN 'PS_R'.
+      mdst-inper = prast.
+      mdst-prast = t399d-prast.
+      PERFORM fcode_pstab.
+      PERFORM <a href ="javascript:Link('MM61XF92_CHECK_RETURN_TO_PS.html?id=#000000000439');">check_return_to_ps</a>.
+
+<font color ="#8C8C8C">*--&gt Neuaufruf der Transaktion</font>
+    WHEN fc-nepl.
+      PERFORM back_to_tcode_ms. EXIT.
+    WHEN fc-prdl.
+      PERFORM fcode_prdl_per. EXIT.
+    WHEN fc-pvar.
+      PERFORM <a href ="javascript:Link('MM61XF92_FCODE_PRDL_PER.html?id=#000000000471');">fcode_pvar_per</a>. EXIT.
+<font color ="#8C8C8C">*--&gt Back zur Transaktion</font>
+    WHEN fc-xbac.
+      IF cm61x-plerg EQ chara
+      OR cm61x-plerg EQ charv.
+        PERFORM back_to_mueb. EXIT.
+      ELSE.
+        PERFORM back_to_tcode_ms. EXIT.
+      ENDIF.
+  ENDCASE.
+<font color ="#8C8C8C">*--&gt Einstufige Einzelplanung</font>
+  IF cm61x-plauf EQ mrpep
+  OR cm61x-plauf EQ mpsep
+  OR cm61x-plauf EQ lfrep.
+    CASE am61x-xcode.
+<font color ="#8C8C8C">*--&gt Hinzufuegen Dispositionsliste</font>
+      WHEN fc-hzdl.
+        PERFORM fcode_hzdl_ep.
+        PERFORM leave_to_transaction.
+    ENDCASE.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Mehrstufige Einzelplanung</font>
+  IF cm61x-plauf EQ mrpmp
+  OR cm61x-plauf EQ mpsmp
+  OR cm61x-plauf EQ mpskd
+  OR cm61x-plauf EQ mpspr
+  OR cm61x-plauf EQ lfrmp.
+    CASE am61x-xcode.
+<font color ="#8C8C8C">*--&gt Weiterarbeiten im Ablauf</font>
+      WHEN fc-goon.
+        CLEAR stata.
+        SET SCREEN 0.
+        LEAVE SCREEN.
+<font color ="#8C8C8C">*--&gt Letztes Ergebnis anzeigen</font>
+      WHEN fc-ledl.
+        PERFORM fcode_ledl. EXIT.
+<font color ="#8C8C8C">*--&gt Nächstes Ergebnis anzeigen</font>
+      WHEN fc-nedl.
+        PERFORM fcode_nedl. EXIT.
+<font color ="#8C8C8C">*--&gt Wechsel in die Planung</font>
+      WHEN fc-chpl.
+        PERFORM fcode_chpl. EXIT.
+    ENDCASE.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Interaktive Einzelplanung</font>
+  IF cm61x-plauf EQ mpsip.
+    CASE am61x-xcode.
+<font color ="#8C8C8C">*--&gt Grafikaufruf</font>
+      WHEN fc-graf.
+        PERFORM fcode_graf_02. EXIT.
+<font color ="#8C8C8C">*--&gt Hinzufuegen Dispositionsliste</font>
+      WHEN fc-hzdl.
+        PERFORM fcode_hzdl_ep.
+        IF rm61x-prgkz EQ xflag.
+          SET SCREEN dy-x251.
+          LEAVE SCREEN.
+        ELSE.
+          PERFORM leave_to_transaction.
+        ENDIF.
+    ENDCASE.
+  ENDIF.
+
+<font color ="#8C8C8C">*----&gt  Blättern</font>
+  IF am61x-xcode = fc-pnxt
+  OR am61x-xcode = fc-ppre
+  OR am61x-xcode = fc-pbeg
+  OR am61x-xcode = fc-pend.
+    mdsux-bline = tc_ps-lines.
+    PERFORM blaettern_dlsam
+            USING tc_ps-top_line mdsux-vline mdsux-bline
+                  tc_ps-lines mdsux-loops am61x-xcode
+                  rm61x-pane2 rm61x-pasu2.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Funktionscode hier nicht gefunden</font>
+  ev_found = gc_false.
+ENDFORM.                    "fcode_d0700_persum
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

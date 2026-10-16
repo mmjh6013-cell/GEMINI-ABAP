@@ -1,0 +1,2646 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZCOR8000_F01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZCOR8000_F01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZCOR8000_F01</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form HANDLE_TOP_OF_PAGE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      &lt-- E_DYNDOC_ID</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000001"></div>
+FORM get_data .
+  DATA : lv_str TYPE string.
+  RANGES : lr_categ FOR zcot8000-categ OCCURS 0,
+           lr_ptyp FOR zcot8000-ptyp OCCURS 0,
+           lr_werks FOR t001k-bwkey OCCURS 0.
+
+  CLEAR : gt_main[], gt_mbew[], gt_zcot8000[], gt_cogm[].
+
+<font color ="#8C8C8C">*### ## ####</font>
+  IF s_werks[] IS INITIAL.
+    SELECT bwkey
+      INTO TABLE @DATA(lt_bwkey)
+      FROM t001k
+    WHERE bukrs = @p_bukrs.
+    IF sy-subrc = 0.
+      LOOP AT lt_bwkey INTO DATA(ls_bwkey).
+        lr_werks-low = ls_bwkey.
+        lr_werks-sign = 'I'.
+        lr_werks-option = 'EQ'.
+        APPEND lr_werks.
+        CLEAR lr_werks.
+      ENDLOOP.
+    ELSE.
+      MESSAGE s000 DISPLAY LIKE 'E' WITH TEXT-m03.
+      LEAVE LIST-PROCESSING.
+    ENDIF.
+  ELSE.
+    lr_werks[] = s_werks[].
+  ENDIF.
+
+<font color ="#8C8C8C">* ####</font>
+  SELECT a~matnr, a~bwkey , a~bwtar, a~bklas,
+    a~kaln1, a~vprsv, a~lvorm, b~mtart, c~maktx
+     FROM mbew AS a
+     LEFT JOIN mara AS b
+       ON a~matnr = b~matnr
+     LEFT JOIN makt AS c
+       ON a~matnr = c~matnr
+     INTO CORRESPONDING FIELDS OF TABLE @gt_mbew
+    WHERE a~matnr IN @s_matnr
+      AND a~bwkey IN @lr_werks
+      AND a~bklas IN @s_bklas
+<font color ="#8C8C8C">*      AND A~LVORM = ''      "### ### ##(######### ###)</font>
+      AND c~spras = @sy-langu.
+  IF sy-subrc = 0.
+
+    SELECT *
+      FROM zcot8000
+     WHERE kokrs = @p_kokrs
+       AND bukrs = @p_bukrs
+      INTO TABLE @gt_zcot8000.
+    IF sy-subrc NE 0.
+      MESSAGE s001 DISPLAY LIKE 'E' WITH TEXT-m04.
+      LEAVE LIST-PROCESSING.
+    ELSE.
+      SORT gt_zcot8000 BY report_no name.
+      DATA(lt_n) = gt_zcot8000[].  "##,##,#####,##### #
+      DATA(lt_a) = gt_zcot8000[].  "####(#### ##) #
+      DATA(lt_d) = gt_zcot8000[].  "#### ## #
+      DATA(lt_f) = gt_zcot8000[].  "###(CASE N # ##)
+
+<font color ="#8C8C8C">** CASE N : ##,##,#####,#####,####</font>
+      DELETE lt_n WHERE operator NE 'N'.
+      CLEAR : lr_categ[],lr_ptyp[].
+      PERFORM <a href="#000000000023">get_categ_and_ptyp</a> TABLES lt_n
+                                        lr_categ
+                                        lr_ptyp.
+      PERFORM <a href="#000000000024">calculation_case_n</a> TABLES lt_n
+                                        lr_categ
+                                        lr_ptyp.
+
+<font color ="#8C8C8C">** CASE A : ##### ####(#### ##)</font>
+      DELETE lt_a WHERE operator NE 'A'.
+      CLEAR : lr_categ[],lr_ptyp[].
+      PERFORM <a href="#000000000023">get_categ_and_ptyp</a> TABLES lt_a
+                                        lr_categ
+                                        lr_ptyp.
+
+      PERFORM <a href="#000000000025">calculation_case_a</a> TABLES lt_a
+                                        lr_categ
+                                        lr_ptyp.
+
+      " ###, #, # ### #### ### ### #### ###### ##### ####.
+      " ### ## ##### ### #### ## ### ## ####.
+      IF r_case1 &lt&gt 'X'.
+        PERFORM <a href="#000000000035">move_diff</a>.
+      ENDIF.
+
+      " ##### ## #### V+ -&gt ###### ### #### ##### ##
+      PERFORM <a href="#000000000036">move_movement_type</a>.
+
+<font color ="#8C8C8C">** CASE D : #### ## #   (####)</font>
+<font color ="#8C8C8C">* View Setting -&gt ##### ##</font>
+<font color ="#8C8C8C">*      DELETE lt_d WHERE operator NE 'D'.</font>
+      PERFORM <a href="#000000000033">get_not_allocated</a>.
+<font color ="#8C8C8C">*      PERFORM calculation_case_d TABLES lt_d</font>
+<font color ="#8C8C8C">*                                        lr_categ</font>
+<font color ="#8C8C8C">*                                        lr_ptyp.</font>
+
+<font color ="#8C8C8C">** CASE F : #####</font>
+      DELETE lt_f WHERE operator NE 'F'.
+      PERFORM <a href="#000000000027">calculation_case_f</a> TABLES lt_f.
+    ENDIF.
+
+    DELETE gt_main WHERE werks = 'P100'
+                     AND ( matnr = 'D/W' OR matnr = 'D/W(KG)' ).
+    " ##### ### ##### ## ##
+
+
+
+<font color ="#8C8C8C">** ####</font>
+    LOOP AT gt_main INTO gs_main. "#### ##
+      READ TABLE gt_zcot8000 WITH KEY dtype = '01'
+<font color ="#8C8C8C">**      READ TABLE gt_zcot8000 WITH KEY name = '##'</font>
+                              INTO DATA(ls_case1).
+      IF sy-subrc NE 0.
+        EXIT.
+      ENDIF.
+
+      READ TABLE gt_zcot8000 WITH KEY dtype = '02'
+<font color ="#8C8C8C">**      READ TABLE gt_zcot8000 WITH KEY name = '###'</font>
+                              INTO DATA(ls_case2).
+      IF sy-subrc NE 0.
+        EXIT.
+      ENDIF.
+      READ TABLE gt_zcot8000 WITH KEY dtype = '03'
+<font color ="#8C8C8C">**      READ TABLE gt_zcot8000 WITH KEY name = '###'</font>
+                              INTO DATA(ls_case3).
+      IF sy-subrc NE 0.
+        EXIT.
+      ENDIF.
+      READ TABLE gt_zcot8000 WITH KEY dtype = '04'
+<font color ="#8C8C8C">**      READ TABLE gt_zcot8000 WITH KEY name = '##'</font>
+                              INTO DATA(ls_case4).
+      IF sy-subrc NE 0.
+        EXIT.
+      ENDIF.
+      READ TABLE gt_zcot8000 WITH KEY dtype = '05' " Not Allocated
+                              INTO DATA(ls_case5).
+      IF sy-subrc NE 0.
+        EXIT.
+      ENDIF.
+
+      lv_str = |GS_MAIN-{ ls_case1-report_no }_QUAN|.
+      ASSIGN (lv_str) TO FIELD-SYMBOL(&ltfs_quan1&gt).
+      lv_str = |GS_MAIN-{ ls_case2-report_no }_QUAN|.
+      ASSIGN (lv_str) TO FIELD-SYMBOL(&ltfs_quan2&gt).
+      lv_str = |GS_MAIN-{ ls_case3-report_no }_QUAN|.
+      ASSIGN (lv_str) TO FIELD-SYMBOL(&ltfs_quan3&gt).
+      lv_str = |GS_MAIN-{ ls_case4-report_no }_QUAN|.
+      ASSIGN (lv_str) TO FIELD-SYMBOL(&ltfs_quan4&gt).
+
+      lv_str = |GS_MAIN-{ ls_case1-report_no }_CURR|.
+      ASSIGN (lv_str) TO FIELD-SYMBOL(&ltfs_curr1&gt).
+      lv_str = |GS_MAIN-{ ls_case2-report_no }_CURR|.
+      ASSIGN (lv_str) TO FIELD-SYMBOL(&ltfs_curr2&gt).
+      lv_str = |GS_MAIN-{ ls_case3-report_no }_CURR|.
+      ASSIGN (lv_str) TO FIELD-SYMBOL(&ltfs_curr3&gt).
+      lv_str = |GS_MAIN-{ ls_case4-report_no }_CURR|.
+      ASSIGN (lv_str) TO FIELD-SYMBOL(&ltfs_curr4&gt).
+      lv_str = |GS_MAIN-{ ls_case5-report_no }_CURR|.
+      ASSIGN (lv_str) TO FIELD-SYMBOL(&ltfs_curr5&gt).
+
+      "####(#####) = ## + ### + ### - ##
+      gs_main-check_quan = &ltfs_quan1&gt + &ltfs_quan2&gt + &ltfs_quan3&gt - &ltfs_quan4&gt.
+      gs_main-check_curr = &ltfs_curr1&gt + &ltfs_curr2&gt + &ltfs_curr3&gt - &ltfs_curr4&gt - &ltfs_curr5&gt.
+
+      MODIFY gt_main FROM gs_main.
+      CLEAR : gs_main.
+    ENDLOOP.
+    SORT gt_main BY werks bklas matnr.
+
+<font color ="#8C8C8C">* ##### ## ## - ### ZCOT8010</font>
+    IF gt_main[] IS NOT INITIAL.
+      SELECT a~*
+        FROM zcot8010 AS a
+       INNER JOIN @gt_main AS b
+          ON a~werks = b~werks
+         AND a~bklas = b~bklas
+         AND a~matnr = b~matnr
+       WHERE a~kokrs = @p_kokrs
+         AND a~bukrs = @p_bukrs
+         AND a~gjahr = @p_gjahr
+         AND a~perio BETWEEN  @p_perab AND @p_perbi
+        INTO TABLE @DATA(lt_data).
+      LOOP AT lt_data INTO DATA(ls_data).
+        READ TABLE gt_main WITH KEY werks = ls_data-werks
+                                                            bklas = ls_data-bklas
+                                                            matnr = ls_data-matnr
+                                                            BINARY SEARCH
+                                                            INTO gs_main.
+        IF sy-subrc = 0.
+          DATA(lv_tabix) = sy-tabix.
+          lv_str = |GS_MAIN-{ ls_data-report_no }_QUAN|.
+          ASSIGN (lv_str) TO &ltfs_quan1&gt.
+          IF &ltfs_quan1&gt IS ASSIGNED.
+            &ltfs_quan1&gt = &ltfs_quan1&gt + ls_data-quan.
+          ENDIF.
+
+          lv_str = |GS_MAIN-{ ls_data-report_no }_CURR|.
+          ASSIGN (lv_str) TO &ltfs_curr1&gt.
+          IF &ltfs_curr1&gt IS ASSIGNED.
+            &ltfs_curr1&gt = &ltfs_curr1&gt + ls_data-curr.
+          ENDIF.
+
+          IF ls_data-clear_chk_quan = 'X'.
+            CLEAR : gs_main-check_quan.
+          ENDIF.
+          IF ls_data-clear_chk_curr = 'X'.
+            CLEAR : gs_main-check_curr.
+          ENDIF.
+          MODIFY gt_main FROM gs_main INDEX lv_tabix.
+        ENDIF.
+      ENDLOOP.
+    ENDIF.
+
+
+  ELSE.
+    MESSAGE s000 DISPLAY LIKE 'E' WITH TEXT-m03.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+
+  SORT gt_main BY werks bklas matnr.
+
+<font color ="#8C8C8C">*****3000 / CURR -&gt USD / 7920 (S)</font>
+  IF p_kokrs = '3000' AND p_waers = 'USD'.
+    DATA : lv_add TYPE char1.
+
+    SELECT SINGLE *
+      FROM @gt_main AS a
+     WHERE bklas EQ '7920'
+      INTO @DATA(ls_chk).
+    CHECK ls_chk IS NOT INITIAL.
+    CLEAR gs_main.
+    PERFORM <a href="#000000000037">add_acdoca_line</a> USING ls_chk
+                         CHANGING lv_add
+                                  gs_main.
+    IF lv_add EQ abap_true.
+      APPEND gs_main TO gt_main.
+    ENDIF.
+  ENDIF.
+<font color ="#8C8C8C">*****3000 / CURR -&gt USD / 7920 (E)</font>
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CREATE_ALV</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000002"></div>
+FORM create_alv CHANGING po_grid TYPE REF TO cl_gui_alv_grid
+                         po_docking TYPE REF TO cl_gui_docking_container.
+  CREATE OBJECT po_docking
+    EXPORTING
+      repid     = sy-repid
+      dynnr     = sy-dynnr
+      side      = po_docking-&gtdock_at_top
+      extension = 2000.
+
+<font color ="#8C8C8C">*  CREATE OBJECT PO_GRID</font>
+<font color ="#8C8C8C">*    EXPORTING</font>
+<font color ="#8C8C8C">*      I_PARENT = PO_DOCKING.</font>
+
+
+<font color ="#8C8C8C">* Create TOP-Document</font>
+  CREATE OBJECT dg_dyndoc_id
+    EXPORTING
+      style = 'ALV_GRID'.
+
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Create Splitter</font>
+  CREATE OBJECT go_split
+    EXPORTING
+      parent  = po_docking
+      rows    = 2
+      columns = 1.
+
+  CALL METHOD go_split-&gtset_column_mode
+    EXPORTING
+      mode   = 3
+    IMPORTING
+      result = gv_result.
+
+  CALL METHOD go_split-&gtset_row_height
+    EXPORTING
+      id     = 1
+      height = 10
+    IMPORTING
+      result = gv_result.
+
+  CALL METHOD go_split-&gtget_container
+    EXPORTING
+      row       = 1
+      column    = 1
+    RECEIVING
+      container = go_cont1.
+<font color ="#8C8C8C">*</font>
+  CALL METHOD go_split-&gtget_container
+    EXPORTING
+      row       = 2
+      column    = 1
+    RECEIVING
+      container = go_cont2.
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+
+  CREATE OBJECT po_grid
+    EXPORTING
+      i_parent = go_cont2.
+
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SET_SORT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000003"></div>
+FORM set_sort USING po_grid TYPE REF TO cl_gui_alv_grid
+             CHANGING pt_sort TYPE lvc_t_sort.
+  CLEAR: pt_sort[].
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SET_FCAT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000004"></div>
+FORM set_fcat USING po_grid TYPE REF TO cl_gui_alv_grid
+            CHANGING pt_fcat TYPE lvc_t_fcat.
+  FIELD-SYMBOLS : &ltstruct&gt   TYPE any.
+
+  DATA : ls_fieldcat TYPE lvc_s_fcat,
+         lt_fieldcat TYPE lvc_t_fcat,
+         lr_strdescr TYPE REF TO cl_abap_structdescr,
+         lt_dfies    TYPE ddfields,
+         ls_dfies    TYPE dfies.
+  DATA : lv_text1  TYPE string,
+         lv_text2  TYPE string,
+         lv_field1 TYPE string,
+         lv_field2 TYPE string,
+         lv_color  TYPE char4.
+
+  CLEAR : pt_fcat[],gv_pos.
+
+  CASE po_grid.
+    WHEN go_grid.
+      ASSIGN gs_main TO &ltstruct&gt.
+
+      lr_strdescr ?= cl_abap_structdescr=&gtdescribe_by_data( &ltstruct&gt ).
+      lt_dfies = cl_salv_data_descr=&gtread_structdescr( lr_strdescr ).
+
+      pt_fcat[] = CORRESPONDING #( lt_dfies[] MAPPING ref_table = reftable
+                                                      ref_field = reffield
+                                                      datatype = datatype ).
+      CLEAR : gs_fcat.
+      gs_fcat-tech = 'X'.
+      MODIFY pt_fcat FROM gs_fcat TRANSPORTING tech WHERE tech = space.
+
+      PERFORM <a href="#000000000016">make_field_catalog</a> TABLES pt_fcat
+                                                          USING :
+        'WERKS'       TEXT-f01    'MARC'   'WERKS'   ''   'X'   'X'   ''  '',
+        'BKLAS'       TEXT-f02    'MBEW'   'BKLAS'   ''   'X'   'X'   ''  '',
+        'MATNR'       TEXT-f03    'MBEW'   'MATNR'   ''   'X'   'X'   ''  '',
+        'MAKTX'       TEXT-f04    ''   ''   ''    'X'  'X' ''  '',
+        'COST_GUBUN'  TEXT-f05    ''   ''   ''   'X'   'X'  ''  ''.
+
+      LOOP AT gt_zcot8000 INTO DATA(ls_line).
+        IF ls_line-operator IS INITIAL.
+          CONTINUE.
+        ENDIF.
+        DATA(lv_text) = ls_line-name.
+        DATA(lv_field) = ls_line-report_no.
+
+        DATA(ls_data) = ls_line.
+
+        AT NEW report_no.
+          lv_text1 = |{ lv_text }_{ TEXT-t01 }|. " ##
+          lv_text2 = |{ lv_text }_{ TEXT-t02 }|. " ##
+
+          lv_field1 = |{ lv_field }_QUAN|.
+          lv_field2 = |{ lv_field }_CURR|.
+
+          lv_color = SWITCH  #( ls_data-dtype
+                                WHEN '01' OR '04' " ##, ##
+                                THEN 'C600'
+                                WHEN '02' OR '03' " ###, ###
+                                THEN 'C300'
+                                ELSE '' ).
+<font color ="#8C8C8C">**          IF lv_text = '##'</font>
+<font color ="#8C8C8C">**            OR lv_text = '##'.</font>
+<font color ="#8C8C8C">**            lv_color = 'C600'.</font>
+<font color ="#8C8C8C">**          ELSEIF lv_text = '###'</font>
+<font color ="#8C8C8C">**            OR lv_text = '###'.</font>
+<font color ="#8C8C8C">**            lv_color = 'C300'.</font>
+<font color ="#8C8C8C">**          ELSE.</font>
+<font color ="#8C8C8C">**            CLEAR : lv_color.</font>
+<font color ="#8C8C8C">**          ENDIF.</font>
+
+          CASE 'X'.
+            WHEN r_all.
+              IF ls_data-dtype &lt&gt '05'. " Not Allocated# ###
+                PERFORM <a href="#000000000016">make_field_catalog</a> TABLES pt_fcat
+                                              USING :
+                 lv_field1 lv_text1  'MLDOC'   'LBKUM'   'MEINS'    ''  ''  lv_color 'X'.
+              ENDIF.
+              PERFORM <a href="#000000000016">make_field_catalog</a> TABLES pt_fcat
+                                            USING :
+               lv_field2 lv_text2  'MLDOC'   'SALK3'   'WAERS'    ''  ''  lv_color  'X'.
+            WHEN r_quan.
+              PERFORM <a href="#000000000016">make_field_catalog</a> TABLES pt_fcat
+                                            USING :
+               lv_field1 lv_text1  'MLDOC'   'LBKUM'   'MEINS'    ''  ''  lv_color 'X'.
+            WHEN r_amt.
+              PERFORM <a href="#000000000016">make_field_catalog</a> TABLES pt_fcat
+                                            USING :
+               lv_field2 lv_text2  'MLDOC'   'SALK3'   'WAERS'    ''  ''  lv_color 'X'.
+          ENDCASE.
+        ENDAT.
+      ENDLOOP.
+      CASE 'X'.
+        WHEN r_all.
+          PERFORM <a href="#000000000016">make_field_catalog</a> TABLES pt_fcat
+                                                              USING :
+            'CHECK_QUAN'  TEXT-f06    'MLDOC'   'LBKUM'   'MEINS'    ''  ''  '' 'X',
+            'CHECK_CURR'  TEXT-f07    'MLDOC'   'SALK3'   'WAERS'   ''   ''  '' 'X'.
+        WHEN r_quan.
+          PERFORM <a href="#000000000016">make_field_catalog</a> TABLES pt_fcat
+                                                              USING :
+            'CHECK_QUAN'  TEXT-f06    'MLDOC'   'LBKUM'   'MEINS'    ''  ''  ''  'X'.
+        WHEN r_amt.
+          PERFORM <a href="#000000000016">make_field_catalog</a> TABLES pt_fcat
+                                                              USING :
+            'CHECK_CURR'  TEXT-f07    'MLDOC'   'SALK3'   'WAERS'   ''   ''  ''  'X'.
+      ENDCASE.
+
+      PERFORM <a href="#000000000016">make_field_catalog</a> TABLES pt_fcat
+                                                          USING :
+        'MEINS'  TEXT-f27    ''   ''   ''   ''   ''  ''  '',
+        'KALN1'  TEXT-f25    'MBEW'   'KALN1'   ''   ''   ''  ''  '',
+        'LVORM'  TEXT-f28    'MARA'   'LVORM'   ''   ''   ''  ''  ''.
+
+  ENDCASE.
+
+
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SET_EXCLUDE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000005"></div>
+FORM set_exclude CHANGING pt_func TYPE ui_functions.
+
+  CLEAR pt_func[].
+
+  PERFORM <a href="#000000000006">append_exclude_functions</a>
+        TABLES pt_func
+<font color ="#8C8C8C">*            USING : CL_GUI_ALV_GRID=&gtMC_FC_EXCL_ALL.</font>
+         USING :
+                cl_gui_alv_grid=&gtmc_fc_loc_undo, "
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_auf,      " ???? &AUF</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_average,  " &AVERAGE</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_back_classic,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_call_abc, " &ABC</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_call_chain,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_call_crbatch,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_call_crweb,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_call_lineitems,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_call_master_data,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_call_more,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_call_report,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_call_xint,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_call_xxl,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_col_invisible,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_col_optimize,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_current_variant,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_data_save,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_delete_filter,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_deselect_all,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_detail,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_expcrdata,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_expcrdesig,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_expcrtempl,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_expmdb,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_extend,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_f4,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_filter,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_find,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_fix_columns,</font>
+                cl_gui_alv_grid=&gtmc_fc_graph,
+                cl_gui_alv_grid=&gtmc_fc_help,
+                cl_gui_alv_grid=&gtmc_fc_info,
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_load_variant,</font>
+                cl_gui_alv_grid=&gtmc_fc_loc_copy,          " ? ??
+                cl_gui_alv_grid=&gtmc_fc_html,
+                cl_gui_alv_grid=&gtmc_fc_loc_copy_row,      " ? ??
+                cl_gui_alv_grid=&gtmc_fc_loc_cut,           " ??
+                cl_gui_alv_grid=&gtmc_fc_loc_delete_row,    " ???
+                cl_gui_alv_grid=&gtmc_fc_loc_insert_row,    " ???
+                cl_gui_alv_grid=&gtmc_fc_loc_move_row,
+                cl_gui_alv_grid=&gtmc_fc_loc_append_row,    " ????
+                cl_gui_alv_grid=&gtmc_fc_loc_paste,         " ????
+                cl_gui_alv_grid=&gtmc_fc_loc_paste_new_row, " ????
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_maintain_variant,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_maximum,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_minimum,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_pc_file,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_print,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_print_back,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_print_prev,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_reprep,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_save_variant,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_select_all,</font>
+                cl_gui_alv_grid=&gtmc_fc_send,
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_separator,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_sort,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_sort_asc,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_sort_dsc,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_subtot,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_sum,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_to_office,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_to_rep_tree,</font>
+<font color ="#8C8C8C">**                cl_gui_alv_grid=&gtmc_fc_unfix_columns,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_views,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_view_crystal,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_view_excel,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_view_grid,</font>
+<font color ="#8C8C8C">*                cl_gui_alv_grid=&gtmc_fc_word_processor,</font>
+                cl_gui_alv_grid=&gtmc_fc_refresh,
+                cl_gui_alv_grid=&gtmc_fc_check.
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form append_exclude_functions</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt &ltTABLE&gt</font>
+<font color ="#8C8C8C">*&      --&gt CL_GUI_ALV_GRID=&gtMC_FC_LOC_UND</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000006"></div>
+FORM append_exclude_functions TABLES pt_table
+                                USING p_value TYPE any.
+
+  DATA : ls_exclude TYPE ui_func.
+
+  ls_exclude = p_value.
+  INSERT ls_exclude INTO TABLE pt_table.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SET_EVENT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000007"></div>
+FORM set_event USING po_grid TYPE REF TO cl_gui_alv_grid
+                     pv_gname.
+
+  go_handler = NEW lcl_event_handler( e_object_text = pv_gname ).
+
+  SET HANDLER :
+<font color ="#8C8C8C">*                GO_HANDLER-&gtHANDLE_ONF4 FOR PO_GRID,</font>
+<font color ="#8C8C8C">*                GO_HANDLER-&gtHANDLE_DATA_CHANGED FOR PO_GRID,</font>
+<font color ="#8C8C8C">*                GO_HANDLER-&gtHANDLE_DATA_CHANGED_FINISHED FOR PO_GRID,</font>
+                go_handler-&gthandle_user_command FOR po_grid,
+                go_handler-&gthandle_double_click FOR po_grid,
+                go_handler-&gthandle_top_of_page FOR po_grid,
+<font color ="#8C8C8C">*                GO_HANDLER-&gtHANDLE_MENU_BUTTON FOR PO_GRID,</font>
+                go_handler-&gthandle_toolbar FOR po_grid.
+<font color ="#8C8C8C">*                GO_HANDLER-&gtHANDLE_HOTSPOT_CLICK FOR PO_GRID.</font>
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form DISPLAY_ALV</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000008"></div>
+FORM display_alv TABLES pt_outtab
+                         pt_fcat    TYPE lvc_t_fcat
+                         pt_sort    TYPE lvc_t_sort
+                         pt_filt    TYPE lvc_t_filt
+<font color ="#8C8C8C">*                         PT_F4      TYPE LVC_T_F4</font>
+                         pt_func    TYPE ui_functions
+                  USING  po_grid    TYPE REF TO cl_gui_alv_grid
+                         ps_variant TYPE disvariant
+                         ps_layout  TYPE lvc_s_layo.
+
+  CALL METHOD po_grid-&gtset_table_for_first_display
+    EXPORTING
+      is_variant                    = ps_variant
+      i_save                        = 'A'
+      i_default                     = 'X'
+      is_layout                     = ps_layout
+      it_toolbar_excluding          = pt_func[]
+    CHANGING
+      it_outtab                     = pt_outtab[]
+      it_fieldcatalog               = pt_fcat[]
+<font color ="#8C8C8C">*     IT_SORT                       = PT_SORT[]</font>
+<font color ="#8C8C8C">*     IT_FILTER                     = PT_FILT[]</font>
+    EXCEPTIONS
+      invalid_parameter_combination = 1
+      program_error                 = 2
+      too_many_lines                = 3
+      OTHERS                        = 4.
+
+  CALL METHOD po_grid-&gtset_toolbar_interactive.
+
+  CALL METHOD po_grid-&gtregister_edit_event
+    EXPORTING
+      i_event_id = cl_gui_alv_grid=&gtmc_evt_enter.
+
+  CALL METHOD po_grid-&gtregister_edit_event
+    EXPORTING
+      i_event_id = cl_gui_alv_grid=&gtmc_evt_modified.
+
+  CALL METHOD cl_gui_control=&gtset_focus
+    EXPORTING
+      control = po_grid.
+
+<font color ="#8C8C8C">*  CALL METHOD PO_GRID-&gtREGISTER_F4_FOR_FIELDS</font>
+<font color ="#8C8C8C">*    EXPORTING</font>
+<font color ="#8C8C8C">*      IT_F4 = PT_F4.</font>
+
+<font color ="#8C8C8C">*  CALL METHOD PO_GRID-&gtLIST_PROCESSING_EVENTS</font>
+<font color ="#8C8C8C">*    EXPORTING</font>
+<font color ="#8C8C8C">*      I_EVENT_NAME = 'TOP_OF_PAGE'</font>
+<font color ="#8C8C8C">*      I_DYNDOC_ID  = GO_DYNDOC_ID.</font>
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form REFRESH_ALV</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000009"></div>
+FORM refresh_alv TABLES pt_fieldcat TYPE STANDARD TABLE "GT_FIELDCAT1
+                   USING ps_layout TYPE lvc_s_layo        "GS_LAYOUT1
+                         ps_variant TYPE disvariant
+                         p_grid       "GRID1
+                         p_layout     "X
+                         p_fieldcat   "X
+                         p_tool       "X
+                         p_soft.      "X
+
+  DATA: ls_stable   TYPE lvc_s_stbl,
+        lt_fieldcat TYPE lvc_t_fcat,
+        ls_variant  LIKE disvariant.
+  ls_stable-row = 'X'.
+  ls_stable-col = 'X'.
+
+  FIELD-SYMBOLS: &ltgrid&gt TYPE REF TO cl_gui_alv_grid.
+  ASSIGN (p_grid) TO &ltgrid&gt.
+
+  CHECK &ltgrid&gt IS BOUND.
+
+  CONCATENATE p_grid(1) p_grid+4(1) INTO ps_variant-handle.
+  ls_variant = ps_variant.
+  lt_fieldcat[] = pt_fieldcat[].
+  CALL FUNCTION 'LVC_VARIANT_SELECT'
+    EXPORTING
+      i_dialog            = space
+      i_user_specific     = 'X'
+      it_default_fieldcat = lt_fieldcat[]
+    IMPORTING
+      et_fieldcat         = lt_fieldcat[]
+    CHANGING
+      cs_variant          = ls_variant
+    EXCEPTIONS
+      wrong_input         = 1
+      fc_not_complete     = 2
+      not_found           = 3
+      program_error       = 4
+      data_missing        = 5
+      OTHERS              = 6.
+  IF ls_variant IS NOT INITIAL.
+    ps_variant = ls_variant.
+    pt_fieldcat[] = lt_fieldcat[].
+  ENDIF.
+
+  IF p_layout = 'X'.
+    CALL METHOD &ltgrid&gt-&gtset_frontend_layout
+      EXPORTING
+        is_layout = ps_layout.
+  ENDIF.
+
+  IF p_fieldcat = 'X'.
+    CALL METHOD &ltgrid&gt-&gtset_frontend_fieldcatalog
+      EXPORTING
+        it_fieldcatalog = pt_fieldcat[].
+  ENDIF.
+
+  IF p_tool = 'X'.
+    CALL METHOD &ltgrid&gt-&gtset_toolbar_interactive.
+  ENDIF.
+
+  CALL METHOD &ltgrid&gt-&gtset_variant
+    EXPORTING
+      is_variant = ps_variant
+      i_save     = 'A'.
+
+  CALL METHOD &ltgrid&gt-&gtrefresh_table_display
+    EXPORTING
+      is_stable      = ls_stable
+      i_soft_refresh = p_soft.
+
+  CALL METHOD cl_gui_cfw=&gtflush.
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form INITIALIZATION</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000010"></div>
+FORM initialization .
+
+  DATA : lv_date TYPE d.
+
+  lv_date = sy-datum.
+
+  lv_date = zcl_cm_util=&gtcalc_date( EXPORTING i_date   = lv_date
+                                              i_months = '01'
+                                              i_signum = '-' ).
+
+  " ## ###
+  p_gjahr = lv_date+0(4).
+  p_perab = lv_date+4(2).
+  p_perbi = lv_date+4(2).
+
+  IF s_bklas[] IS INITIAL.
+    s_bklas = VALUE #( sign   = 'I'
+                       option = 'BT'
+                       low    = |3000|
+                       high   = |7920| ).
+    APPEND s_bklas.
+    CLEAR : s_bklas.
+  ENDIF.
+
+<font color ="#8C8C8C">*  sscrfields-functxt_01 = |{ gcs_icon-xls }Upload templete|.</font>
+  gv_title = sy-title.
+
+  p_waers = 'MXN'.
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_layo</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt GO_GRID</font>
+<font color ="#8C8C8C">*&      &lt-- GS_LAYO</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000011"></div>
+FORM set_layo USING po_grid TYPE REF TO cl_gui_alv_grid
+               CHANGING ps_layout TYPE lvc_s_layo.
+
+  CLEAR : ps_layout.
+
+  CASE po_grid.
+
+    WHEN go_grid.
+
+<font color ="#8C8C8C">*      ps_layout-cwidth_opt = gc_x.</font>
+      ps_layout-sel_mode = 'D'.
+<font color ="#8C8C8C">*      PS_LAYOUT-BOX_FNAME  = 'MARK'.</font>
+      ps_layout-zebra      = 'X'.
+<font color ="#8C8C8C">*      ps_layout-info_fname = 'COLOR'.</font>
+<font color ="#8C8C8C">*      ps_layout-stylefname = 'FIELD_STYLE'.</font>
+<font color ="#8C8C8C">*      ps_layout-ctab_fname = 'CELL_COLOR'.</font>
+<font color ="#8C8C8C">*    WHEN go_grid1.</font>
+<font color ="#8C8C8C">**      ps_layout-cwidth_opt = gc_x.</font>
+<font color ="#8C8C8C">*      ps_layout-sel_mode = 'D'.</font>
+<font color ="#8C8C8C">**      PS_LAYOUT-BOX_FNAME  = 'MARK'.</font>
+<font color ="#8C8C8C">*      ps_layout-zebra      = 'X'.</font>
+<font color ="#8C8C8C">**      ps_layout-info_fname = 'COLOR'.</font>
+<font color ="#8C8C8C">**      ps_layout-stylefname = 'FIELD_STYLE'.</font>
+<font color ="#8C8C8C">**      ps_layout-ctab_fname = 'CELL_COLOR'.</font>
+  ENDCASE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form modify_selection_screen</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000012"></div>
+FORM modify_selection_screen .
+  LOOP AT SCREEN.
+
+    CASE screen-group1.
+      WHEN 'M1'.
+        screen-input = 0.
+      WHEN 'MI1'. " 2000 # Display, ### ### ### ### Display
+        IF p_kokrs &lt&gt '2000'.
+          screen-active = 0.
+        ELSE.
+          IF r_amt = 'X'.
+            screen-active = 0.
+          ENDIF.
+        ENDIF.
+      WHEN OTHERS.
+    ENDCASE.
+
+    IF screen-name = 'P_BUKRS'.
+      screen-input = 0.
+    ENDIF.
+
+    MODIFY SCREEN.
+
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form HANDLE_TOOLBAR</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      &lt-- E_OBJECT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000013"></div>
+FORM handle_toolbar CHANGING po_object TYPE REF TO cl_alv_event_toolbar_set.
+  DATA : ls_toolbar TYPE stb_button.
+
+<font color ="#8C8C8C">*  IF r_dsp = gc_x.</font>
+<font color ="#8C8C8C">*    ls_toolbar-function = 'DELETE'.</font>
+<font color ="#8C8C8C">*    ls_toolbar-icon = gcs_icon-delete.</font>
+<font color ="#8C8C8C">*    ls_toolbar-butn_type = 4.</font>
+<font color ="#8C8C8C">*    ls_toolbar-text = TEXT-b01.</font>
+<font color ="#8C8C8C">*    INSERT ls_toolbar INTO TABLE po_object-&gtmt_toolbar.</font>
+<font color ="#8C8C8C">*  ENDIF.</font>
+
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form HANDLE_USER_COMMAND</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      &lt-- E_UCOMM</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000014"></div>
+FORM handle_user_command CHANGING pv_ucomm.
+<font color ="#8C8C8C">*  CASE PV_UCOMM.</font>
+<font color ="#8C8C8C">*    WHEN 'DELETE'.</font>
+<font color ="#8C8C8C">*      PERFORM EXE_DELETE.</font>
+<font color ="#8C8C8C">*      PERFORM REFRESH_ALV TABLES GT_FCAT</font>
+<font color ="#8C8C8C">*                           USING GS_LAYO</font>
+<font color ="#8C8C8C">*                                 GS_VARIANT</font>
+<font color ="#8C8C8C">*                                 'GO_GRID' 'X' '' '' ''.  &</font>
+<font color ="#8C8C8C">*    WHEN OTHERS.</font>
+<font color ="#8C8C8C">*  ENDCASE.</font>
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SET_VARIANT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000015"></div>
+FORM set_variant USING ps_variant TYPE disvariant
+                          p_name.
+  DATA(lv_repid) = sy-repid.
+
+  ps_variant-report = lv_repid.
+  ps_variant-log_group = p_name.
+  ps_variant-username = sy-uname.
+
+  CASE p_name.
+    WHEN 'GRID'.
+      ps_variant-handle = 1.
+    WHEN 'GRID1'.
+      ps_variant-handle = 2.
+  ENDCASE.
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form make_field_catalog</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt PT_FCAT</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt TEXT_F01</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000016"></div>
+FORM make_field_catalog TABLES pt_fcat TYPE lvc_t_fcat
+                              USING    p_fieldname
+                                  p_rddic
+                                  p_ref_table
+                                  p_ref_field
+                                  p_cfieldname
+                                  p_fix_column
+                                  p_key
+                                  p_color
+                                  p_sum.
+
+  DATA: ls_fieldcat TYPE lvc_s_fcat,
+        lv_pos      TYPE i.
+
+  READ TABLE pt_fcat WITH KEY fieldname = p_fieldname
+                    ASSIGNING FIELD-SYMBOL(&ltls_fcat&gt).
+  IF sy-subrc = 0.
+    &ltls_fcat&gt-coltext       = p_rddic.
+<font color ="#8C8C8C">*-&lt&lt Start &gt&gt***********************************************************</font>
+<font color ="#8C8C8C">*- #### : EXPORT TO EXCEL # ### ##</font>
+<font color ="#8C8C8C">************************************************************************</font>
+    &ltls_fcat&gt-scrtext_l     = p_rddic.
+<font color ="#8C8C8C">*-&lt&lt  End  &gt&gt***********************************************************</font>
+    &ltls_fcat&gt-coltext       = p_rddic.
+    &ltls_fcat&gt-coltext       = p_rddic.
+    &ltls_fcat&gt-ref_table     = p_ref_table.
+    &ltls_fcat&gt-ref_field     = p_ref_field.
+
+    IF &ltls_fcat&gt-datatype = 'QUAN'.
+      &ltls_fcat&gt-qfieldname    = p_cfieldname.
+    ELSE.
+      &ltls_fcat&gt-cfieldname    = p_cfieldname.
+    ENDIF.
+    &ltls_fcat&gt-fix_column    = p_fix_column.
+    &ltls_fcat&gt-key          = p_key.
+    ADD 1 TO gv_pos.
+    &ltls_fcat&gt-col_pos  = gv_pos.
+
+    &ltls_fcat&gt-tech = space. "##### #### ##
+    CASE &ltls_fcat&gt-fieldname.
+      WHEN 'WERKS' OR 'BKLAS'.
+        &ltls_fcat&gt-outputlen = 8.
+        IF p_color IS NOT INITIAL.
+          &ltls_fcat&gt-emphasize = p_color.
+        ENDIF.
+      WHEN OTHERS.
+        &ltls_fcat&gt-col_opt = 'X'.
+        IF p_color IS NOT INITIAL.
+          &ltls_fcat&gt-emphasize = p_color.
+        ENDIF.
+        IF p_sum IS NOT INITIAL.
+          &ltls_fcat&gt-do_sum = p_sum.
+        ENDIF.
+<font color ="#8C8C8C">*      when  'MATNR'.</font>
+<font color ="#8C8C8C">*                &ltls_fcat&gt-outputlen = 16.</font>
+<font color ="#8C8C8C">*      when  'MAKTX'.</font>
+<font color ="#8C8C8C">*                &ltls_fcat&gt-outputlen = 16.</font>
+<font color ="#8C8C8C">*      when 'COST_GUBUN' .</font>
+
+<font color ="#8C8C8C">*      WHEN 'LVORM'.</font>
+<font color ="#8C8C8C">*         &ltLS_FCAT&gt-TECH = 'X'.</font>
+<font color ="#8C8C8C">*      WHEN 'KOSTL'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-REF_TABLE = 'CSKS'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-REF_FIELD = &ltLS_FCAT&gt-FIELDNAME.</font>
+<font color ="#8C8C8C">*      WHEN 'KTEXT'.</font>
+<font color ="#8C8C8C">*      WHEN 'KAGRU'.</font>
+<font color ="#8C8C8C">*      WHEN 'KGTXT'.</font>
+<font color ="#8C8C8C">*      WHEN 'KSTAR'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-REF_TABLE = 'CSKA'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-REF_FIELD = &ltLS_FCAT&gt-FIELDNAME.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-F4AVAILABL = 'X'.</font>
+<font color ="#8C8C8C">*      WHEN 'TWAER'.</font>
+<font color ="#8C8C8C">*      WHEN 'TOT_Y_PLAN'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-REF_TABLE = 'COSP'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-REF_FIELD = 'WKG001'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-CFIELDNAME = 'TWAER'.</font>
+<font color ="#8C8C8C">*      WHEN 'TOT_P_PLAN'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-REF_TABLE = 'COSP'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-REF_FIELD = 'WKG001'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-CFIELDNAME = 'TWAER'.</font>
+<font color ="#8C8C8C">*      WHEN 'TOT_Y_ACT'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-REF_TABLE = 'COSP'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-REF_FIELD = 'WKG001'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-CFIELDNAME = 'TWAER'.</font>
+<font color ="#8C8C8C">*      WHEN 'TOT_P_ACT'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-REF_TABLE = 'COSP'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-REF_FIELD = 'WKG001'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-CFIELDNAME = 'TWAER'.</font>
+<font color ="#8C8C8C">*      WHEN 'TOT_Y_GAP'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-REF_TABLE = 'COSP'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-REF_FIELD = 'WKG001'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-CFIELDNAME = 'TWAER'.</font>
+<font color ="#8C8C8C">*      WHEN 'TOT_P_GAP'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-REF_TABLE = 'COSP'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-REF_FIELD = 'WKG001'.</font>
+<font color ="#8C8C8C">*        &ltLS_FCAT&gt-CFIELDNAME = 'TWAER'.</font>
+<font color ="#8C8C8C">*      WHEN OTHERS.</font>
+<font color ="#8C8C8C">*         &ltLS_FCAT&gt-TECH = 'X'.</font>
+
+    ENDCASE.
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CREATE_SUB_ALV</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      &lt-- GO_GRID</font>
+<font color ="#8C8C8C">*&      &lt-- GO_CUSTOM</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000017"></div>
+FORM create_sub_alv CHANGING po_grid TYPE REF TO cl_gui_alv_grid
+                         po_docking TYPE REF TO cl_gui_docking_container.
+  CREATE OBJECT po_docking
+    EXPORTING
+      repid     = sy-repid
+      dynnr     = sy-dynnr
+      side      = po_docking-&gtdock_at_top
+      extension = 2000.
+
+<font color ="#8C8C8C">*  CREATE OBJECT PO_GRID</font>
+<font color ="#8C8C8C">*    EXPORTING</font>
+<font color ="#8C8C8C">*      I_PARENT = PO_DOCKING.</font>
+<font color ="#8C8C8C">*</font>
+
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Create TOP-Document</font>
+  CREATE OBJECT dg_dyndoc_id
+    EXPORTING
+      style = 'ALV_GRID'.
+
+<font color ="#8C8C8C">* Create Splitter</font>
+  CREATE OBJECT go_split1
+    EXPORTING
+      parent  = po_docking
+      rows    = 2
+      columns = 1.
+
+  CALL METHOD go_split1-&gtset_column_mode
+    EXPORTING
+      mode   = 3
+    IMPORTING
+      result = gv_result.
+
+  CALL METHOD go_split1-&gtset_row_height
+    EXPORTING
+      id     = 1
+      height = 10
+    IMPORTING
+      result = gv_result.
+
+  CALL METHOD go_split1-&gtget_container
+    EXPORTING
+      row       = 1
+      column    = 1
+    RECEIVING
+      container = go_cont3.
+<font color ="#8C8C8C">*</font>
+  CALL METHOD go_split1-&gtget_container
+    EXPORTING
+      row       = 2
+      column    = 1
+    RECEIVING
+      container = go_cont4.
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+
+  CREATE OBJECT po_grid
+    EXPORTING
+      i_parent = go_cont4.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form HANDLE_TOP_OF_PAGE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      &lt-- E_DYNDOC_ID</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000018"></div>
+FORM handle_top_of_page USING dg_dyndoc_id TYPE REF TO cl_dd_document.
+  DATA : lv_text   TYPE c LENGTH 4,
+         lv_sdtext TYPE c LENGTH 10,
+         lv_edtext TYPE c LENGTH 10.
+
+  "this is more clear.....check it
+  "first add text, then pass it to comentry write fm
+  DATA : dl_text(255) TYPE c. "Text
+  DATA : lv_veran_text TYPE ktext.
+<font color ="#8C8C8C">*     Populating header to top-of-page</font>
+<font color ="#8C8C8C">*      CALL METHOD DG_DYNDOC_ID-&gtADD_TEXT</font>
+<font color ="#8C8C8C">*        EXPORTING</font>
+<font color ="#8C8C8C">*          TEXT      = '[CO] #### #####'</font>
+<font color ="#8C8C8C">*          SAP_STYLE = CL_DD_AREA=&gtHEADING.</font>
+<font color ="#8C8C8C">*    * Add new-line</font>
+<font color ="#8C8C8C">*      CALL METHOD DG_DYNDOC_ID-&gtNEW_LINE.</font>
+<font color ="#8C8C8C">*      CALL METHOD DG_DYNDOC_ID-&gtNEW_LINE.</font>
+
+
+  CLEAR : dl_text.
+  CONCATENATE TEXT-t03 p_kokrs INTO dl_text SEPARATED BY space.
+  PERFORM <a href="#000000000019">add_text</a> USING dg_dyndoc_id
+                                            dl_text
+                                            space.
+  CALL METHOD dg_dyndoc_id-&gtnew_line.
+  CLEAR : dl_text.
+<font color ="#8C8C8C">*  read table s_werks index 1.</font>
+  CONCATENATE TEXT-t04 p_bukrs INTO dl_text SEPARATED BY space.
+  PERFORM <a href="#000000000019">add_text</a> USING dg_dyndoc_id
+                                            dl_text
+                                            space.
+
+<font color ="#8C8C8C">******* 250704 currency ##</font>
+  "WAERS# ### #### #### ### ##
+  CALL METHOD dg_dyndoc_id-&gtnew_line.
+  CLEAR : dl_text.
+  SELECT SINGLE waers
+    FROM @gt_main AS a
+    INTO @DATA(lv_waers).
+  dl_text = |Currency : { lv_waers }|.
+  PERFORM <a href="#000000000019">add_text</a> USING dg_dyndoc_id
+                                            dl_text
+                                            space.
+<font color ="#8C8C8C">******* currency ##</font>
+
+<font color ="#8C8C8C">*      CLEAR : DL_TEXT.</font>
+<font color ="#8C8C8C">*      CONCATENATE '#### :' LV_SDTEXT '~' LV_EDTEXT</font>
+<font color ="#8C8C8C">*             INTO DL_TEXT SEPARATED BY SPACE.</font>
+<font color ="#8C8C8C">*     Add Program Name to Document</font>
+<font color ="#8C8C8C">*      PERFORM ADD_TEXT USING  DG_DYNDOC_ID</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*      CALL METHOD DG_DYNDOC_ID-&gtNEW_LINE.</font>
+
+
+  PERFORM <a href="#000000000020">html</a> USING dg_dyndoc_id
+                    go_cont1.
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form add_text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt DG_DYNDOC_ID</font>
+<font color ="#8C8C8C">*&      --&gt DL_TEXT</font>
+<font color ="#8C8C8C">*&      --&gt SPACE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000019"></div>
+FORM add_text USING dg_dyndoc_id TYPE REF TO cl_dd_document
+                                             p_text
+                                             p_color.
+<font color ="#8C8C8C">*     Adding text</font>
+  CALL METHOD dg_dyndoc_id-&gtadd_text
+    EXPORTING
+      text         = p_text
+      sap_emphasis = cl_dd_area=&gtheading
+      sap_color    = p_color.
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form html</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt DG_DYNDOC_ID</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000020"></div>
+FORM html USING dg_dyndoc_id TYPE REF TO cl_dd_document
+                                p_obj   TYPE REF TO cl_gui_container.
+  DATA : dl_length        TYPE i,                           " Length
+         dl_background_id TYPE sdydo_key VALUE space. " Background_id
+
+  DATA : dg_html_cntrl TYPE REF TO cl_gui_html_viewer.
+
+<font color ="#8C8C8C">*     Creating html control</font>
+  IF dg_html_cntrl IS INITIAL.
+    CREATE OBJECT dg_html_cntrl
+      EXPORTING
+        parent = p_obj.
+  ENDIF.
+<font color ="#8C8C8C">*     Reuse_alv_grid_commentary_set</font>
+  CALL FUNCTION 'REUSE_ALV_GRID_COMMENTARY_SET'
+    EXPORTING
+      document = dg_dyndoc_id
+      bottom   = space
+    IMPORTING
+      length   = dl_length.
+<font color ="#8C8C8C">*     Get TOP-&gtHTML_TABLE ready</font>
+  CALL METHOD dg_dyndoc_id-&gtmerge_document.
+<font color ="#8C8C8C">*     Set wallpaper</font>
+  CALL METHOD dg_dyndoc_id-&gtset_document_background
+    EXPORTING
+      picture_id = dl_background_id.
+<font color ="#8C8C8C">*     Connect TOP document to HTML-Control</font>
+  dg_dyndoc_id-&gthtml_control = dg_html_cntrl.
+<font color ="#8C8C8C">*     Display TOP document</font>
+  CALL METHOD dg_dyndoc_id-&gtdisplay_document
+    EXPORTING
+      reuse_control      = 'X'
+      parent             = p_obj
+    EXCEPTIONS
+      html_display_error = 1.
+  IF sy-subrc NE 0.
+    MESSAGE i999 WITH 'Error in displaying top-of-page'(036).
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form REFRESH_TOP_OF_PAGE1</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000021"></div>
+FORM refresh_top_of_page USING po_grid TYPE REF TO cl_gui_alv_grid.
+<font color ="#8C8C8C">*    * Initializing document</font>
+  CALL METHOD dg_dyndoc_id-&gtinitialize_document.
+
+<font color ="#8C8C8C">*     Processing events</font>
+  CALL METHOD po_grid-&gtlist_processing_events
+    EXPORTING
+      i_event_name = 'TOP_OF_PAGE'
+      i_dyndoc_id  = dg_dyndoc_id.
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form DISPLAY_CK13N_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000022"></div>
+FORM display_ckm3n_data .
+  CHECK gt_rows[] IS NOT INITIAL.
+
+  LOOP AT gt_rows INTO gs_rows.
+    READ TABLE gt_main INTO gs_main INDEX gs_rows-index.
+    IF sy-subrc EQ 0.
+      SET PARAMETER ID: 'MAT'  FIELD gs_main-matnr,
+                        'WRK'  FIELD gs_main-werks,
+                        'MLP'  FIELD p_perab,
+                        'MLB'  FIELD p_gjahr.
+      CALL TRANSACTION 'CKM3N' AND SKIP FIRST SCREEN.
+    ENDIF.
+  ENDLOOP.
+
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form GET_CATEG_AND_PTYP</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt LR_CATEG</font>
+<font color ="#8C8C8C">*&      --&gt LR_PTYP</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000023"></div>
+FORM get_categ_and_ptyp TABLES pt_itab STRUCTURE zcot8000
+                                  pr_categ STRUCTURE gr_categ
+                                  pr_ptyp STRUCTURE gr_ptyp.
+
+<font color ="#8C8C8C">* PTYP = '*' ###### CATEG# ###</font>
+  CLEAR : gr_categ_asterisk[].
+
+  DATA(lt_categ_asterisk) = pt_itab[].
+  DELETE lt_categ_asterisk WHERE ptyp NE '*'.
+  SORT lt_categ_asterisk BY categ.
+  DELETE ADJACENT DUPLICATES FROM lt_categ_asterisk COMPARING categ.
+  IF lt_categ_asterisk[] IS NOT INITIAL.  "PTYP# *##### ###
+    gr_categ_asterisk[] = VALUE #( FOR wa IN lt_categ_asterisk ( sign   = 'I'
+                                                                 option = 'EQ'
+                                                                 low    = wa-categ ) ).
+  ENDIF.
+
+  DATA(lt_categ) = pt_itab[].
+  DELETE lt_categ WHERE ptyp = '*'.
+  SORT lt_categ BY categ.
+  DELETE ADJACENT DUPLICATES FROM lt_categ COMPARING categ.
+  IF lt_categ[] IS NOT INITIAL.
+    pr_categ[] = VALUE #( FOR wa IN lt_categ ( sign   = 'I'
+                                               option = 'EQ'
+                                               low    = wa-categ ) ).
+  ENDIF.
+
+  DATA(lt_ptyp) = pt_itab[].
+  DELETE lt_ptyp WHERE ptyp = '*'.
+  SORT lt_ptyp BY ptyp.
+  DELETE ADJACENT DUPLICATES FROM lt_ptyp COMPARING ptyp.
+  IF lt_ptyp[] IS NOT INITIAL.
+    pr_ptyp[] = VALUE #( FOR wa IN lt_ptyp ( sign   = 'I'
+                                             option = 'EQ'
+                                             low    = wa-ptyp ) ).
+  ENDIF.
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CALCULATION_CASE_N</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt LT_zcot8000</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000024"></div>
+FORM calculation_case_n TABLES pt_n STRUCTURE zcot8000
+                                  pr_categ STRUCTURE gr_categ
+                                  pr_ptyp STRUCTURE gr_ptyp.
+  DATA : lv_sign TYPE i.
+  DATA : lv_date    TYPE d,
+         lv_gjahr_a TYPE gjahr,
+         lv_poper_a TYPE poper.
+
+
+  SELECT a~kalnr_mat, a~bdatj, a~poper, a~psart, "PSART ##
+    a~categ, a~ptyp, a~process, a~lbkum,
+    a~salk3, a~estprd, a~estkdm ,a~mstprd ,a~mstkdm, a~meins, a~waers,
+    CASE a~kalnr_mat WHEN ' ' THEN estprd + estkdm + mstprd + mstkdm
+          ELSE estprd + estkdm + mstprd + mstkdm
+          END AS diff,
+    b~matnr, b~bwkey , b~bklas, b~kaln1, b~mtart, b~maktx, b~lvorm, b~vprsv
+    FROM fcml_rep_ddl AS a   "MLDOC# ##### ### ###
+    INNER JOIN @gt_mbew AS b
+    ON a~kalnr_mat = b~kaln1
+  WHERE bdatj = @p_gjahr
+    AND poper BETWEEN @p_perab AND @p_perbi
+    AND categ IN @pr_categ[]
+    AND ptyp IN @pr_ptyp[]
+    INTO TABLE @DATA(lt_fcml).
+  SORT lt_fcml BY categ ptyp vprsv bdatj poper kalnr_mat .
+
+  IF gr_categ_asterisk[] IS NOT INITIAL.
+    SELECT a~kalnr_mat, a~bdatj, a~poper, a~psart, "PSART ##
+      a~categ, a~ptyp, a~process, a~lbkum,
+      a~salk3, a~estprd, a~estkdm ,a~mstprd ,a~mstkdm, a~meins, a~waers,
+      CASE a~kalnr_mat WHEN ' ' THEN estprd + estkdm + mstprd + mstkdm
+            ELSE estprd + estkdm + mstprd + mstkdm
+            END AS diff,
+      b~matnr, b~bwkey , b~bklas, b~kaln1, b~mtart, b~maktx, b~lvorm, b~vprsv
+      FROM fcml_rep_ddl AS a   "MLDOC# ##### ### ###
+      INNER JOIN @gt_mbew AS b
+      ON a~kalnr_mat = b~kaln1
+    WHERE bdatj = @p_gjahr
+      AND poper BETWEEN @p_perab AND @p_perbi
+      AND categ IN @gr_categ_asterisk[]
+      APPENDING CORRESPONDING FIELDS OF TABLE @lt_fcml.
+    SORT lt_fcml BY categ ptyp vprsv bdatj poper kalnr_mat .
+  ENDIF.
+
+<font color ="#8C8C8C">**********************************************************************</font>
+  " ##### ## ### ## -&gt ## ### ### ###.
+  DELETE lt_fcml WHERE categ = 'AB'
+                   AND vprsv = 'V'.
+
+  " ## ##
+  lv_date = |{ p_gjahr }{ p_perab+1(2) }01|.
+  lv_date =
+    zcl_cm_util=&gtcalc_date(
+    EXPORTING
+      i_date   = lv_date
+      i_months = '01'
+      i_signum = '-' ).
+  lv_gjahr_a = lv_date+0(4).
+  lv_poper_a = lv_date+4(2).
+
+  SELECT a~kalnr_mat, @p_gjahr AS bdatj, @p_perab AS poper, a~psart, "PSART ##
+    'AB' AS categ, a~ptyp, a~process, a~lbkum,
+    a~salk3, a~estprd, a~estkdm ,a~mstprd ,a~mstkdm, a~meins, a~waers,
+    CASE a~kalnr_mat WHEN ' ' THEN estprd + estkdm + mstprd + mstkdm
+          ELSE estprd + estkdm + mstprd + mstkdm
+          END AS diff,
+    b~matnr, b~bwkey , b~bklas, b~kaln1, b~mtart, b~maktx, b~lvorm, b~vprsv
+    FROM fcml_rep_ddl AS a   "MLDOC# ##### ### ###
+    INNER JOIN @gt_mbew AS b
+    ON a~kalnr_mat = b~kaln1
+  WHERE bdatj = @lv_gjahr_a
+    AND poper = @lv_poper_a
+    AND categ = 'EB'
+    AND vprsv = 'V'
+    APPENDING CORRESPONDING FIELDS OF TABLE @lt_fcml.
+<font color ="#8C8C8C">**********************************************************************</font>
+
+<font color ="#8C8C8C">**********************************************************************</font>
+<font color ="#8C8C8C">** POSART : RS ##  MLDOC-POSRT / FCML_REP_V-PSART ## ###</font>
+<font color ="#8C8C8C">** CATEG : VN , PTYP : VK###</font>
+<font color ="#8C8C8C">** CATEG : VN , PTYP : V+# ##</font>
+  " 2000, 3000# ## ## ##
+  IF p_kokrs EQ '2000' OR p_kokrs EQ '3000'.
+    LOOP AT lt_fcml ASSIGNING FIELD-SYMBOL(&ltfs_fcml&gt).
+      CHECK &ltfs_fcml&gt-psart EQ 'RS'
+        AND &ltfs_fcml&gt-categ EQ 'VN'
+        AND &ltfs_fcml&gt-ptyp  EQ 'VK'.
+      &ltfs_fcml&gt-ptyp = 'V+'.
+    ENDLOOP.
+  ENDIF.
+<font color ="#8C8C8C">**********************************************************************</font>
+
+  SORT lt_fcml BY categ ptyp vprsv bdatj poper kalnr_mat .
+
+<font color ="#8C8C8C">** KOKRS : 3000 # ## ## (S)</font>
+  IF gv_waers IS NOT INITIAL.
+    DELETE lt_fcml WHERE waers NE gv_waers.
+  ENDIF.
+<font color ="#8C8C8C">** KOKRS : 3000 # ## ## (E)</font>
+
+  LOOP AT pt_n INTO DATA(ls_info).
+    CLEAR : lv_sign.
+    IF ls_info-sign_conv = 'X'.
+      lv_sign = -1.
+    ELSE.
+      lv_sign = 1.
+    ENDIF.
+
+    IF ls_info-ptyp NE '*'.
+      READ TABLE lt_fcml  WITH KEY categ = ls_info-categ
+                                    ptyp = ls_info-ptyp
+                                    INTO DATA(ls_fcml)
+                                    BINARY SEARCH.
+      IF sy-subrc = 0.
+        DATA(lv_fcml) = sy-tabix.
+
+        LOOP AT lt_fcml INTO ls_fcml FROM lv_fcml.
+          IF ls_fcml-categ &lt&gt ls_info-categ
+          OR ls_fcml-ptyp &lt&gt ls_info-ptyp.
+            EXIT.
+          ENDIF.
+          IF ls_info-dtype = '01'
+<font color ="#8C8C8C">*          IF ls_info-name = '##'</font>
+          AND ls_fcml-poper NE p_perab.
+            CONTINUE.
+          ELSEIF ls_info-dtype = '04'
+<font color ="#8C8C8C">**          ELSEIF ls_info-name = '##'</font>
+           AND ls_fcml-poper NE p_perbi.
+            CONTINUE.
+          ENDIF.
+
+          gs_main-werks = ls_fcml-bwkey.
+          gs_main-bklas = ls_fcml-bklas.
+          gs_main-matnr = ls_fcml-matnr.
+          gs_main-maktx = ls_fcml-maktx.
+          gs_main-meins = ls_fcml-meins.
+          gs_main-waers = ls_fcml-waers.
+          gs_main-kaln1 = ls_fcml-kaln1.
+          gs_main-lvorm = ls_fcml-lvorm.
+
+          DATA(lv_string) = |GS_MAIN-{ ls_info-report_no }_QUAN|.
+          ASSIGN (lv_string) TO FIELD-SYMBOL(&ltfs_quan&gt).
+          &ltfs_quan&gt = ls_fcml-lbkum * lv_sign. "##
+
+          lv_string = |GS_MAIN-{ ls_info-report_no }_CURR|.
+          ASSIGN (lv_string) TO FIELD-SYMBOL(&ltfs_curr&gt). "##
+
+          IF r_case1 = 'X'.
+            gs_main-cost_gubun = TEXT-t05.  " ##
+            &ltfs_curr&gt = ls_fcml-salk3 * lv_sign.
+          ELSEIF r_case2 = 'X'.
+            gs_main-cost_gubun = TEXT-t06.  " ##
+            &ltfs_curr&gt =  ls_fcml-diff * lv_sign.
+          ELSEIF r_case3 = 'X'.
+            gs_main-cost_gubun = TEXT-t07.  " ##(##+##)
+            &ltfs_curr&gt = ( ls_fcml-salk3 + ls_fcml-diff ) * lv_sign.
+          ENDIF.
+
+          COLLECT gs_main INTO gt_main.
+
+          MOVE-CORRESPONDING gs_main TO gs_cogm. "######## #####
+          gs_cogm-bdatj = ls_fcml-bdatj.
+          gs_cogm-poper = ls_fcml-poper.
+          gs_cogm-report_no = ls_info-report_no.
+          gs_cogm-curr = &ltfs_curr&gt.
+
+          COLLECT gs_cogm INTO gt_cogm.
+          CLEAR : gs_main,gs_cogm.
+        ENDLOOP.
+      ENDIF.
+    ELSE.   "TYPE# *## CATEG## #### ## ###
+      READ TABLE lt_fcml WITH KEY categ = ls_info-categ
+                                          INTO ls_fcml
+                                          BINARY SEARCH.
+      IF sy-subrc = 0.
+        LOOP AT lt_fcml INTO ls_fcml FROM sy-tabix.
+          IF ls_fcml-categ &lt&gt ls_info-categ.
+            EXIT.
+          ENDIF.
+          IF ls_info-dtype = '01'
+<font color ="#8C8C8C">**          IF ls_info-name = '##'</font>
+          AND ls_fcml-poper NE p_perab.
+            CONTINUE.
+          ELSEIF ls_info-dtype = '04'
+<font color ="#8C8C8C">**          ELSEIF ls_info-name = '##'</font>
+           AND ls_fcml-poper NE p_perbi.
+            CONTINUE.
+          ENDIF.
+
+          gs_main-werks = ls_fcml-bwkey.
+          gs_main-bklas = ls_fcml-bklas.
+          gs_main-matnr = ls_fcml-matnr.
+          gs_main-maktx = ls_fcml-maktx.
+          gs_main-meins = ls_fcml-meins.
+          gs_main-waers = ls_fcml-waers.
+          gs_main-kaln1 = ls_fcml-kaln1.
+          gs_main-lvorm = ls_fcml-lvorm.
+
+          lv_string = |GS_MAIN-{ ls_info-report_no }_QUAN|.
+          ASSIGN (lv_string) TO &ltfs_quan&gt.
+          &ltfs_quan&gt = ls_fcml-lbkum * lv_sign. "##
+
+          lv_string = |GS_MAIN-{ ls_info-report_no }_CURR|.
+          ASSIGN (lv_string) TO &ltfs_curr&gt. "##
+
+          IF r_case1 = 'X'.
+            gs_main-cost_gubun = TEXT-t05. " ##
+            &ltfs_curr&gt = ls_fcml-salk3 * lv_sign.
+          ELSEIF r_case2 = 'X'.
+            gs_main-cost_gubun = TEXT-t06. " ##
+            &ltfs_curr&gt =  ls_fcml-diff * lv_sign.
+          ELSEIF r_case3 = 'X'.
+            gs_main-cost_gubun = TEXT-t07. " ##(##+##)
+            &ltfs_curr&gt = ( ls_fcml-salk3 + ls_fcml-diff ) * lv_sign.
+          ENDIF.
+
+          COLLECT gs_main INTO gt_main.
+
+          MOVE-CORRESPONDING gs_main TO gs_cogm. "######## #####
+          gs_cogm-bdatj = ls_fcml-bdatj.
+          gs_cogm-poper = ls_fcml-poper.
+          gs_cogm-report_no = ls_info-report_no.
+          gs_cogm-curr = &ltfs_curr&gt.
+
+          COLLECT gs_cogm INTO gt_cogm.
+          CLEAR : gs_main,gs_cogm.
+        ENDLOOP.
+      ENDIF.
+
+    ENDIF.
+
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CALCULATION_CASE_A</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt LT_A</font>
+<font color ="#8C8C8C">*&      --&gt LR_CATEG</font>
+<font color ="#8C8C8C">*&      --&gt LR_PTYP</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000025"></div>
+FORM calculation_case_a TABLES pt_a STRUCTURE zcot8000
+                                  pr_categ STRUCTURE gr_categ
+                                  pr_ptyp STRUCTURE gr_ptyp.
+  DATA : lv_sign TYPE i,
+         lt_temp LIKE TABLE OF zcot8000 WITH HEADER LINE.
+  RANGES : lr_vk_saknr FOR ckmlmv005-saknr_nd.
+
+  SELECT a~kalnr_mat, a~bdatj, a~poper, a~categ, a~ptyp, a~process, a~lbkum,
+    a~salk3, a~estprd, a~estkdm ,a~mstprd ,a~mstkdm, a~meins, a~waers,
+    CASE a~kalnr_mat WHEN ' ' THEN estprd + estkdm + mstprd + mstkdm
+          ELSE estprd + estkdm + mstprd + mstkdm
+          END AS diff,
+    b~matnr, b~bwkey , b~bklas, b~kaln1, b~mtart, b~maktx, b~lvorm,
+    c~saknr_nd AS sakto"C~SAKTO
+    FROM fcml_rep_ddl AS a
+    INNER JOIN @gt_mbew AS b
+    ON a~kalnr_mat = b~kaln1
+    INNER JOIN ckmlmv005 AS c
+    ON a~process = c~kalnr
+  WHERE a~bdatj = @p_gjahr
+    AND a~poper BETWEEN @p_perab AND @p_perbi
+    AND a~categ IN @pr_categ[]
+    AND a~ptyp IN @pr_ptyp[]
+    INTO TABLE @DATA(lt_fcml).
+
+<font color ="#8C8C8C">* ##### vk## ###### *## (#####)</font>
+<font color ="#8C8C8C">* =&gt A CATEGORY## vk# ### #### ##### #</font>
+  lt_temp[] = pt_a[].
+  DELETE lt_temp WHERE ptyp NE 'VK'.
+  DELETE lt_temp WHERE saknr = '*'.
+  SORT lt_temp BY saknr.
+  DELETE ADJACENT DUPLICATES FROM lt_temp COMPARING saknr.
+  lr_vk_saknr[] = VALUE #( FOR wa IN lt_temp ( sign   = 'I'
+                                               option = 'EQ'
+                                               low    = wa-saknr ) ).
+  SORT lt_fcml BY categ ptyp sakto bdatj poper kalnr_mat .
+
+<font color ="#8C8C8C">** KOKRS : 3000 # ## ## (S)</font>
+  IF gv_waers IS NOT INITIAL.
+    DELETE lt_fcml WHERE waers NE gv_waers.
+  ENDIF.
+<font color ="#8C8C8C">** KOKRS : 3000 # ## ## (E)</font>
+
+  LOOP AT pt_a INTO DATA(ls_info).
+    IF ls_info-sign_conv = 'X'.
+      lv_sign = -1.
+    ELSE.
+      lv_sign = 1.
+    ENDIF.
+    IF ls_info-saknr = '*'.    "######
+      READ TABLE lt_fcml WITH KEY categ = ls_info-categ
+                                    ptyp = ls_info-ptyp
+                                    INTO DATA(ls_fcml)
+                                    BINARY SEARCH.
+      IF sy-subrc = 0.
+        LOOP AT lt_fcml INTO ls_fcml FROM sy-tabix.
+          IF ls_fcml-categ &lt&gt ls_info-categ
+          OR ls_fcml-ptyp &lt&gt ls_info-ptyp.
+            EXIT.
+          ENDIF.
+          IF ls_fcml-sakto IN lr_vk_saknr[].
+            CONTINUE.
+          ENDIF.
+          IF ls_info-dtype = '01'
+          AND ls_fcml-poper NE p_perab.
+            CONTINUE.
+          ELSEIF ls_info-dtype = '04'
+           AND ls_fcml-poper NE p_perbi.
+            CONTINUE.
+          ENDIF.
+
+          gs_main-werks = ls_fcml-bwkey.
+          gs_main-bklas = ls_fcml-bklas.
+          gs_main-matnr = ls_fcml-matnr.
+          gs_main-maktx = ls_fcml-maktx.
+          gs_main-meins = ls_fcml-meins.
+          gs_main-waers = ls_fcml-waers.
+          gs_main-kaln1 = ls_fcml-kaln1.
+          gs_main-lvorm = ls_fcml-lvorm.
+
+          DATA(lv_string) = |GS_MAIN-{ ls_info-report_no }_QUAN|.
+          ASSIGN (lv_string) TO FIELD-SYMBOL(&ltfs_quan&gt).
+          &ltfs_quan&gt = ls_fcml-lbkum * lv_sign. "##
+
+          lv_string = |GS_MAIN-{ ls_info-report_no }_CURR|.
+          ASSIGN (lv_string) TO FIELD-SYMBOL(&ltfs_curr&gt). "##
+
+          IF r_case1 = 'X'.
+            gs_main-cost_gubun = TEXT-t05. " ##
+            &ltfs_curr&gt = ls_fcml-salk3 * lv_sign.
+          ELSEIF r_case2 = 'X'.
+            gs_main-cost_gubun = TEXT-t06. " ##
+            &ltfs_curr&gt = ls_fcml-diff * lv_sign.
+          ELSEIF r_case3 = 'X'.
+            gs_main-cost_gubun = TEXT-t07. " ##(##+##)
+            &ltfs_curr&gt = ( ls_fcml-salk3 + ls_fcml-diff ) * lv_sign.
+          ENDIF.
+
+          COLLECT gs_main INTO gt_main.
+
+          MOVE-CORRESPONDING gs_main TO gs_cogm. "######## #####
+          gs_cogm-bdatj = ls_fcml-bdatj.
+          gs_cogm-poper = ls_fcml-poper.
+          gs_cogm-report_no = ls_info-report_no.
+          gs_cogm-curr = &ltfs_curr&gt.
+
+          COLLECT gs_cogm INTO gt_cogm.
+          CLEAR : gs_main,gs_cogm.
+        ENDLOOP.
+      ENDIF.
+    ELSE.
+      IF ls_info-saknr IS NOT INITIAL.
+        DATA(lv_saknr) = |{ ls_info-saknr ALPHA = IN }|.
+      ELSE.
+        lv_saknr = space.
+      ENDIF.
+      READ TABLE lt_fcml WITH KEY categ = ls_info-categ
+                                    ptyp = ls_info-ptyp
+                                    sakto = lv_saknr
+                                    INTO ls_fcml
+                                    BINARY SEARCH.
+      IF sy-subrc = 0.
+        LOOP AT lt_fcml INTO ls_fcml FROM sy-tabix.
+          IF ls_fcml-categ &lt&gt ls_info-categ
+          OR ls_fcml-ptyp &lt&gt ls_info-ptyp
+          OR ls_fcml-sakto &lt&gt lv_saknr.
+            EXIT.
+          ENDIF.
+          IF ls_info-dtype = '01'
+          AND ls_fcml-poper NE p_perab.
+            CONTINUE.
+          ELSEIF ls_info-dtype = '04'
+           AND ls_fcml-poper NE p_perbi.
+            CONTINUE.
+          ENDIF.
+
+          gs_main-werks = ls_fcml-bwkey.
+          gs_main-bklas = ls_fcml-bklas.
+          gs_main-matnr = ls_fcml-matnr.
+          gs_main-maktx = ls_fcml-maktx.
+          gs_main-meins = ls_fcml-meins.
+          gs_main-waers = ls_fcml-waers.
+          gs_main-kaln1 = ls_fcml-kaln1.
+          gs_main-lvorm = ls_fcml-lvorm.
+
+          lv_string = |GS_MAIN-{ ls_info-report_no }_QUAN|.
+          ASSIGN (lv_string) TO &ltfs_quan&gt.
+          &ltfs_quan&gt = ls_fcml-lbkum * lv_sign. "##
+
+          lv_string = |GS_MAIN-{ ls_info-report_no }_CURR|.
+          ASSIGN (lv_string) TO &ltfs_curr&gt. "##
+
+          IF r_case1 = 'X'.
+            gs_main-cost_gubun = TEXT-t05. " ##
+            &ltfs_curr&gt = ls_fcml-salk3 * lv_sign.
+          ELSEIF r_case2 = 'X'.
+            gs_main-cost_gubun = TEXT-t06. " ##
+            &ltfs_curr&gt = ls_fcml-diff * lv_sign.
+          ELSEIF r_case3 = 'X'.
+            gs_main-cost_gubun = TEXT-t07. " ##(##+##)
+            &ltfs_curr&gt = ( ls_fcml-salk3 + ls_fcml-diff ) * lv_sign.
+          ENDIF.
+
+          COLLECT gs_main INTO gt_main.
+
+          MOVE-CORRESPONDING gs_main TO gs_cogm. "######## #####
+          gs_cogm-bdatj = ls_fcml-bdatj.
+          gs_cogm-poper = ls_fcml-poper.
+          gs_cogm-report_no = ls_info-report_no.
+          gs_cogm-curr = &ltfs_curr&gt.
+
+          COLLECT gs_cogm INTO gt_cogm.
+          CLEAR : gs_main,gs_cogm.
+        ENDLOOP.
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CALCULATION_CASE_D</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt LT_D</font>
+<font color ="#8C8C8C">*&      --&gt LR_CATEG</font>
+<font color ="#8C8C8C">*&      --&gt LR_PTYP</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000026"></div>
+FORM calculation_case_d TABLES pt_d STRUCTURE zcot8000
+                                  pr_categ STRUCTURE gr_categ
+                                  pr_ptyp STRUCTURE gr_ptyp.
+
+  DATA : lv_sign   TYPE i,
+         lv_string TYPE string.
+  DATA(lt_mbew_s) = gt_mbew[].
+  DATA(lt_mbew_v) = gt_mbew[].
+
+  FIELD-SYMBOLS &ltfs_curr&gt.
+  DELETE lt_mbew_s WHERE vprsv = 'V'.
+  DELETE lt_mbew_v WHERE vprsv = 'S'.
+
+
+<font color ="#8C8C8C">**1. S price ##(#### ####)</font>
+<font color ="#8C8C8C">*  SELECT a~kalnr_mat, a~bdatj, a~poper, a~categ, a~ptyp, a~process, a~lbkum,</font>
+<font color ="#8C8C8C">*    a~salk3, a~estprd, a~estkdm ,a~mstprd ,a~mstkdm, a~meins, a~waers,</font>
+<font color ="#8C8C8C">*    CASE a~kalnr_mat WHEN ' ' THEN estprd + estkdm</font>
+<font color ="#8C8C8C">*          ELSE estprd + estkdm</font>
+<font color ="#8C8C8C">*          END AS diff,</font>
+<font color ="#8C8C8C">*    b~matnr, b~bwkey , b~bklas, b~kaln1, b~vprsv, "####### ##</font>
+<font color ="#8C8C8C">*    b~mtart, b~maktx,  b~lvorm</font>
+<font color ="#8C8C8C">*    FROM fcml_rep_ddl AS a</font>
+<font color ="#8C8C8C">*    INNER JOIN @lt_mbew_s AS b</font>
+<font color ="#8C8C8C">*    ON a~kalnr_mat = b~kaln1</font>
+<font color ="#8C8C8C">*  WHERE bdatj = @p_gjahr</font>
+<font color ="#8C8C8C">*    AND poper BETWEEN @p_perab AND @p_perbi</font>
+<font color ="#8C8C8C">*    AND categ IN ('ZU','PC')   "##,####</font>
+<font color ="#8C8C8C">*    INTO TABLE @DATA(lt_fcml_s).</font>
+<font color ="#8C8C8C">**  SORT LT_FCML BY CATEG PTYP BDATJ POPER KALNR_MAT .</font>
+<font color ="#8C8C8C">*  SORT lt_fcml_s BY bdatj poper.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*  LOOP AT pt_d INTO DATA(ls_info_s).</font>
+<font color ="#8C8C8C">*    CLEAR : lv_sign.</font>
+<font color ="#8C8C8C">*    IF ls_info_s-sign_conv = 'X'.</font>
+<font color ="#8C8C8C">*      lv_sign = -1.</font>
+<font color ="#8C8C8C">*    ELSE.</font>
+<font color ="#8C8C8C">*      lv_sign = 1.</font>
+<font color ="#8C8C8C">*    ENDIF.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*    CASE ls_info_s-categ.</font>
+<font color ="#8C8C8C">*      WHEN 'NV'. " S price ##(#### ####??</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*      WHEN 'NC'.</font>
+<font color ="#8C8C8C">*        LOOP AT lt_fcml_s INTO DATA(ls_fcml_s).</font>
+<font color ="#8C8C8C">*          gs_main-werks = ls_fcml_s-bwkey.</font>
+<font color ="#8C8C8C">*          gs_main-bklas = ls_fcml_s-bklas.</font>
+<font color ="#8C8C8C">*          gs_main-matnr = ls_fcml_s-matnr.</font>
+<font color ="#8C8C8C">*          gs_main-maktx = ls_fcml_s-maktx.</font>
+<font color ="#8C8C8C">*          gs_main-meins = ls_fcml_s-meins.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*          gs_main-waers = ls_fcml_s-waers.</font>
+<font color ="#8C8C8C">*          gs_main-kaln1 = ls_fcml_s-kaln1.</font>
+<font color ="#8C8C8C">*          gs_main-lvorm = ls_fcml_s-lvorm.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*          lv_string = |GS_MAIN-{ ls_info_s-report_no }_CURR|.</font>
+<font color ="#8C8C8C">*          ASSIGN (lv_string) TO &ltfs_curr&gt. "##</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*          ls_fcml_s-diff = ls_fcml_s-diff * -1. "NC ### -1 ##</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*          IF r_case1 = 'X'.        "##### S# ### #### ### #### (SALK3)# #### ###</font>
+<font color ="#8C8C8C">*            " ##### SALK3# DIFF # ### ###( V# ## )</font>
+<font color ="#8C8C8C">*            gs_main-cost_gubun = TEXT-t05.</font>
+<font color ="#8C8C8C">**            &ltFS_CURR&gt = LS_FCML_S-SALK3 * LV_SIGN.</font>
+<font color ="#8C8C8C">*          ELSEIF r_case2 = 'X'.</font>
+<font color ="#8C8C8C">*            gs_main-cost_gubun = TEXT-t06.</font>
+<font color ="#8C8C8C">**            &ltFS_CURR&gt = LS_FCML_S-DIFF * LV_SIGN.</font>
+<font color ="#8C8C8C">*            &ltfs_curr&gt = ( ls_fcml_s-salk3 + ls_fcml_s-diff ) * lv_sign.</font>
+<font color ="#8C8C8C">*          ELSEIF r_case3 = 'X'.</font>
+<font color ="#8C8C8C">*            gs_main-cost_gubun = TEXT-t07.</font>
+<font color ="#8C8C8C">**            &ltFS_CURR&gt = LS_FCML_S-DIFF * LV_SIGN.</font>
+<font color ="#8C8C8C">*            &ltfs_curr&gt = ( ls_fcml_s-salk3 + ls_fcml_s-diff ) * lv_sign.</font>
+<font color ="#8C8C8C">*          ENDIF.</font>
+<font color ="#8C8C8C">*          COLLECT gs_main INTO gt_main.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*          MOVE-CORRESPONDING gs_main TO gs_cogm. "######## #####</font>
+<font color ="#8C8C8C">*          gs_cogm-bdatj = ls_fcml_s-bdatj.</font>
+<font color ="#8C8C8C">*          gs_cogm-poper = ls_fcml_s-poper.</font>
+<font color ="#8C8C8C">*          gs_cogm-report_no = ls_info_s-report_no.</font>
+<font color ="#8C8C8C">*          gs_cogm-curr = &ltfs_curr&gt.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*          COLLECT gs_cogm INTO gt_cogm.</font>
+<font color ="#8C8C8C">*          CLEAR : gs_main,gs_cogm.</font>
+<font color ="#8C8C8C">*        ENDLOOP.</font>
+<font color ="#8C8C8C">*    ENDCASE.</font>
+<font color ="#8C8C8C">*  ENDLOOP.</font>
+
+
+<font color ="#8C8C8C">**2. V price ##(#### ####)</font>
+  SELECT a~kalnr_mat, a~bdatj, a~poper, a~categ, a~ptyp, a~process, a~lbkum,
+    a~salk3, a~estprd, a~estkdm ,a~mstprd ,a~mstkdm, a~meins, a~waers,
+    CASE a~kalnr_mat WHEN ' ' THEN estprd + estkdm
+          ELSE estprd + estkdm
+          END AS diff,
+    b~matnr, b~bwkey , b~bklas, b~kaln1, b~vprsv, "####### ##
+    b~mtart, b~maktx,  b~lvorm
+    FROM fcml_rep_ddl AS a
+    INNER JOIN @lt_mbew_v AS b
+    ON a~kalnr_mat = b~kaln1
+  WHERE bdatj = @p_gjahr
+    AND poper BETWEEN @p_perab AND @p_perbi
+    AND categ IN ('ZU','PC')   "##,####
+    INTO TABLE @DATA(lt_fcml_v).
+<font color ="#8C8C8C">*  SORT LT_FCML BY CATEG PTYP BDATJ POPER KALNR_MAT .</font>
+  SORT lt_fcml_v BY bdatj poper.
+
+<font color ="#8C8C8C">** KOKRS : 3000 # ## ## (S)</font>
+  IF gv_waers IS NOT INITIAL.
+    DELETE lt_fcml_v WHERE waers NE gv_waers.
+  ENDIF.
+<font color ="#8C8C8C">** KOKRS : 3000 # ## ## (E)</font>
+
+  LOOP AT pt_d INTO DATA(ls_info).
+    CLEAR : lv_sign.
+    IF ls_info-sign_conv = 'X'.
+      lv_sign = -1.
+    ELSE.
+      lv_sign = 1.
+    ENDIF.
+
+    CASE ls_info-categ.
+      WHEN 'NV'. " S price ##(#### ####)
+
+      WHEN 'NC'." V price ##(#### ####) - ##X, #### (SALK3)# #### ##
+        LOOP AT lt_fcml_v INTO DATA(ls_fcml_v).
+          gs_main-werks = ls_fcml_v-bwkey.
+          gs_main-bklas = ls_fcml_v-bklas.
+          gs_main-matnr = ls_fcml_v-matnr.
+          gs_main-maktx = ls_fcml_v-maktx.
+          gs_main-meins = ls_fcml_v-meins.
+
+          gs_main-waers = ls_fcml_v-waers.
+          gs_main-kaln1 = ls_fcml_v-kaln1.
+          gs_main-lvorm = ls_fcml_v-lvorm.
+
+          lv_string = |GS_MAIN-{ ls_info-report_no }_CURR|.
+          ASSIGN (lv_string) TO &ltfs_curr&gt. "##
+
+          ls_fcml_v-diff = ls_fcml_v-diff * -1. "NC ### -1 ##
+
+          IF r_case1 = 'X'.        "##### V# ### #### ### #### (SALK3)# ### 0#
+            gs_main-cost_gubun = TEXT-t05. " ##
+<font color ="#8C8C8C">*            &ltFS_CURR&gt = LS_FCML_V-SALK3 * LV_SIGN.</font>
+          ELSEIF r_case2 = 'X'.
+            gs_main-cost_gubun = TEXT-t06. " ##
+            &ltfs_curr&gt = ls_fcml_v-diff * lv_sign.
+          ELSEIF r_case3 = 'X'.
+            gs_main-cost_gubun = TEXT-t07. " ##(##+##)
+<font color ="#8C8C8C">*            &ltFS_CURR&gt = ( LS_FCML_V-SALK3 + LS_FCML_V-DIFF ) * LV_SIGN.</font>
+            &ltfs_curr&gt = ls_fcml_v-diff * lv_sign.
+          ENDIF.
+          COLLECT gs_main INTO gt_main.
+
+          MOVE-CORRESPONDING gs_main TO gs_cogm. "######## #####
+          gs_cogm-bdatj = ls_fcml_v-bdatj.
+          gs_cogm-poper = ls_fcml_v-poper.
+          gs_cogm-report_no = ls_info-report_no.
+          gs_cogm-curr = &ltfs_curr&gt.
+
+          COLLECT gs_cogm INTO gt_cogm.
+          CLEAR : gs_main,gs_cogm.
+        ENDLOOP.
+    ENDCASE.
+  ENDLOOP.
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CALCULATION_CASE_F</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt LT_F</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000027"></div>
+FORM calculation_case_f TABLES pt_f STRUCTURE zcot8000.
+  DATA : lv_times TYPE i,
+         lv_sign  TYPE i,
+         lv_num   TYPE numc4,
+<font color ="#8C8C8C">**         lv_num   TYPE n LENGTH 2,</font>
+         lv_str   TYPE string,
+         lv_total TYPE string.
+
+  LOOP AT pt_f INTO DATA(ls_info).
+    CLEAR : lv_sign.
+    IF ls_info-sign_conv = 'X'.
+      lv_sign = -1.
+    ELSE.
+      lv_sign = 1.
+    ENDIF.
+
+    IF ls_info-formula_fr IS NOT INITIAL.
+      IF ls_info-formula_to IS NOT INITIAL.
+        SELECT report_no
+          FROM zcot8000
+         WHERE kokrs EQ @p_kokrs
+           AND bukrs EQ @p_bukrs
+           AND report_no BETWEEN @ls_info-formula_fr AND @ls_info-formula_to
+          INTO TABLE @DATA(lt_reno).
+
+<font color ="#8C8C8C">**        lv_times = ( ls_info-formula_to - ls_info-formula_fr ) / 10 + 1.</font>
+        LOOP AT gt_main INTO gs_main.
+          CLEAR : lv_num,lv_str.
+<font color ="#8C8C8C">**          DO lv_times TIMES.</font>
+<font color ="#8C8C8C">**            IF lv_num IS INITIAL.</font>
+<font color ="#8C8C8C">**              lv_num = ls_info-formula_fr.</font>
+<font color ="#8C8C8C">**            ELSE.</font>
+<font color ="#8C8C8C">**              lv_num = lv_num + 10.</font>
+<font color ="#8C8C8C">***              lv_num = lv_num + 1.</font>
+<font color ="#8C8C8C">**            ENDIF.</font>
+          LOOP AT lt_reno INTO DATA(ls_reno).
+            lv_str = |GS_MAIN-{ ls_reno-report_no }_QUAN|.
+            ASSIGN (lv_str) TO FIELD-SYMBOL(&ltfs_quan&gt).
+            lv_total = |GS_MAIN-{ ls_info-report_no }_QUAN|.
+            ASSIGN (lv_total) TO FIELD-SYMBOL(&ltfs_quan_tot&gt).
+            &ltfs_quan_tot&gt = &ltfs_quan_tot&gt + ( &ltfs_quan&gt * lv_sign ).
+
+            lv_str = |GS_MAIN-{ ls_reno-report_no }_CURR|.
+            ASSIGN (lv_str) TO FIELD-SYMBOL(&ltfs_curr&gt). "##
+            lv_total = |GS_MAIN-{ ls_info-report_no }_CURR|.
+            ASSIGN (lv_total) TO FIELD-SYMBOL(&ltfs_curr_tot&gt).
+            &ltfs_curr_tot&gt = &ltfs_curr_tot&gt + ( &ltfs_curr&gt * lv_sign ).
+          ENDLOOP.
+
+<font color ="#8C8C8C">**          ENDDO.</font>
+
+          MODIFY gt_main FROM gs_main.
+          CLEAR : gs_main.
+        ENDLOOP.
+
+      ELSE.
+        LOOP AT gt_main INTO gs_main.
+
+          lv_str = |GS_MAIN-{ ls_info-report_no }_QUAN|.
+          ASSIGN (lv_str) TO &ltfs_quan&gt.
+          lv_total = |GS_MAIN-{ ls_info-report_no }_QUAN|.
+          ASSIGN (lv_total) TO &ltfs_quan_tot&gt.
+          &ltfs_quan_tot&gt = &ltfs_quan_tot&gt + ( &ltfs_quan&gt * lv_sign ).
+
+          lv_str = |GS_MAIN-{ ls_info-report_no }_CURR|.
+          ASSIGN (lv_str) TO &ltfs_curr&gt. "##
+          lv_total = |GS_MAIN-{ ls_info-report_no }_CURR|.
+          ASSIGN (lv_total) TO &ltfs_curr_tot&gt.
+          &ltfs_curr_tot&gt = &ltfs_curr_tot&gt + ( &ltfs_curr&gt * lv_sign ).
+
+          MODIFY gt_main FROM gs_main.
+          CLEAR : gs_main.
+        ENDLOOP.
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form get_t001</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000028"></div>
+FORM get_t001 .
+
+  CLEAR : gs_t001.
+
+  SELECT SINGLE *
+    FROM t001 AS a
+   WHERE a~bukrs = @p_bukrs
+    INTO @gs_t001.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form get_tka01</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000029"></div>
+FORM get_tka01 .
+
+  CLEAR : gs_tka01.
+
+  SELECT SINGLE *
+    FROM tka01 AS a
+   WHERE a~kokrs = @p_kokrs
+    INTO @gs_tka01.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form get_kokrs_bukrs</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000030"></div>
+FORM get_kokrs_bukrs .
+
+  IF p_kokrs IS INITIAL.
+    GET PARAMETER ID 'CAC' FIELD p_kokrs.
+  ENDIF.
+
+  zcl_cm_util=&gtkokrs_bukrs( EXPORTING iv_kokrs = p_kokrs
+                            IMPORTING ev_kokrs = p_kokrs
+                                      ev_bukrs = p_bukrs
+                                      ev_bezei = p_bezei
+                                      ev_butxt = p_butxt ).
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SET_WAERS</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000031"></div>
+FORM set_waers .
+  CHECK p_kokrs EQ 3000.
+
+  IF p_waers EQ 'MXN' OR p_waers EQ 'USD'.
+    gv_waers = p_waers.
+  ELSE.
+    MESSAGE s000 WITH TEXT-m19 DISPLAY LIKE gcs_msgtype-e.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form f4_waers</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000032"></div>
+FORM f4_waers .
+  DATA : BEGIN OF ls_waers
+        ,waers TYPE tcurt-waers
+        ,ltext TYPE tcurt-ltext
+        ,END OF ls_waers
+ ,lt_waers LIKE TABLE OF ls_waers.
+  DATA : ls_return TYPE ddshretval,
+         lt_return TYPE TABLE OF ddshretval.
+
+  SELECT waers, ltext
+    FROM tcurt
+   WHERE spras EQ @sy-langu
+     AND waers IN ( 'MXN', 'USD' )
+    INTO TABLE @lt_waers.
+
+  CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = 'WAERS'        " Selected # ### ##
+      dynpprog        = sy-repid
+      dynpnr          = sy-dynnr
+      dynprofield     = 'P_WAERS'  " Screen Field Name
+      value_org       = 'S'
+      display         = ''
+    TABLES
+      value_tab       = lt_waers     " help# Internal Table
+      return_tab      = lt_return
+    EXCEPTIONS
+      parameter_error = 1
+      no_values_found = 2
+      OTHERS          = 3.
+
+  IF lt_return[] IS NOT INITIAL.
+    READ TABLE lt_return INTO ls_return INDEX 1.
+    p_waers = ls_return-fieldval.
+  ENDIF.
+
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form get_not_allocated</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000033"></div>
+FORM get_not_allocated.
+
+  DATA : lv_str TYPE string.
+
+  " #### ## ####
+  SELECT a~waers
+        ,b~matnr
+        ,b~bwkey
+        ,SUM( CASE a~categ WHEN 'AB' THEN a~salk3 + a~estprd + a~estkdm + a~mstprd + a~mstkdm END ) AS ab " ##
+        ,SUM( CASE a~categ WHEN 'EB' THEN a~salk3 + a~estprd + a~estkdm + a~mstprd + a~mstkdm END ) AS eb " ##
+        ,SUM( CASE a~categ WHEN 'PC' THEN a~salk3 + a~estprd + a~estkdm + a~mstprd + a~mstkdm END ) AS pc " ####
+        ,SUM( CASE a~categ WHEN 'VN' THEN a~salk3 + a~estprd + a~estkdm + a~mstprd + a~mstkdm END ) AS vn " ##
+        ,SUM( CASE a~categ WHEN 'ZU' THEN a~salk3 + a~estprd + a~estkdm + a~mstprd + a~mstkdm END ) AS zu " ##
+        ,SUM( CASE a~categ WHEN 'VP' THEN a~salk3 + a~estprd + a~estkdm + a~mstprd + a~mstkdm END ) AS vp " ####
+    FROM fcml_rep_ddl AS a
+    JOIN @gt_mbew AS b ON a~kalnr_mat = b~kaln1
+   WHERE bdatj = @p_gjahr
+     AND poper BETWEEN @p_perab AND @p_perbi
+     AND categ IN ( 'AB', 'EB', 'PC', 'VN', 'ZU','VP' )
+     AND vprsv = 'S'
+   GROUP BY a~waers
+           ,b~matnr
+           ,b~bwkey
+   ORDER BY b~matnr
+           ,b~bwkey
+    INTO TABLE @DATA(lt_fcml).
+
+  IF gv_waers IS NOT INITIAL.
+    DELETE lt_fcml WHERE waers NE gv_waers.
+  ENDIF.
+
+  LOOP AT gt_main INTO gs_main.
+
+    " Not Allocated
+    READ TABLE lt_fcml INTO DATA(ls_fcml) WITH KEY matnr = gs_main-matnr
+                                                   bwkey = gs_main-werks BINARY SEARCH.
+    IF sy-subrc = 0.
+      READ TABLE gt_zcot8000 INTO DATA(ls_na) WITH KEY operator = 'D'.
+      IF sy-subrc = 0.
+        lv_str = |GS_MAIN-{ ls_na-report_no }_CURR|.
+        ASSIGN (lv_str) TO FIELD-SYMBOL(&ltfs_na&gt).
+        &ltfs_na&gt = ls_fcml-ab  " ##
+                + ls_fcml-pc  " ####
+                + ls_fcml-vn  " ##
+                + ls_fcml-zu  " ##
+                + ls_fcml-vp  " ####
+                - ls_fcml-eb. " ##
+      ENDIF.
+    ENDIF.
+
+    MODIFY gt_main FROM gs_main.
+    CLEAR : gs_main.
+
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form change_unit</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000034"></div>
+FORM change_unit .
+
+  CHECK r_all = 'X' OR r_quan = 'X'.
+  CHECK r_qlb = 'X'.
+
+  DATA : lv_num   TYPE n LENGTH 4,
+         lv_fname TYPE string.
+
+  " LB ## ### ### #### ## ## ## ##
+  LOOP AT gt_main INTO gs_main.
+
+    CLEAR : lv_num.
+
+    CHECK gs_main-meins = 'KG' OR gs_main-meins = 'MT'.
+
+    DO gc_fcnt TIMES.
+
+      lv_num += 10.
+
+      lv_fname = |{ lv_num }_QUAN|.
+      ASSIGN COMPONENT lv_fname OF STRUCTURE gs_main TO FIELD-SYMBOL(&ltfs&gt).
+
+      CHECK &ltfs&gt IS ASSIGNED.
+
+      zcl_cm_util=&gtconv_mat_unit( EXPORTING iv_matnr  = gs_main-matnr
+                                            iv_in_me  = gs_main-meins
+                                            iv_out_me = 'LB'
+                                            iv_menge  = &ltfs&gt
+                                  IMPORTING ev_menge  = &ltfs&gt ).
+
+      UNASSIGN &ltfs&gt.
+
+    ENDDO.
+
+    gs_main-meins = 'LB'.
+
+    MODIFY gt_main FROM gs_main.
+
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form move_diff</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000035"></div>
+FORM move_diff .
+
+  DATA : lv_sign   TYPE i,
+         lv_string TYPE string,
+         lv_diff   LIKE mldoc-salk3.
+
+  DATA : ls_zcot8000 TYPE zcot8000.
+
+  DATA(lt_mbew_v) = gt_mbew[].
+
+  FIELD-SYMBOLS &ltfs_curr&gt.
+  DELETE lt_mbew_v WHERE vprsv &lt&gt 'V'.
+
+  " 3000 CURTYP ## ##
+  IF p_kokrs EQ '3000'.
+    DATA : lv_where TYPE editline.
+
+    DATA(lv_crtyp) = SWITCH #( p_waers
+                              WHEN 'MXN' THEN '10'
+                              WHEN 'USD' THEN '40' ).
+    lv_where = |CURTP EQ '{ lv_crtyp }'|.
+  ENDIF.
+
+<font color ="#8C8C8C">**2. V price ##(#### ####)</font>
+  SELECT
+    CASE a~kalnr_mat WHEN ' ' THEN estprd + estkdm
+          ELSE estprd + estkdm
+          END AS diff,
+    b~matnr, b~bwkey, b~bklas, b~vprsv
+    FROM fcml_rep_ddl AS a
+    INNER JOIN @lt_mbew_v AS b
+    ON a~kalnr_mat = b~kaln1
+  WHERE bdatj = @p_gjahr
+    AND poper BETWEEN @p_perab AND @p_perbi
+    AND (lv_where)
+    INTO TABLE @DATA(lt_fcml_v).
+
+  DELETE lt_fcml_v WHERE diff = 0.
+
+  SORT lt_fcml_v BY matnr bwkey .
+
+  LOOP AT lt_fcml_v INTO DATA(ls_fcml_v).
+
+    READ TABLE gt_main ASSIGNING FIELD-SYMBOL(&ltls_main&gt) WITH KEY matnr = ls_fcml_v-matnr
+                                                                  werks = ls_fcml_v-bwkey.
+
+    CHECK sy-subrc = 0.
+
+    " ## ## #### -&gt ####
+    IF ls_fcml_v-bklas = '3100'.
+      READ TABLE gt_zcot8000 INTO ls_zcot8000 WITH KEY categ = 'VN'
+                                                         ptyp  = 'V+'.
+
+      " ###, #, # ## ## #### -&gt ####
+    ELSE.
+      READ TABLE gt_zcot8000 INTO ls_zcot8000 WITH KEY categ = 'VN'
+                                                         ptyp  = 'VF'.
+
+    ENDIF.
+
+    CHECK sy-subrc = 0.
+
+    lv_string = |{ ls_zcot8000-report_no }_CURR|.
+
+    UNASSIGN &ltfs_curr&gt.
+    ASSIGN COMPONENT lv_string OF STRUCTURE &ltls_main&gt TO &ltfs_curr&gt.
+    CHECK &ltfs_curr&gt IS ASSIGNED.
+
+    lv_diff = ls_fcml_v-diff * -1.
+
+    &ltfs_curr&gt = &ltfs_curr&gt + lv_diff.
+
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form move_movement_type</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000036"></div>
+FORM move_movement_type .
+
+  DATA : lr_kalnr TYPE RANGE OF mldoc-kalnr.
+  DATA : lv_fname TYPE string.
+  DATA : lv_sperio TYPE mldoc-jahrper,
+         lv_eperio TYPE mldoc-jahrper.
+
+  DATA : BEGIN OF ls_bwart,
+           ptyp_fr TYPE ckml_prozess_typ,
+           bwart   TYPE mseg-bwart,
+           ptyp_to TYPE ckml_prozess_typ,
+         END OF ls_bwart,
+         lt_bwart LIKE TABLE OF ls_bwart.
+
+  lv_sperio = |{ p_gjahr }{ p_perab }|.
+  lv_eperio = |{ p_gjahr }{ p_perbi }|.
+
+<font color ="#8C8C8C">*--- 0818 ##### ## ##</font>
+<font color ="#8C8C8C">*  IF p_kokrs NE '3000'. " curtp ## ##</font>
+<font color ="#8C8C8C">*    " ###### ### Process Category # ##### #### ## to# ##</font>
+<font color ="#8C8C8C">*    " MLDOC# MSEG# #### ##### ###</font>
+<font color ="#8C8C8C">*    SELECT a~kalnr</font>
+<font color ="#8C8C8C">*          ,a~ptyp AS ptyp_fr</font>
+<font color ="#8C8C8C">*          ,b~bwart</font>
+<font color ="#8C8C8C">*          ,c~field11 AS ptyp_to</font>
+<font color ="#8C8C8C">*          ,d~bwkey</font>
+<font color ="#8C8C8C">*          ,d~matnr</font>
+<font color ="#8C8C8C">*          ,SUM( a~quant ) AS lbkum</font>
+<font color ="#8C8C8C">*          ,SUM( a~stval ) AS salk3</font>
+<font color ="#8C8C8C">*          ,SUM( a~prd + a~kdm ) AS diff</font>
+<font color ="#8C8C8C">*      FROM mldoc AS a</font>
+<font color ="#8C8C8C">*      JOIN mseg AS b ON b~mblnr = a~awref</font>
+<font color ="#8C8C8C">**-- EST ## ##</font>
+<font color ="#8C8C8C">**                    AND b~mjahr = left( a~aworg, 4 )</font>
+<font color ="#8C8C8C">**--- END</font>
+<font color ="#8C8C8C">*                    AND lpad( b~zeile, 6, '0' ) = a~awitem</font>
+<font color ="#8C8C8C">*      JOIN zcot9030 AS c ON c~field09            = a~ptyp</font>
+<font color ="#8C8C8C">*                         AND left( c~field10, 3 ) = b~bwart</font>
+<font color ="#8C8C8C">*      JOIN @gt_mbew AS d ON d~kaln1 = a~kalnr</font>
+<font color ="#8C8C8C">*    WHERE a~jahrper BETWEEN @lv_sperio AND @lv_eperio</font>
+<font color ="#8C8C8C">*      AND a~categ   = 'VN'</font>
+<font color ="#8C8C8C">*      AND c~bukrs   = @p_bukrs</font>
+<font color ="#8C8C8C">*      AND c~zmodule = 'CO'</font>
+<font color ="#8C8C8C">*      AND c~class   = 'CO014'</font>
+<font color ="#8C8C8C">*      AND c~delflag = @space</font>
+<font color ="#8C8C8C">*    GROUP BY a~kalnr</font>
+<font color ="#8C8C8C">*            ,a~ptyp</font>
+<font color ="#8C8C8C">*            ,b~bwart</font>
+<font color ="#8C8C8C">*            ,c~field11</font>
+<font color ="#8C8C8C">*            ,d~bwkey</font>
+<font color ="#8C8C8C">*            ,d~matnr</font>
+<font color ="#8C8C8C">*     INTO TABLE @DATA(lt_fcml).</font>
+<font color ="#8C8C8C">*  ELSE.</font>
+<font color ="#8C8C8C">*    DATA(lv_curtp) = SWITCH fins_ext_curtype(</font>
+<font color ="#8C8C8C">*                              p_waers</font>
+<font color ="#8C8C8C">*                              WHEN 'MXN' THEN '10'</font>
+<font color ="#8C8C8C">*                              WHEN 'USD' THEN '40' ).</font>
+<font color ="#8C8C8C">*    SELECT a~kalnr</font>
+<font color ="#8C8C8C">*          ,a~ptyp AS ptyp_fr</font>
+<font color ="#8C8C8C">*          ,b~bwart</font>
+<font color ="#8C8C8C">*          ,c~field11 AS ptyp_to</font>
+<font color ="#8C8C8C">*          ,d~bwkey</font>
+<font color ="#8C8C8C">*          ,d~matnr</font>
+<font color ="#8C8C8C">*          ,SUM( a~quant ) AS lbkum</font>
+<font color ="#8C8C8C">*          ,SUM( a~stval ) AS salk3</font>
+<font color ="#8C8C8C">*          ,SUM( a~prd + a~kdm ) AS diff</font>
+<font color ="#8C8C8C">*      FROM mldoc AS a</font>
+<font color ="#8C8C8C">*      JOIN mseg AS b ON b~mblnr = a~awref</font>
+<font color ="#8C8C8C">**-- EST ## ##</font>
+<font color ="#8C8C8C">**                    AND b~mjahr = left( a~aworg, 4 )</font>
+<font color ="#8C8C8C">**--- END</font>
+<font color ="#8C8C8C">*                    AND lpad( b~zeile, 6, '0' ) = a~awitem</font>
+<font color ="#8C8C8C">*      JOIN zcot9030 AS c ON c~field09            = a~ptyp</font>
+<font color ="#8C8C8C">*                         AND left( c~field10, 3 ) = b~bwart</font>
+<font color ="#8C8C8C">*      JOIN @gt_mbew AS d ON d~kaln1 = a~kalnr</font>
+<font color ="#8C8C8C">*    WHERE a~curtp   = @lv_curtp</font>
+<font color ="#8C8C8C">*      AND a~jahrper BETWEEN @lv_sperio AND @lv_eperio</font>
+<font color ="#8C8C8C">*      AND a~categ   = 'VN'</font>
+<font color ="#8C8C8C">*      AND c~bukrs   = @p_bukrs</font>
+<font color ="#8C8C8C">*      AND c~zmodule = 'CO'</font>
+<font color ="#8C8C8C">*      AND c~class   = 'CO014'</font>
+<font color ="#8C8C8C">*      AND c~delflag = @space</font>
+<font color ="#8C8C8C">*    GROUP BY a~kalnr</font>
+<font color ="#8C8C8C">*            ,a~ptyp</font>
+<font color ="#8C8C8C">*            ,b~bwart</font>
+<font color ="#8C8C8C">*            ,c~field11</font>
+<font color ="#8C8C8C">*            ,d~bwkey</font>
+<font color ="#8C8C8C">*            ,d~matnr</font>
+<font color ="#8C8C8C">*     INTO TABLE @lt_fcml.</font>
+<font color ="#8C8C8C">*  ENDIF.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*  SORT lt_fcml BY bwkey matnr ptyp_fr bwart.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*  LOOP AT lt_fcml INTO DATA(ls_fcml).</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*    READ TABLE gt_main ASSIGNING FIELD-SYMBOL(&ltls_main&gt) WITH KEY werks = ls_fcml-bwkey</font>
+<font color ="#8C8C8C">*                                                                  matnr = ls_fcml-matnr.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*    CHECK sy-subrc = 0.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*    READ TABLE gt_zcot8000 INTO DATA(ls_from) WITH KEY ptyp = ls_fcml-ptyp_fr.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*    CHECK sy-subrc = 0.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*    READ TABLE gt_zcot8000 INTO DATA(ls_to) WITH KEY ptyp = ls_fcml-ptyp_to.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*    CHECK sy-subrc = 0.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*    " From S=================================================</font>
+<font color ="#8C8C8C">*    lv_fname = |&ltLS_MAIN&gt-{ ls_from-report_no }_QUAN|.</font>
+<font color ="#8C8C8C">*    ASSIGN (lv_fname) TO FIELD-SYMBOL(&ltfs_quan_fr&gt).</font>
+<font color ="#8C8C8C">*    IF &ltfs_quan_fr&gt IS ASSIGNED.</font>
+<font color ="#8C8C8C">*      &ltfs_quan_fr&gt -= ls_fcml-lbkum. "##</font>
+<font color ="#8C8C8C">*      UNASSIGN &ltfs_quan_fr&gt.</font>
+<font color ="#8C8C8C">*    ENDIF.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*    lv_fname = |&ltLS_MAIN&gt-{ ls_from-report_no }_CURR|.</font>
+<font color ="#8C8C8C">*    ASSIGN (lv_fname) TO FIELD-SYMBOL(&ltfs_curr_fr&gt). "##</font>
+<font color ="#8C8C8C">*    IF &ltfs_curr_fr&gt IS ASSIGNED.</font>
+<font color ="#8C8C8C">*      IF r_case1 = 'X'.</font>
+<font color ="#8C8C8C">*        &ltfs_curr_fr&gt -= ls_fcml-salk3.</font>
+<font color ="#8C8C8C">*      ELSEIF r_case2 = 'X'.</font>
+<font color ="#8C8C8C">*        &ltfs_curr_fr&gt -=  ls_fcml-diff.</font>
+<font color ="#8C8C8C">*      ELSEIF r_case3 = 'X'.</font>
+<font color ="#8C8C8C">*        &ltfs_curr_fr&gt -= ( ls_fcml-salk3 + ls_fcml-diff ).</font>
+<font color ="#8C8C8C">*      ENDIF.</font>
+<font color ="#8C8C8C">*      UNASSIGN &ltfs_curr_fr&gt.</font>
+<font color ="#8C8C8C">*    ENDIF.</font>
+<font color ="#8C8C8C">*    " From E=================================================</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*    " To   S=================================================</font>
+<font color ="#8C8C8C">*    lv_fname = |&ltLS_MAIN&gt-{ ls_to-report_no }_QUAN|.</font>
+<font color ="#8C8C8C">*    ASSIGN (lv_fname) TO FIELD-SYMBOL(&ltfs_quan_to&gt).</font>
+<font color ="#8C8C8C">*    IF &ltfs_quan_to&gt IS ASSIGNED.</font>
+<font color ="#8C8C8C">*      &ltfs_quan_to&gt += ls_fcml-lbkum. "##</font>
+<font color ="#8C8C8C">*      UNASSIGN &ltfs_quan_to&gt.</font>
+<font color ="#8C8C8C">*    ENDIF.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*    lv_fname = |&ltLS_MAIN&gt-{ ls_to-report_no }_CURR|.</font>
+<font color ="#8C8C8C">*    ASSIGN (lv_fname) TO FIELD-SYMBOL(&ltfs_curr_to&gt). "##</font>
+<font color ="#8C8C8C">*    IF &ltfs_curr_to&gt IS ASSIGNED.</font>
+<font color ="#8C8C8C">*      IF r_case1 = 'X'.</font>
+<font color ="#8C8C8C">*        &ltfs_curr_to&gt += ls_fcml-salk3.</font>
+<font color ="#8C8C8C">*      ELSEIF r_case2 = 'X'.</font>
+<font color ="#8C8C8C">*        &ltfs_curr_to&gt +=  ls_fcml-diff.</font>
+<font color ="#8C8C8C">*      ELSEIF r_case3 = 'X'.</font>
+<font color ="#8C8C8C">*        &ltfs_curr_to&gt += ( ls_fcml-salk3 + ls_fcml-diff ).</font>
+<font color ="#8C8C8C">*      ENDIF.</font>
+<font color ="#8C8C8C">*      UNASSIGN &ltfs_curr_to&gt.</font>
+<font color ="#8C8C8C">*    ENDIF.</font>
+<font color ="#8C8C8C">*    " To   E=================================================</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*  ENDLOOP.</font>
+
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form ADD_ACDOCA_LINE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000037"></div>
+FORM add_acdoca_line    USING ps_chk LIKE gs_main
+                    CHANGING  pv_add TYPE char1
+                              ps_main LIKE gs_main.
+
+<font color ="#8C8C8C">*******ACDOCA ## ##</font>
+  DATA : lv_sdate TYPE sy-datum
+         ,lv_ldate TYPE sy-datum
+         ,lv_rcct  TYPE acdoca-racct.
+  lv_sdate = |{ p_gjahr }{ p_perab+1(2) }01|.
+  lv_ldate = |{ p_gjahr }{ p_perbi+1(2) }01|.
+  lv_rcct = 851413.
+  lv_rcct = |{ lv_rcct ALPHA = IN }|.
+
+  lv_ldate = zcl_cm_util=&gtlast_day( lv_ldate ).
+
+  SELECT rbukrs , SUM( osl ) AS osl
+    FROM acdoca
+   WHERE rbukrs EQ @p_bukrs
+     AND gjahr  EQ @p_gjahr
+     AND racct  EQ @lv_rcct
+     AND xreversing NE @abap_true
+     AND xreversed  NE @abap_true
+     AND budat  BETWEEN @lv_sdate AND @lv_ldate
+     AND blart  EQ 'CH'
+   GROUP BY rbukrs
+    INTO TABLE @DATA(lt_difsum).
+
+  DATA(lv_amt) = VALUE #( lt_difsum[ 1 ]-osl OPTIONAL ).
+  CHECK lv_amt IS NOT INITIAL.
+
+  ps_main-werks = ps_chk-werks.
+  ps_main-bklas = ps_chk-bklas.
+  ps_main-cost_gubun = ps_chk-cost_gubun.
+  ps_main-matnr = ps_main-maktx = |Ex.Difference|.
+  ps_main-meins = ps_chk-meins. " 0 #### ### ## ### QUAN# ##
+  ps_main-waers = p_waers.
+
+
+  " ZU,BF -&gt ## / VN , V+ -&gt ###
+  SELECT 'M' AS typ
+        ,report_no
+    FROM zcot8000
+   WHERE kokrs EQ @p_kokrs
+     AND bukrs EQ @p_bukrs
+     AND operator EQ 'N'
+     AND categ  EQ  'ZU'
+     AND ptyp   EQ  'BF'
+     INTO TABLE @DATA(lt_fld).
+
+  SELECT 'N' AS typ
+        ,report_no
+    FROM zcot8000
+   WHERE kokrs EQ @p_kokrs
+     AND bukrs EQ @p_bukrs
+     AND operator EQ 'N'
+     AND categ  EQ  'VN'
+     AND ptyp   EQ  'V+'
+     APPENDING TABLE @lt_fld.
+
+
+  LOOP AT lt_fld INTO DATA(ls_fld).
+    DATA(lv_ff) = |PS_MAIN-{ ls_fld-report_no }_CURR|.
+    ASSIGN (lv_ff) TO FIELD-SYMBOL(&ltfv_curr&gt).
+    &ltfv_curr&gt = SWITCH #( ls_fld-typ
+                          WHEN 'N' THEN lv_amt
+                          WHEN 'M' THEN lv_amt * -1 ).
+  ENDLOOP.
+
+  SELECT *
+    FROM zcot8000
+   WHERE kokrs EQ @p_kokrs
+     AND bukrs EQ @p_bukrs
+     AND operator EQ 'F'
+     INTO TABLE @DATA(lt_calc).
+
+  LOOP AT lt_calc INTO DATA(ls_calc).
+    SELECT report_no
+      FROM @lt_fld AS a
+     WHERE report_no BETWEEN @ls_calc-formula_fr AND @ls_calc-formula_to
+      INTO TABLE @DATA(lt_gs).
+
+    CHECK lt_gs IS NOT INITIAL.
+
+<font color ="#8C8C8C">******## ## ##</font>
+    CLEAR lv_ff.
+    lv_ff = |PS_MAIN-{ ls_calc-report_no }_CURR|.
+<font color ="#8C8C8C">*-- EST ## ##</font>
+    ASSIGN (lv_ff) TO FIELD-SYMBOL(&ltfv_cal&gt)." ELSE UNASSIGN.
+<font color ="#8C8C8C">*    FIELD-SYMBOLS &ltfv_cal&gt.</font>
+<font color ="#8C8C8C">*    ASSIGN (lv_ff) TO &ltfv_cal&gt ELSE UNASSIGN.</font>
+<font color ="#8C8C8C">*--- END</font>
+    CHECK &ltfv_cal&gt IS ASSIGNED.
+
+<font color ="#8C8C8C">****** ##### ##</font>
+    LOOP AT lt_gs INTO DATA(ls_gs).
+      CLEAR lv_ff.
+      lv_ff = |PS_MAIN-{ ls_gs-report_no }_CURR|.
+<font color ="#8C8C8C">*-- EST ## ##</font>
+      ASSIGN (lv_ff) TO FIELD-SYMBOL(&ltfv_cor&gt)." ELSE UNASSIGN.
+<font color ="#8C8C8C">*      FIELD-SYMBOLS &ltfv_cor&gt.</font>
+<font color ="#8C8C8C">*      ASSIGN (lv_ff) TO &ltfv_cor&gt ELSE UNASSIGN.</font>
+<font color ="#8C8C8C">*--- END</font>
+      CHECK &ltfv_cor&gt IS ASSIGNED.
+      &ltfv_cal&gt = &ltfv_cal&gt + &ltfv_cor&gt.
+      pv_add = abap_true.
+    ENDLOOP.
+  ENDLOOP.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

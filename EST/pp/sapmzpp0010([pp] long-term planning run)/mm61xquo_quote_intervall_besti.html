@@ -1,0 +1,131 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XQUO_QUOTE_INTERVALL_BESTI</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XQUO_QUOTE_INTERVALL_BESTI</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Quote_Intervall_Bestimmen                                            *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000821"></div>
+FORM quote_intervall_bestimmen USING rwdat rwper rwapr.
+  DATA: rwapr_p TYPE p.
+  rwapr_p = rwapr.              "provisorische Korrektur
+<font color ="#8C8C8C">*--&gt Reset Datumsbereich</font>
+  CLEAR mdcal-prend.
+<font color ="#8C8C8C">*--&gt Periodenende bestimmen</font>
+  CASE rwper.
+    WHEN woche.
+      PERFORM compute_gkday_woche USING rwdat rwapr_p.
+    WHEN monat.
+      PERFORM compute_gkday_monat USING rwdat rwapr_p.
+    WHEN pkper.
+      IF NOT mdkp-mrppp IS INITIAL.
+        PERFORM compute_gkday_pkper
+              USING mdkp-plwrk mdkp-mrppp rwdat rwapr_p.
+      ELSE.
+        PERFORM compute_gkday_pkper
+              USING mdkp-plwrk t399d-mrrpp rwdat rwapr_p.
+      ENDIF.
+  ENDCASE.
+ENDFORM.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Quote_Intervall_statics                                              *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* This form determines the intervall based on the quotation start date *</font>
+<font color ="#8C8C8C">* and the date needs to be lay in this intervall</font>
+<font color ="#8C8C8C">* pro: the intervalls become stable and do not overlapp anymore</font>
+<font color ="#8C8C8C">*       and do not vary based on the order of the calculated intervalls</font>
+<font color ="#8C8C8C">*       are needed</font>
+<font color ="#8C8C8C">* con: performance; each period will be calculated from scratch</font>
+<font color ="#8C8C8C">*      based on the start date of the quotation</font>
+<font color ="#8C8C8C">*-----------------------------------------------------------------------*</font>
+<div id="000000000822"></div>
+FORM quote_intervall_statics
+  TABLES it_equkx               STRUCTURE dquk "extract of table equkx
+  USING iv_date_in_intervall    TYPE datum
+        iv_quotation_start_date TYPE datum
+        iv_quotation_end_date   TYPE datum
+        iv_period_type          TYPE rwper
+        iv_no_of_periods        TYPE abanz
+        iv_qunum                TYPE qunum
+  CHANGING
+        ev_period_start         TYPE datum
+        ev_period_end           TYPE datum.
+
+  DATA:
+    ls_datum              TYPE datum,
+    ls_DQUK               TYPE DQUK,
+    ls_quotation_end_date TYPE date.
+
+<font color ="#8C8C8C">* make sure that the provided data is complete to</font>
+<font color ="#8C8C8C">* start with the calculation with the quotation start date</font>
+  IF iv_quotation_start_date IS NOT INITIAL AND
+     iv_quotation_end_date   IS NOT INITIAL.
+    ls_datum = iv_quotation_start_date.
+    ls_quotation_end_date = iv_quotation_end_date.
+  ELSE.
+    READ TABLE it_equkx
+      INTO ls_DQUK
+      WITH KEY
+        qunum = iv_qunum.
+    IF sy-subrc IS NOT INITIAL.
+      " from DB - should never occure
+      SELECT * FROM equk INTO CORRESPONDING FIELDS OF ls_DQUK
+        WHERE qunum = iv_qunum.
+        EXIT.
+      ENDSELECT.
+      ASSERT sy-subrc = 0.
+    ENDIF.
+    ls_datum              = ls_DQUK-vdatu.
+    ls_quotation_end_date = ls_DQUK-bdatu.
+  ENDIF.
+
+  PERFORM <a href="#000000000821">quote_intervall_bestimmen</a>
+    USING ls_datum
+          iv_period_type
+          iv_no_of_periods.
+
+  WHILE NOT ( iv_date_in_intervall &gt= mdcal-pranf  AND iv_date_in_intervall &lt= mdcal-prend ).
+    PERFORM <a href="#000000000821">quote_intervall_bestimmen</a>
+      USING ls_datum
+            iv_period_type
+            iv_no_of_periods.
+
+    ls_datum = mdcal-prend + 1.
+<font color ="#8C8C8C">* check that the quotation end is alread reached</font>
+    IF mdcal-prend &gt= ls_quotation_end_date.
+      EXIT.
+    ENDIF.
+<font color ="#8C8C8C">* prevent overflow and start from beginning</font>
+    if mdcal-pranf &gt mdcal-prend.
+      mdcal-prend = '99991231'.
+      exit.
+    endif.
+  ENDWHILE.
+
+  ev_period_start = mdcal-pranf.
+
+<font color ="#8C8C8C">* make sure that the calculated period end is not outside the maximum quotation date</font>
+  IF mdcal-prend &gt= ls_quotation_end_date.
+    ev_period_end = ls_quotation_end_date.
+  else.
+    ev_period_end   = mdcal-prend.
+  endif.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

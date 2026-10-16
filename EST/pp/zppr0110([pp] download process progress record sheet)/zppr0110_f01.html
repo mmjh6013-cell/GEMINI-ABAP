@@ -1,0 +1,1298 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZPPR0110_F01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZPPR0110_F01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZPPR0110_F01</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form export_excel</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000001"></div>
+FORM export_excel .
+
+  DATA : lv_path        TYPE string,
+         lv_filename    TYPE string,
+         lv_default_ext TYPE string,
+         lv_filter      TYPE string,
+         lv_exist,
+         lv_rc          TYPE sy-subrc.
+
+<font color ="#8C8C8C">* File Object ##</font>
+  IF go_objfile IS INITIAL.
+
+    TRY.
+        CREATE OBJECT go_objfile.
+      CATCH cx_root.
+        STOP.
+    ENDTRY.
+
+  ENDIF.
+
+<font color ="#8C8C8C">* PDF or Excel</font>
+  IF r_xls = abap_true.
+    lv_default_ext = 'xls'.
+    lv_filter      = 'Excel files (*.xls;*.xls)|*.xls;*.xls'.
+  ELSE.
+    lv_default_ext = 'pdf'.
+    lv_filter      = 'PDF Files (*.pdf)|*.pdf'.
+  ENDIF.
+
+<font color ="#8C8C8C">* ## ## ### ### ##</font>
+  IF gv_pfolder IS NOT INITIAL.
+    gv_choosed_folder = gv_pfolder.
+  ELSE.
+    CALL METHOD cl_gui_frontend_services=&gtget_temp_directory
+      CHANGING
+        temp_dir             = gv_choosed_folder
+      EXCEPTIONS
+        cntl_error           = 1
+        error_no_gui         = 2
+        not_supported_by_gui = 3
+        OTHERS               = 4.
+  ENDIF.
+
+<font color ="#8C8C8C">* File ## ##</font>
+  DATA(lv_file_name) = CONV string( TEXT-n01 ).
+  REPLACE '&2' IN lv_file_name WITH sy-datum.
+
+<font color ="#8C8C8C">* ## ## ##### ##</font>
+  CALL METHOD cl_gui_frontend_services=&gtfile_save_dialog
+    EXPORTING
+      default_extension         = lv_default_ext
+      default_file_name         = lv_file_name
+      file_filter               = lv_filter
+<font color ="#8C8C8C">*     initial_directory         = 'O:\'</font>
+    CHANGING
+      filename                  = lv_filename
+      path                      = lv_path
+      fullpath                  = gv_choosed_folder
+    EXCEPTIONS
+      cntl_error                = 1
+      error_no_gui              = 2
+      not_supported_by_gui      = 3
+      invalid_default_file_name = 4
+      OTHERS                    = 5.
+
+<font color ="#8C8C8C">* ## ## # ## ##</font>
+  IF sy-subrc = 0.
+    gv_pfolder = gv_choosed_folder.
+  ELSE.
+    MESSAGE s000 WITH TEXT-e01 DISPLAY LIKE 'E'.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">* ## ## ### ##</font>
+  IF gv_pfolder IS INITIAL.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">* ### ## #### ## ##</font>
+<font color ="#8C8C8C">*-- ## ## ##</font>
+  CALL METHOD cl_gui_frontend_services=&gtfile_exist
+    EXPORTING
+      file                 = gv_choosed_folder
+    RECEIVING
+      result               = lv_exist
+    EXCEPTIONS
+      cntl_error           = 1
+      error_no_gui         = 2
+      wrong_parameter      = 3
+      not_supported_by_gui = 4
+      OTHERS               = 5.
+
+  IF lv_exist = abap_true.
+<font color ="#8C8C8C">*-- ### ##### ## #### ## -&gt ##### ####</font>
+    CALL METHOD cl_gui_frontend_services=&gtfile_delete
+      EXPORTING
+        filename             = gv_choosed_folder
+      CHANGING
+        rc                   = lv_rc
+      EXCEPTIONS
+        file_delete_failed   = 1
+        cntl_error           = 2
+        error_no_gui         = 3
+        file_not_found       = 4
+        access_denied        = 5
+        unknown_error        = 6
+        not_supported_by_gui = 7
+        wrong_parameter      = 8
+        OTHERS               = 9.
+
+    " ## ### # ## #### ##
+    IF sy-subrc &lt&gt 0 OR lv_rc &lt&gt 0.
+      MESSAGE i000 WITH TEXT-e02 DISPLAY LIKE 'E'.
+      RETURN.
+    ENDIF.
+
+  ENDIF.
+
+<font color ="#8C8C8C">* ## #### ##</font>
+  CALL METHOD : go_objfile-&gtfree.
+  FREE : go_objfile.
+
+  PERFORM <a href="#000000000002">set_data_excel</a>.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form download_excel</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000002"></div>
+FORM set_data_excel .
+
+  DATA : lv_rc             TYPE i,
+         lv_filename       TYPE string,
+         lv_count_compo    TYPE i,
+         lv_count_bond     TYPE i,
+         lv_count_history  TYPE i,
+         lv_count_itemcode TYPE i,
+         lv_start          TYPE i,
+         lv_max            TYPE i,       " ####
+         lv_tmp            TYPE i.       " ### ## ## ##
+
+<font color ="#8C8C8C">* File name ##</font>
+  CLEAR gv_file.
+  gv_file = gv_choosed_folder.
+  gv_temp_filename = gv_file.
+  IF r_pdf = abap_true.
+    REPLACE PCRE '\.(pdf|xlsx|xls)$' IN gv_temp_filename WITH '' IGNORING CASE.
+    gv_temp_filename = |{ gv_temp_filename }_tmp_{ sy-datum }_{ sy-uzeit }.xls|.
+  ENDIF.
+
+<font color ="#8C8C8C">* ## Excel ## ##</font>
+  gv_form = 'ZPPR0110'.
+
+<font color ="#8C8C8C">* ### ##</font>
+  PERFORM <a href="#000000000003">set_template</a>.
+<font color ="#8C8C8C">* ### ### # ## ##</font>
+  PERFORM <a href="#000000000004">open_excel_template</a>.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------</font>
+<font color ="#8C8C8C">* ## ### ##</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------</font>
+<font color ="#8C8C8C">* Header ##</font>
+  PERFORM <a href="#000000000008">set_header_data</a>.
+
+<font color ="#8C8C8C">* Item Line ##</font>
+<font color ="#8C8C8C">*-- ## ### # ##</font>
+  " 30## ### ## (+29)
+  lv_count_compo   = ( lines( gt_bom_compo ) + 29 ) DIV gc_lines_compo.
+  lv_count_itemcode = ( lines( gt_item_code ) + 29 ) DIV gc_lines_itemcode.
+
+  " 18# ### ## (+17)
+  lv_count_bond    = ( lines( gt_bom_bond ) + 17 ) DIV gc_lines_bond.
+  lv_count_history = ( lines( gt_bom_history ) + 17 ) DIV gc_lines_history.
+
+<font color ="#8C8C8C">*-- ### ##</font>
+  lv_max = nmax( val1 = lv_count_compo
+                 val2 = lv_count_bond
+                 val3 = lv_count_history
+                 val4 = lv_count_itemcode ).
+
+<font color ="#8C8C8C">*-- ### ## ### ##</font>
+  DO ( lv_max - 1 ) TIMES.
+    PERFORM <a href="#000000000012">create_excel_multi_page</a> USING sy-index.
+  ENDDO.
+
+<font color ="#8C8C8C">*-- BOM1</font>
+<font color ="#8C8C8C">* BOM1 ## - Compo</font>
+  lv_tmp = 18.
+  DO lv_count_compo TIMES.
+    " 1# # 1~30, 2## 31~60
+    lv_start = ( sy-index * gc_lines_compo ) - 29.
+    PERFORM <a href="#000000000011">set_bom1_data</a> USING lv_tmp lv_start.
+    lv_tmp += gc_lines_page.
+  ENDDO.
+
+<font color ="#8C8C8C">* BOM2 ## - Bond</font>
+  lv_tmp = 53.
+  DO lv_count_bond TIMES.
+    " 1# # 1~18, 2## 19~36
+    lv_start = ( sy-index * gc_lines_bond ) - 17.
+    PERFORM <a href="#000000000014">set_bom2_data</a> USING lv_tmp lv_start.
+    lv_tmp += gc_lines_page.
+  ENDDO.
+
+<font color ="#8C8C8C">* BOM3 ## - History</font>
+  lv_tmp = 53.
+  DO lv_count_history TIMES.
+    " 1# # 1~18, 2## 19~36
+    lv_start = ( sy-index * gc_lines_history ) - 17.
+    PERFORM <a href="#000000000015">set_bom3_data</a> USING lv_tmp lv_start.
+    lv_tmp += gc_lines_page.
+  ENDDO.
+
+<font color ="#8C8C8C">* Item Code IF ##</font>
+  lv_tmp = 18.
+  DO lv_count_itemcode TIMES.
+    " 1# # 1~30, 2# # 31 ~ 60
+    lv_start = ( sy-index * gc_lines_itemcode ) - 29.
+    PERFORM <a href="#000000000016">set_itemcode_data</a> USING lv_tmp lv_start.
+    lv_tmp += gc_lines_page.
+  ENDDO.
+
+<font color ="#8C8C8C">*-- ######## ##</font>
+  PERFORM <a href="#000000000017">set_screw</a>.
+
+<font color ="#8C8C8C">*-- #### ##</font>
+  PERFORM <a href="#000000000018">set_soldering</a>.
+
+<font color ="#8C8C8C">* ### #### ##</font>
+
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------</font>
+<font color ="#8C8C8C">* ## Sheet 1 ##</font>
+  CALL METHOD OF gs_excel 'SHEETS' = gs_sheet EXPORTING #1 = 1.
+  CALL METHOD OF gs_sheet 'SELECT' NO FLUSH.
+<font color ="#8C8C8C">* ## # ### ### ##</font>
+  CALL METHOD OF gs_excel 'CELLS' = gs_cell EXPORTING #1 = 1 #2 = 2.
+
+<font color ="#8C8C8C">** # ## ## ## ##</font>
+<font color ="#8C8C8C">*  CALL METHOD OF gs_cell 'SELECT'.</font>
+<font color ="#8C8C8C">*  CALL METHOD OF gs_activesheet 'COLUMNS' = gs_cells.</font>
+<font color ="#8C8C8C">*  CALL METHOD OF gs_cells 'AUTOFIT' NO FLUSH.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">** # ## ## ## ## (#### ### ## ##)</font>
+<font color ="#8C8C8C">*  CALL METHOD OF gs_activesheet 'ROWS' = gs_cells.</font>
+<font color ="#8C8C8C">*  CALL METHOD OF gs_cells 'AUTOFIT'.</font>
+
+<font color ="#8C8C8C">* ## ## ##</font>
+  SET PROPERTY OF gs_activesheet 'Name' = TEXT-n02.
+<font color ="#8C8C8C">* Active Workbook ##</font>
+  CALL METHOD OF gs_excel 'ACTIVEWORKBOOK' = gs_workbook.
+<font color ="#8C8C8C">* Excel Layout ##</font>
+  PERFORM <a href="#000000000013">set_layout_properties</a> USING lv_max.
+
+  IF r_pdf = abap_true.
+    PERFORM <a href="#000000000006">download_pdf</a>.
+  ELSE.
+    PERFORM <a href="#000000000010">download_excel</a>.
+  ENDIF.
+
+<font color ="#8C8C8C">*-- File Download</font>
+<font color ="#8C8C8C">*  lv_filename = gv_file.</font>
+<font color ="#8C8C8C">*  cl_gui_frontend_services=&gtexecute(</font>
+<font color ="#8C8C8C">*      EXPORTING</font>
+<font color ="#8C8C8C">*        document = lv_filename   " ### PDF ## ## (#: C:\temp\test.pdf)</font>
+<font color ="#8C8C8C">*        operation = 'PRINT'</font>
+<font color ="#8C8C8C">*      EXCEPTIONS</font>
+<font color ="#8C8C8C">*        OTHERS   = 1 ).</font>
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_template</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000003"></div>
+FORM set_template .
+
+  DATA : ls_wwwdata_item TYPE wwwdatatab,
+         lv_rc           TYPE sy-subrc.
+
+<font color ="#8C8C8C">* ## ## ### ##</font>
+  CALL FUNCTION 'WS_FILE_DELETE'
+    EXPORTING
+      file   = gv_temp_filename
+    IMPORTING
+      return = lv_rc.
+
+<font color ="#8C8C8C">* ## ### ### ##</font>
+  IF ( lv_rc &lt&gt 0 ) AND
+     ( lv_rc &lt&gt 1 ).
+    MESSAGE s101 DISPLAY LIKE 'E'.
+  ENDIF.
+
+  SELECT SINGLE *
+    INTO CORRESPONDING FIELDS OF ls_wwwdata_item
+    FROM wwwdata
+    WHERE objid = gv_form.
+
+  CALL FUNCTION 'DOWNLOAD_WEB_OBJECT'
+    EXPORTING
+      key         = ls_wwwdata_item
+      destination = gv_temp_filename.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form open_excel_template</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000004"></div>
+FORM open_excel_template .
+
+<font color ="#8C8C8C">* ## ## ##</font>
+  IF gs_excel IS INITIAL.
+    CREATE OBJECT gs_excel 'EXCEL.APPLICATION'.
+  ENDIF.
+
+<font color ="#8C8C8C">* ## ### ## ##</font>
+  CALL METHOD OF gs_excel 'WORKBOOKS' = gs_workbook.
+  SET PROPERTY OF gs_excel 'DisplayAlerts' = 0.
+<font color ="#8C8C8C">* ###### ##</font>
+  SET PROPERTY OF gs_excel 'VISIBLE' = 0.  " 1## ##, 0## #####
+<font color ="#8C8C8C">* ### ##</font>
+  CALL METHOD OF gs_workbook 'OPEN' EXPORTING #1 = gv_temp_filename.
+
+<font color ="#8C8C8C">* Sheet ##</font>
+  GET PROPERTY OF : gs_workbook 'APPLICATION'    = gs_application,
+                    gs_application 'ACTIVESHEET' = gs_activesheet.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form free_object</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000005"></div>
+FORM free_object .
+
+  FREE : gs_excel
+        ,gs_workbook
+        ,gs_books
+        ,gs_book
+        ,gs_sheets
+        ,gs_sheet
+        ,gs_activesheet
+        ,gs_application
+        ,gs_pagesetup
+        ,gs_cells
+        ,gs_cell
+        ,gs_row
+        ,gs_buffer
+        ,gs_font
+        ,gs_range
+        ,gs_borders
+        ,gs_worksheet
+        ,gs_columns.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form download_pdf</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000006"></div>
+FORM download_pdf.
+
+  DATA : lv_filename_pdf TYPE string,
+         lv_filename     TYPE string,
+         lv_rc           TYPE i.
+
+  DATA : ls_window TYPE obj_record.
+
+<font color ="#8C8C8C">* ## ##/# ##</font>
+  CLEAR lv_filename_pdf.
+  lv_filename_pdf = condense( gv_file ).
+  lv_filename = gv_temp_filename.
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">** xlsx, xls ## ### pdf# ##</font>
+<font color ="#8C8C8C">*  REPLACE PCRE '\.(xlsx|xls)$' IN lv_filename_pdf WITH '.pdf' IGNORING CASE.</font>
+<font color ="#8C8C8C">*  GET PROPERTY OF gs_excel 'WORKBOOKS' = gs_workbook</font>
+<font color ="#8C8C8C">*    EXPORTING #1 = 1.</font>
+
+  " PDF ## # ## #### ## ### ## ##
+  GET PROPERTY OF gs_excel 'ACTIVEWINDOW' = ls_window.
+  SET PROPERTY OF ls_window 'VIEW' = 1. " 1 = basic (##) 2 = xlPageBreakPreview (### ### ####)
+
+  FREE OBJECT ls_window.
+
+<font color ="#8C8C8C">* PDF ##</font>
+  CALL METHOD OF gs_workbook 'EXPORTASFIXEDFORMAT'
+    EXPORTING
+      #1 = 0
+      #2 = lv_filename_pdf.
+
+  SET PROPERTY OF gs_workbook 'SAVED' = 1.
+
+<font color ="#8C8C8C">* ## ##</font>
+  CALL METHOD OF gs_workbook 'CLOSE'
+    EXPORTING
+      #1 = 0.
+
+<font color ="#8C8C8C">* ## ##</font>
+  CALL METHOD OF gs_excel 'QUIT'.
+  PERFORM <a href="#000000000005">free_object</a>.
+  CALL FUNCTION 'CONTROL_FLUSH'.
+
+<font color ="#8C8C8C">* xls### ##</font>
+  CALL METHOD cl_gui_frontend_services=&gtfile_delete
+    EXPORTING
+      filename = lv_filename
+    CHANGING
+      rc       = lv_rc
+    EXCEPTIONS
+      OTHERS   = 1.
+
+  CALL METHOD cl_gui_frontend_services=&gtexecute
+    EXPORTING
+      document = lv_filename_pdf.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_test_data</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000007"></div>
+FORM set_test_data .
+
+<font color ="#8C8C8C">*-- ##</font>
+  CLEAR gs_header.
+  gs_header-model_name_h                 = 'P22-791785'.
+  gs_header-part_no                      = '87650-P8100QMC'.
+  gs_header-line                         = 'TEST_LINE'.
+  gs_header-line_date                    = sy-datum.
+  gs_header-first_time                   = sy-uzeit.
+  gs_header-second_time                  = sy-uzeit.
+  gs_header-frame_bonding_method         = 'TEST_FRAME_BONDING'.
+  gs_header-self_circuit_assembly_method = 'TEST_SELF_CIRCUIT_ASSEMBLY'.
+  gs_header-congee_eyelet_location       = 'TEST_CONGGE_EYELET_LOCATION'.
+  gs_header-stamp_no                     = 'TEST_STAMP'.
+  gs_header-wire_forming_point           = 'TEST_WIRE_FORMING_POINT'.
+  gs_header-self_assembly                = 'TEST_SELF_ASSEMBLY'.
+  gs_header-and_so_on                    = '####'.
+  gs_header-frame                        = 'TEST_FRAM_COCKING_POINT'.
+  gs_header-danza                        = 'TEST_DANZA_COCKING_POINT'.
+  gs_header-center                       = 'TEST_CENTER_GAZE'.
+  gs_header-vc_insertion_point           = 'TEST_VC_POINT'.
+  gs_header-vc_insertion_stand           = 'TEST_VC_STAND'.
+  gs_header-apply_adhesive               = 'TEST_APPLY_ADHESIVE'.
+  gs_header-model_name                   = 'TEST_MODEL_NAME'.
+  gs_header-job_no                       = 'TEST_JOB'.
+  gs_header-final_production_date        = |{ sy-datum(4) }-{ sy-datum+4(2) }-{ sy-datum+6(2) }|.
+  gs_header-job_no_prev                  = 'TEST_PREV_JOB'.
+  gs_header-hexsan                       = 'X'.
+  gs_header-alchol                       = 'O'.
+  gs_header-saksan                       = 'O'.
+  gs_header-toluen                       = 'X'.
+  gs_header-check_man                    = sy-uname.
+  gs_header-current_radius_no            = 'TEST_CURRENT_RADIUS_NO'.
+  gs_header-stamp_no                     = 'ST-TEST_STAMP_NO'.
+  gs_header-check_label                  = 'TEST_CHECK_LABEL'.
+  gs_header-check_box                    = 'TEST_CHECK_BOX'.
+
+<font color ="#8C8C8C">*-- BOM1 - Compo</font>
+  gt_bom_compo = VALUE #(
+    ( no = '10'  item = 'C01-712301' item_ref = '1' item_name = 'Top Plate'              menge = '1'       part_name = 'Top Plate Sub'     lot_no = 'LOT260826-01' check_man = '###' )
+    ( no = '20'  item = 'C02-718653' item_ref = '1' item_name = 'Yoke'                   menge = '1'       part_name = 'Yoke Assembly'     lot_no = 'LOT260826-02' check_man = '###' )
+    ( no = '30'  item = 'M02-733460' item_ref = '1' item_name = 'Hard Lock(G53-07A)'     menge = '0.00015' part_name = 'Hard Lock A'       lot_no = 'LOT260826-03' check_man = '###' )
+    ( no = '40'  item = 'M02-733461' item_ref = '1' item_name = 'Hard Lock(G53-07B)'     menge = '0.00015' part_name = 'Hard Lock B'       lot_no = 'LOT260826-04' check_man = '###' )
+    ( no = '50'  item = 'C03-719842' item_ref = '1' item_name = 'Bottom Plate'           menge = '1'       part_name = 'Bottom Plate Sub'  lot_no = 'LOT260826-05' check_man = '###' )
+    ( no = '60'  item = 'C04-721094' item_ref = '1' item_name = 'Pole Piece'             menge = '1'       part_name = 'Pole Sub'          lot_no = 'LOT260826-06' check_man = '###' )
+    ( no = '70'  item = 'C05-727269' item_ref = '1' item_name = 'Diaphragm(Cone Paper)'  menge = '1'       part_name = 'Cone Paper Unit'   lot_no = 'LOT260826-07' check_man = '###' )
+    ( no = '80'  item = 'M28-734328' item_ref = '1' item_name = 'SOLDER SAC125'          menge = '0.0005'  part_name = 'Lead Free Solder'  lot_no = 'LOT260826-08' check_man = '###' )
+    ( no = '90'  item = 'C06-706628' item_ref = '1' item_name = 'Magnet'                 menge = '1'       part_name = 'Ferrite Magnet'    lot_no = 'LOT260826-09' check_man = '###' )
+    ( no = '100' item = 'C07-715531' item_ref = '2' item_name = 'Gasket Rubber'          menge = '1'       part_name = 'Rubber Ring'       lot_no = 'LOT260826-10' check_man = '###' )
+    ( no = '110' item = 'C08-722617' item_ref = '2' item_name = 'Damper'                 menge = '1'       part_name = 'Spider Damper'     lot_no = 'LOT260826-11' check_man = '###' )
+    ( no = '120' item = 'C09-728175' item_ref = '2' item_name = 'Cap'                    menge = '1'       part_name = 'Dust Cap'          lot_no = 'LOT260826-12' check_man = '###' )
+    ( no = '130' item = 'C10-731739' item_ref = '2' item_name = 'Voice Coil'             menge = '1'       part_name = 'Copper Voice Coil' lot_no = 'LOT260826-13' check_man = '###' )
+    ( no = '140' item = 'C11-735910' item_ref = '2' item_name = 'Spider Fabric'          menge = '1'       part_name = 'Fabric Sub'        lot_no = 'LOT260826-14' check_man = '###' )
+    ( no = '150' item = 'C12-740112' item_ref = '2' item_name = 'Surround Foam'          menge = '1'       part_name = 'Foam Edge'         lot_no = 'LOT260826-15' check_man = '###' )
+    ( no = '160' item = 'C13-745220' item_ref = '2' item_name = 'Lead Wire'              menge = '2'       part_name = 'Tinsel Wire'       lot_no = 'LOT260826-16' check_man = '###' )
+    ( no = '170' item = 'C14-750331' item_ref = '2' item_name = 'Terminal Board'         menge = '1'       part_name = 'PCB Terminal'      lot_no = 'LOT260826-17' check_man = '###' )
+    ( no = '180' item = 'C15-755442' item_ref = '2' item_name = 'Protective Mesh'        menge = '1'       part_name = 'Metal Mesh'        lot_no = 'LOT260826-18' check_man = '###' )
+    ( no = '190' item = 'CG9-728789' item_ref = '2' item_name = 'Gasket Assembly'        menge = '1'       part_name = 'Gasket Sub Assys'  lot_no = 'LOT260826-19' check_man = '###' )
+    ( no = '200' item = 'C20-760553' item_ref = '3' item_name = 'Frame Metal'            menge = '1'       part_name = 'Steel Basket'      lot_no = 'LOT260826-20' check_man = '###' )
+    ( no = '210' item = 'C21-765664' item_ref = '3' item_name = 'Magnet Cover'           menge = '1'       part_name = 'Plastic Cover'     lot_no = 'LOT260826-21' check_man = '###' )
+    ( no = '220' item = 'C22-770775' item_ref = '3' item_name = 'Phase Plug'             menge = '1'       part_name = 'Aluminum Plug'     lot_no = 'LOT260826-22' check_man = '###' )
+    ( no = '230' item = 'M02-733481' item_ref = '3' item_name = 'YS-312RCGA'             menge = '0.00032' part_name = 'Bonding Glue A'    lot_no = 'LOT260826-23' check_man = '###' )
+    ( no = '240' item = 'M02-733482' item_ref = '3' item_name = 'YS-312RCGB'             menge = '0.00032' part_name = 'Bonding Glue B'    lot_no = 'LOT260826-24' check_man = '###' )
+    ( no = '250' item = 'C28-731106' item_ref = '3' item_name = 'Box'                    menge = '0.1'     part_name = 'Paper Box Pack'    lot_no = 'LOT260826-25' check_man = '##' )
+    ( no = '260' item = 'C28-732217' item_ref = '3' item_name = 'Cushion Pad'            menge = '0.2'     part_name = 'EPE Foam Pad'      lot_no = 'LOT260826-26' check_man = '###' )
+    ( no = '270' item = 'C29-709847' item_ref = '3' item_name = 'Label'                  menge = '0.2'     part_name = 'Barcode Label'     lot_no = 'LOT260826-27' check_man = '###' )
+    ( no = '280' item = 'M02-743957' item_ref = '3' item_name = 'SL310LB'                menge = '0.0018'  part_name = 'UV Adhesive'       lot_no = 'LOT260826-28' check_man = '###' )
+    ( no = '290' item = 'M02-760123' item_ref = '3' item_name = 'Epoxy Resins'           menge = '0.0025'  part_name = '2P Epoxy'          lot_no = 'LOT260826-29' check_man = '###' )
+    ( no = '300' item = 'M02-774727' item_ref = '3' item_name = 'DX-1106NB'              menge = '0.0004'  part_name = 'Thermal Compound'  lot_no = 'LOT260826-30' check_man = '###' )
+    ( no = '310' item = 'CJ9-789422' item_ref = '4' item_name = 'Frame&Terminal Assembly' menge = '1'      part_name = 'Frame Assys'       lot_no = 'LOT260826-31' check_man = '###' )
+    ( no = '320' item = 'M15-780234' item_ref = '4' item_name = 'Screw M3x6'             menge = '4'       part_name = 'Steel Screw'       lot_no = 'LOT260826-32' check_man = '###' )
+    ( no = '330' item = 'M15-780235' item_ref = '4' item_name = 'Washer M3'              menge = '4'       part_name = 'Flat Washer'       lot_no = 'LOT260826-33' check_man = '###' )
+    ( no = '340' item = 'C30-795345' item_ref = '4' item_name = 'Poly Bag'               menge = '0.1'     part_name = 'PE Bag'            lot_no = 'LOT260826-34' check_man = '###' )
+    ( no = '350' item = 'C31-800456' item_ref = '4' item_name = 'Outer Carton'           menge = '0.05'    part_name = 'Master Carton'     lot_no = 'LOT260826-35' check_man = '###' )
+    ( no = '10'  item = 'C01-712301' item_ref = '1' item_name = 'Top Plate'              menge = '1'       part_name = 'Top Plate Sub'     lot_no = 'LOT260826-01' check_man = '###' )
+    ( no = '20'  item = 'C02-718653' item_ref = '1' item_name = 'Yoke'                   menge = '1'       part_name = 'Yoke Assembly'     lot_no = 'LOT260826-02' check_man = '###' )
+    ( no = '30'  item = 'M02-733460' item_ref = '1' item_name = 'Hard Lock(G53-07A)'     menge = '0.00015' part_name = 'Hard Lock A'       lot_no = 'LOT260826-03' check_man = '###' )
+    ( no = '40'  item = 'M02-733461' item_ref = '1' item_name = 'Hard Lock(G53-07B)'     menge = '0.00015' part_name = 'Hard Lock B'       lot_no = 'LOT260826-04' check_man = '###' )
+    ( no = '50'  item = 'C03-719842' item_ref = '1' item_name = 'Bottom Plate'           menge = '1'       part_name = 'Bottom Plate Sub'  lot_no = 'LOT260826-05' check_man = '###' )
+    ( no = '60'  item = 'C04-721094' item_ref = '1' item_name = 'Pole Piece'             menge = '1'       part_name = 'Pole Sub'          lot_no = 'LOT260826-06' check_man = '###' )
+    ( no = '70'  item = 'C05-727269' item_ref = '1' item_name = 'Diaphragm(Cone Paper)'  menge = '1'       part_name = 'Cone Paper Unit'   lot_no = 'LOT260826-07' check_man = '###' )
+    ( no = '80'  item = 'M28-734328' item_ref = '1' item_name = 'SOLDER SAC125'          menge = '0.0005'  part_name = 'Lead Free Solder'  lot_no = 'LOT260826-08' check_man = '###' )
+    ( no = '90'  item = 'C06-706628' item_ref = '1' item_name = 'Magnet'                 menge = '1'       part_name = 'Ferrite Magnet'    lot_no = 'LOT260826-09' check_man = '###' )
+    ( no = '100' item = 'C07-715531' item_ref = '2' item_name = 'Gasket Rubber'          menge = '1'       part_name = 'Rubber Ring'       lot_no = 'LOT260826-10' check_man = '###' )
+    ( no = '110' item = 'C08-722617' item_ref = '2' item_name = 'Damper'                 menge = '1'       part_name = 'Spider Damper'     lot_no = 'LOT260826-11' check_man = '###' )
+    ( no = '120' item = 'C09-728175' item_ref = '2' item_name = 'Cap'                    menge = '1'       part_name = 'Dust Cap'          lot_no = 'LOT260826-12' check_man = '###' )
+    ( no = '130' item = 'C10-731739' item_ref = '2' item_name = 'Voice Coil'             menge = '1'       part_name = 'Copper Voice Coil' lot_no = 'LOT260826-13' check_man = '###' )
+    ( no = '140' item = 'C11-735910' item_ref = '2' item_name = 'Spider Fabric'          menge = '1'       part_name = 'Fabric Sub'        lot_no = 'LOT260826-14' check_man = '###' )
+    ( no = '150' item = 'C12-740112' item_ref = '2' item_name = 'Surround Foam'          menge = '1'       part_name = 'Foam Edge'         lot_no = 'LOT260826-15' check_man = '###' )
+    ( no = '160' item = 'C13-745220' item_ref = '2' item_name = 'Lead Wire'              menge = '2'       part_name = 'Tinsel Wire'       lot_no = 'LOT260826-16' check_man = '###' )
+    ( no = '170' item = 'C14-750331' item_ref = '2' item_name = 'Terminal Board'         menge = '1'       part_name = 'PCB Terminal'      lot_no = 'LOT260826-17' check_man = '###' )
+    ( no = '180' item = 'C15-755442' item_ref = '2' item_name = 'Protective Mesh'        menge = '1'       part_name = 'Metal Mesh'        lot_no = 'LOT260826-18' check_man = '###' )
+    ( no = '190' item = 'CG9-728789' item_ref = '2' item_name = 'Gasket Assembly'        menge = '1'       part_name = 'Gasket Sub Assys'  lot_no = 'LOT260826-19' check_man = '###' )
+    ( no = '200' item = 'C20-760553' item_ref = '3' item_name = 'Frame Metal'            menge = '1'       part_name = 'Steel Basket'      lot_no = 'LOT260826-20' check_man = '###' )
+    ( no = '210' item = 'C21-765664' item_ref = '3' item_name = 'Magnet Cover'           menge = '1'       part_name = 'Plastic Cover'     lot_no = 'LOT260826-21' check_man = '###' )
+    ( no = '220' item = 'C22-770775' item_ref = '3' item_name = 'Phase Plug'             menge = '1'       part_name = 'Aluminum Plug'     lot_no = 'LOT260826-22' check_man = '###' )
+    ( no = '230' item = 'M02-733481' item_ref = '3' item_name = 'YS-312RCGA'             menge = '0.00032' part_name = 'Bonding Glue A'    lot_no = 'LOT260826-23' check_man = '###' )
+    ( no = '240' item = 'M02-733482' item_ref = '3' item_name = 'YS-312RCGB'             menge = '0.00032' part_name = 'Bonding Glue B'    lot_no = 'LOT260826-24' check_man = '###' )
+    ( no = '250' item = 'C28-731106' item_ref = '3' item_name = 'Box'                    menge = '0.1'     part_name = 'Paper Box Pack'    lot_no = 'LOT260826-25' check_man = '##' )
+    ( no = '260' item = 'C28-732217' item_ref = '3' item_name = 'Cushion Pad'            menge = '0.2'     part_name = 'EPE Foam Pad'      lot_no = 'LOT260826-26' check_man = '###' )
+    ( no = '270' item = 'C29-709847' item_ref = '3' item_name = 'Label'                  menge = '0.2'     part_name = 'Barcode Label'     lot_no = 'LOT260826-27' check_man = '###' )
+    ( no = '280' item = 'M02-743957' item_ref = '3' item_name = 'SL310LB'                menge = '0.0018'  part_name = 'UV Adhesive'       lot_no = 'LOT260826-28' check_man = '###' )
+    ( no = '290' item = 'M02-760123' item_ref = '3' item_name = 'Epoxy Resins'           menge = '0.0025'  part_name = '2P Epoxy'          lot_no = 'LOT260826-29' check_man = '###' )
+    ( no = '300' item = 'M02-774727' item_ref = '3' item_name = 'DX-1106NB'              menge = '0.0004'  part_name = 'Thermal Compound'  lot_no = 'LOT260826-30' check_man = '###' )
+    ( no = '310' item = 'CJ9-789422' item_ref = '4' item_name = 'Frame&Terminal Assembly' menge = '1'      part_name = 'Frame Assys'       lot_no = 'LOT260826-31' check_man = '###' )
+    ( no = '320' item = 'M15-780234' item_ref = '4' item_name = 'Screw M3x6'             menge = '4'       part_name = 'Steel Screw'       lot_no = 'LOT260826-32' check_man = '###' )
+    ( no = '330' item = 'M15-780235' item_ref = '4' item_name = 'Washer M3'              menge = '4'       part_name = 'Flat Washer'       lot_no = 'LOT260826-33' check_man = '###' )
+    ( no = '340' item = 'C30-795345' item_ref = '4' item_name = 'Poly Bag'               menge = '0.1'     part_name = 'PE Bag'            lot_no = 'LOT260826-34' check_man = '###' )
+    ( no = '350' item = 'C31-800456' item_ref = '4' item_name = 'Outer Carton'           menge = '0.05'    part_name = 'Master Carton'     lot_no = 'LOT260826-35' check_man = '###' )
+  ).
+
+<font color ="#8C8C8C">*-- BOM2 - Bond</font>
+  gt_bom_bond = VALUE #(
+  ( sep = 'C06+C12'       bond_name = 'YS-312RCG' standard = '0.32' measurement_value = '1' )
+  ( sep = 'CG8+C08'       bond_name = 'SL-310LB'  standard = '0.4'  measurement_value = '1' )
+  ( sep = 'C02+C06'       bond_name = 'YS-312RCG' standard = '0.32' measurement_value = '1' )
+  ( sep = 'CG8+C05'       bond_name = 'SL-310LB'  standard = '0.5'  measurement_value = '1' )
+  ( sep = 'C08+C10'       bond_name = 'G53-07'    standard = '0.15' measurement_value = '1' )
+  ( sep = 'C05+C10'       bond_name = 'G53-07'    standard = '0.15' measurement_value = '1' )
+  ( sep = 'C09+C10'       bond_name = 'SL-310LB'  standard = '0.1'  measurement_value = '1' )
+  ( sep = 'C05+CG9'       bond_name = 'SL-310LB'  standard = '0.8'  measurement_value = '1' )
+  ( sep = 'C10 ####'  bond_name = 'DX-1106NB' standard = '0.4'  measurement_value = '1' )
+  ( sep = 'C01+C03'       bond_name = 'YS-312RCG' standard = '0.25' measurement_value = '1' )
+  ( sep = 'CG2+C04'       bond_name = 'SL-310LB'  standard = '0.35' measurement_value = '2' )
+  ( sep = 'C03+C07'       bond_name = 'G53-07'    standard = '0.18' measurement_value = '2' )
+  ( sep = 'C06+CG5'       bond_name = 'DX-1106NB' standard = '0.45' measurement_value = '2' )
+  ( sep = 'C04+C11'       bond_name = 'YS-312RCG' standard = '0.3'  measurement_value = '2' )
+  ( sep = 'CG1+C08'       bond_name = 'SL-310LB'  standard = '0.5'  measurement_value = '2' )
+  ( sep = 'C07+C12'       bond_name = 'G53-07'    standard = '0.12' measurement_value = '2' )
+  ( sep = 'C02+CG4'       bond_name = 'DX-1106NB' standard = '0.38' measurement_value = '2' )
+  ( sep = 'C05 ####'  bond_name = 'YS-312RCG' standard = '0.4'  measurement_value = '2' )
+  ( sep = 'CG3+C09'       bond_name = 'SL-310LB'  standard = '0.28' measurement_value = '2' )
+  ( sep = 'C08+C11'       bond_name = 'G53-07'    standard = '0.15' measurement_value = '2' )
+  ( sep = 'C01+CG7'       bond_name = 'DX-1106NB' standard = '0.42' measurement_value = '2' )
+  ( sep = 'C04 ####'  bond_name = 'YS-312RCG' standard = '0.35' measurement_value = '3' )
+  ( sep = 'CG5+C10'       bond_name = 'SL-310LB'  standard = '0.6'  measurement_value = '3' )
+  ( sep = 'C03+C12'       bond_name = 'G53-07'    standard = '0.2'  measurement_value = '3' )
+  ( sep = 'C07 ####'  bond_name = 'DX-1106NB' standard = '0.3'  measurement_value = '3' )
+  ( sep = 'CG6+C08'       bond_name = 'YS-312RCG' standard = '0.33' measurement_value = '3' )
+  ( sep = 'C02+C10'       bond_name = 'SL-310LB'  standard = '0.45' measurement_value = '3' )
+  ( sep = 'C09 ####'  bond_name = 'G53-07'    standard = '0.15' measurement_value = '3' )
+  ( sep = 'CG4+C12'       bond_name = 'DX-1106NB' standard = '0.4'  measurement_value = '3' )
+  ( sep = 'C06 ####'  bond_name = 'YS-312RCG' standard = '0.32' measurement_value = '3' )
+  ( sep = 'C06+C12'       bond_name = 'YS-312RCG' standard = '0.32' measurement_value = '1' )
+  ( sep = 'CG8+C08'       bond_name = 'SL-310LB'  standard = '0.4'  measurement_value = '1' )
+  ( sep = 'C02+C06'       bond_name = 'YS-312RCG' standard = '0.32' measurement_value = '1' )
+  ( sep = 'CG8+C05'       bond_name = 'SL-310LB'  standard = '0.5'  measurement_value = '1' )
+  ( sep = 'C08+C10'       bond_name = 'G53-07'    standard = '0.15' measurement_value = '1' )
+  ( sep = 'C05+C10'       bond_name = 'G53-07'    standard = '0.15' measurement_value = '1' )
+  ( sep = 'C09+C10'       bond_name = 'SL-310LB'  standard = '0.1'  measurement_value = '1' )
+  ( sep = 'C05+CG9'       bond_name = 'SL-310LB'  standard = '0.8'  measurement_value = '1' )
+  ( sep = 'C10 ####'  bond_name = 'DX-1106NB' standard = '0.4'  measurement_value = '1' )
+  ( sep = 'C01+C03'       bond_name = 'YS-312RCG' standard = '0.25' measurement_value = '1' )
+  ( sep = 'CG2+C04'       bond_name = 'SL-310LB'  standard = '0.35' measurement_value = '2' )
+  ( sep = 'C03+C07'       bond_name = 'G53-07'    standard = '0.18' measurement_value = '2' )
+  ( sep = 'C06+CG5'       bond_name = 'DX-1106NB' standard = '0.45' measurement_value = '2' )
+  ( sep = 'C04+C11'       bond_name = 'YS-312RCG' standard = '0.3'  measurement_value = '2' )
+  ( sep = 'CG1+C08'       bond_name = 'SL-310LB'  standard = '0.5'  measurement_value = '2' )
+  ( sep = 'C07+C12'       bond_name = 'G53-07'    standard = '0.12' measurement_value = '2' )
+  ( sep = 'C02+CG4'       bond_name = 'DX-1106NB' standard = '0.38' measurement_value = '2' )
+  ( sep = 'C05 ####'  bond_name = 'YS-312RCG' standard = '0.4'  measurement_value = '2' )
+  ( sep = 'CG3+C09'       bond_name = 'SL-310LB'  standard = '0.28' measurement_value = '2' )
+  ( sep = 'C08+C11'       bond_name = 'G53-07'    standard = '0.15' measurement_value = '2' )
+  ( sep = 'C01+CG7'       bond_name = 'DX-1106NB' standard = '0.42' measurement_value = '2' )
+  ( sep = 'C04 ####'  bond_name = 'YS-312RCG' standard = '0.35' measurement_value = '3' )
+  ( sep = 'CG5+C10'       bond_name = 'SL-310LB'  standard = '0.6'  measurement_value = '3' )
+  ( sep = 'C03+C12'       bond_name = 'G53-07'    standard = '0.2'  measurement_value = '3' )
+  ( sep = 'C07 ####'  bond_name = 'DX-1106NB' standard = '0.3'  measurement_value = '3' )
+  ( sep = 'CG6+C08'       bond_name = 'YS-312RCG' standard = '0.33' measurement_value = '3' )
+  ( sep = 'C02+C10'       bond_name = 'SL-310LB'  standard = '0.45' measurement_value = '3' )
+  ( sep = 'C09 ####'  bond_name = 'G53-07'    standard = '0.15' measurement_value = '3' )
+  ( sep = 'CG4+C12'       bond_name = 'DX-1106NB' standard = '0.4'  measurement_value = '3' )
+  ( sep = 'C06 ####'  bond_name = 'YS-312RCG' standard = '0.32' measurement_value = '3' )
+).
+
+<font color ="#8C8C8C">*-- BOM3 - History</font>
+  gt_bom_history = VALUE #(
+    ( content = '##'                           datum = '2011-02-24' writer = '###' approver = '###' )
+    ( content = 'Hard Lock##(11D-041)'         datum = '2011-04-25' writer = '###' approver = '###' )
+    ( content = '#### ##(11H-007)'          datum = '2011-08-12' writer = '###' approver = '###' )
+    ( content = 'Box### ##(11L-024)'         datum = '2011-10-11' writer = '###' approver = '###' )
+    ( content = '####(11L-069)'              datum = '2011-10-25' writer = '###' approver = '###' )
+    ( content = '##### ##(13H-045)'        datum = '2013-08-21' writer = '###' approver = '###' )
+    ( content = 'F-61 ### ##(13N-035)'       datum = '2013-12-11' writer = '###' approver = '###' )
+    ( content = 'PRIMER##(19D-072)'            datum = '2019-04-16' writer = '###' approver = '###' )
+    ( content = '#####(19N-014)'             datum = '2019-12-10' writer = '###' approver = '###' )
+    ( content = '## ## ## ##(20A-005)'    datum = '2020-01-15' writer = '###' approver = '###' )
+    ( content = '## ## ## ##(20C-018)'    datum = '2020-03-22' writer = '###' approver = '###' )
+    ( content = '### ## ##(20F-031)'       datum = '2020-06-10' writer = '###' approver = '###' )
+    ( content = '##### ##(20H-012)'        datum = '2020-08-05' writer = '###' approver = '###' )
+    ( content = '### ### ##(20K-044)'     datum = '2020-11-18' writer = '###' approver = '###' )
+    ( content = '#### ##(21B-003)'          datum = '2021-02-09' writer = '###' approver = '###' )
+    ( content = '##### ## ##(21E-027)'    datum = '2021-05-14' writer = '###' approver = '###' )
+    ( content = '## ## #### ##(21G-051)' datum = '2021-07-20' writer = '###' approver = '###' )
+    ( content = '### ### ##(21I-019)'     datum = '2021-09-08' writer = '###' approver = '###' )
+    ( content = '### #### ##(21L-008)'   datum = '2021-12-01' writer = '###' approver = '###' )
+    ( content = '#### ### ##(22B-011)'   datum = '2022-02-17' writer = '###' approver = '###' )
+    ( content = '## ##(22D-039)'              datum = '2022-04-25' writer = '###' approver = '###' )
+    ( content = '### ### ##(22G-022)'     datum = '2022-07-11' writer = '###' approver = '###' )
+    ( content = '## ## ## ##(22I-005)'    datum = '2022-09-30' writer = '###' approver = '###' )
+    ( content = '## ### ##(22N-041)'       datum = '2022-11-15' writer = '###' approver = '###' )
+    ( content = '### ### ##(23A-012)'     datum = '2023-01-20' writer = '###' approver = '###' )
+    ( content = '### ## ## ##(23D-028)'   datum = '2023-04-18' writer = '###' approver = '###' )
+    ( content = '## #### ##(23G-009)'     datum = '2023-07-05' writer = '###' approver = '###' )
+    ( content = '### ## ##(23J-033)'       datum = '2023-10-12' writer = '###' approver = '###' )
+    ( content = '## ## ##(23L-017)'         datum = '2023-12-04' writer = '###' approver = '###' )
+    ( content = '## ### ##(24B-002)'       datum = '2024-02-21' writer = '###' approver = '###' )
+  ).
+
+<font color ="#8C8C8C">*-- Item Code</font>
+  gt_item_code = VALUE #(
+    ( knowhow_bank = 'KB-2026-001' date = '2026-08-01' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-002' date = '2026-08-01' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-003' date = '2026-08-02' check = 'N' )
+    ( knowhow_bank = 'KB-2026-004' date = '2026-08-02' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-005' date = '2026-08-03' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-006' date = '2026-08-03' check = 'N' )
+    ( knowhow_bank = 'KB-2026-007' date = '2026-08-04' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-008' date = '2026-08-04' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-009' date = '2026-08-05' check = 'N' )
+    ( knowhow_bank = 'KB-2026-010' date = '2026-08-05' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-011' date = '2026-08-06' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-012' date = '2026-08-06' check = 'N' )
+    ( knowhow_bank = 'KB-2026-013' date = '2026-08-07' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-014' date = '2026-08-07' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-015' date = '2026-08-08' check = 'N' )
+    ( knowhow_bank = 'KB-2026-016' date = '2026-08-08' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-017' date = '2026-08-09' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-018' date = '2026-08-09' check = 'N' )
+    ( knowhow_bank = 'KB-2026-019' date = '2026-08-10' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-020' date = '2026-08-10' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-021' date = '2026-08-11' check = 'N' )
+    ( knowhow_bank = 'KB-2026-022' date = '2026-08-11' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-023' date = '2026-08-12' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-024' date = '2026-08-12' check = 'N' )
+    ( knowhow_bank = 'KB-2026-025' date = '2026-08-13' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-026' date = '2026-08-13' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-027' date = '2026-08-14' check = 'N' )
+    ( knowhow_bank = 'KB-2026-028' date = '2026-08-14' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-029' date = '2026-08-15' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-030' date = '2026-08-15' check = 'N' )
+    ( knowhow_bank = 'KB-2026-031' date = '2026-08-16' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-032' date = '2026-08-16' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-033' date = '2026-08-17' check = 'N' )
+    ( knowhow_bank = 'KB-2026-034' date = '2026-08-17' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-035' date = '2026-08-18' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-036' date = '2026-08-18' check = 'N' )
+    ( knowhow_bank = 'KB-2026-037' date = '2026-08-19' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-038' date = '2026-08-19' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-039' date = '2026-08-20' check = 'N' )
+    ( knowhow_bank = 'KB-2026-040' date = '2026-08-20' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-041' date = '2026-08-21' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-042' date = '2026-08-21' check = 'N' )
+    ( knowhow_bank = 'KB-2026-043' date = '2026-08-22' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-044' date = '2026-08-22' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-045' date = '2026-08-23' check = 'N' )
+    ( knowhow_bank = 'KB-2026-046' date = '2026-08-23' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-047' date = '2026-08-24' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-048' date = '2026-08-24' check = 'N' )
+    ( knowhow_bank = 'KB-2026-049' date = '2026-08-25' check = 'Y' )
+    ( knowhow_bank = 'KB-2026-050' date = '2026-08-25' check = 'Y' )
+  ).
+
+<font color ="#8C8C8C">*-- Screw</font>
+  gt_screw = VALUE #(
+    ( routing_n = '### ## 1##' criteria = 'Torque 2.5Nm ±0.2' in_use = '2.51Nm'   check_man = '###' )
+    ( routing_n = '### ## 2##' criteria = 'Torque 3.0Nm ±0.3' in_use = '3.02Nm'   check_man = '###' )
+    ( routing_n = '## # ## ##' criteria = '## #### ##' in_use = '##'     check_man = '###' )
+    ( routing_n = '## ## ###' criteria = 'Torque 2.5Nm ±0.2' in_use = '2.48Nm'   check_man = '###' )
+    ( routing_n = '## ## ##'   criteria = '## ## 4EA'     in_use = '4EA ##' check_man = '###' )
+  ).
+
+<font color ="#8C8C8C">*-- Soldering</font>
+  gt_soldering = VALUE #(
+    ( routing_n = '1## (SMD)'   temperature = '350°C' check_man = '###' )
+    ( routing_n = '2## (DIP)'   temperature = '360°C' check_man = '###' )
+    ( routing_n = '### ###'      temperature = '345°C' check_man = '###' )
+    ( routing_n = '## ## ####' temperature = '350°C' check_man = '###' )
+  ).
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_header_data</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000008"></div>
+FORM set_header_data.
+
+  DATA : lv_row    TYPE i,
+         lv_col    TYPE i,
+         lv_string TYPE string.
+  FIELD-SYMBOLS : &ltfs_field&gt TYPE any.
+
+  " A B C D E F G H I J   K  L  M  N  O  P  Q  R  S  T  U  V  W  X  Y  Z AA AB AC AD AE AF AG AH AI AJ AK AL AM AN AO AP AQ AR AS AT AU AV AW AX AY AZ
+  " 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52
+
+  " BA BB BC BD BE BF BG BH BI BJ BK BL BM BN BO BP BQ BR BS BT BU BV BW BX BY BZ
+  " 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78
+  PERFORM <a href="#000000000009">fill_cells</a> USING 5  6  gs_header-model_name_h.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 5  17 gs_header-part_no.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 6  17 gs_header-line.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 6  21 gs_header-line_date.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 5  26 gs_header-first_time.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 6  26 gs_header-second_time.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 9  11 gs_header-frame_bonding_method.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 10 11 gs_header-self_circuit_assembly_method.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 11 11 gs_header-congee_eyelet_location.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 12 11 gs_header-stamp_number.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 13 11 gs_header-wire_forming_point.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 14 11 gs_header-self_assembly.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 15 11 gs_header-and_so_on.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 9  23 gs_header-frame.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 10 23 gs_header-danza.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 11 23 gs_header-center.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 12 23 gs_header-vc_insertion_point.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 13 23 gs_header-vc_insertion_stand.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 14 23 gs_header-apply_adhesive.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 15 23 gs_header-model_name.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 5  36 gs_header-job_no.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 6  36 gs_header-final_production_date.
+  CLEAR lv_string.
+  lv_string =  |# Job No. ({ gs_header-job_no_prev })# ### ## LOT #|.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 8  32 lv_string.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 12 36 gs_header-hexsan.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 14 36 gs_header-alchol.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 15 36 gs_header-saksan.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 16 36 gs_header-toluen.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 12 37 gs_header-check_man.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 14 37 gs_header-check_man.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 15 37 gs_header-check_man.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 16 37 gs_header-check_man.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 5  39 gs_header-current_radius_no.
+  PERFORM <a href="#000000000009">fill_cells</a> USING 8  48 gs_header-stamp_no.
+<font color ="#8C8C8C">*  PERFORM fill_cells USING 8  65 gs_header-check_label.</font>
+<font color ="#8C8C8C">*  PERFORM fill_cells USING</font>
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form fill_cells</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt LV_ROW</font>
+<font color ="#8C8C8C">*&      --&gt LV_COL</font>
+<font color ="#8C8C8C">*&      --&gt GS_HEADER_MODEL_NAME_H</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000009"></div>
+FORM fill_cells USING pv_row pv_col pv_value.
+
+  CALL METHOD OF gs_excel 'CELLS' = gs_cell
+    EXPORTING
+      #1 = pv_row
+      #2 = pv_col.
+
+  SET PROPERTY OF gs_cell 'VALUE' = pv_value NO FLUSH.
+
+
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form download_excel</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000010"></div>
+FORM download_excel .
+
+  DATA : ls_window TYPE obj_record,
+         ls_range  TYPE obj_record.
+
+  SET PROPERTY OF gs_excel 'DisplayAlerts' = 0.
+
+<font color ="#8C8C8C">* ## # ## ## A1 ## -&gt ## ## ## ##</font>
+  " # ## ##### A1 # ## (## ##/## ## ##)
+  GET PROPERTY OF gs_workbook 'WORKSHEETS' = gs_worksheet EXPORTING #1 = 1.
+  GET PROPERTY OF gs_worksheet 'RANGE' = ls_range EXPORTING #1 = 'A1'.
+  CALL METHOD OF ls_range 'SELECT'.
+  FREE OBJECT ls_range.
+
+  " ## ### ## ### ## # ### ### ###(1#, A#)## ##
+  GET PROPERTY OF gs_excel 'ACTIVEWINDOW' = ls_window.
+  SET PROPERTY OF ls_window 'VIEW'         = 1. " 1 = xlNormalView (## ##), 2 = xlPageBreakPreview (### ### ####)
+  SET PROPERTY OF ls_window 'SCROLLROW'    = 1. " ### # #(1#)
+  SET PROPERTY OF ls_window 'SCROLLCOLUMN' = 1. " ### # ##(A#)
+  FREE OBJECT ls_window.
+
+  " SAVE ## SAVEAS# #### ## ##
+  CALL METHOD OF gs_workbook 'SAVEAS'
+    EXPORTING
+      #1 = gv_file  " ## ## ##
+      #2 = 56.      " 56 = xlExcel8 (.xls) / 51 = xlOpenXMLWorkbook (.xlsx)
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------</font>
+<font color ="#8C8C8C">* ## ##</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*  DATA : ls_dialog TYPE obj_record.</font>
+  SET PROPERTY OF gs_excel 'DisplayAlerts' = 1.     " ##/## ###
+  SET PROPERTY OF gs_excel 'Visible' = 1.
+  SET PROPERTY OF gs_excel 'WindowState'   = -4137. " # ### (-4137 = xlMaximized, SAP ## ## ## ##)
+  CALL METHOD OF gs_activesheet 'PrintPreview'.
+  " ## ## ##(### ##)# #### ## ###:
+  " CALL METHOD OF gs_workbook 'PrintPreview'.
+<font color ="#8C8C8C">* 3. # ## ####(xlDialogPrint = 8) ## ### #</font>
+<font color ="#8C8C8C">*  CALL METHOD OF gs_excel 'DIALOGS' = ls_dialog EXPORTING #1 = 8.</font>
+<font color ="#8C8C8C">*  CALL METHOD OF ls_dialog 'SHOW'.</font>
+<font color ="#8C8C8C">*  FREE OBJECT ls_dialog.</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------</font>
+
+  SET PROPERTY OF gs_workbook 'SAVED' = 1.
+  CALL METHOD OF gs_workbook 'CLOSE' EXPORTING #1 = 0.
+  CALL METHOD OF gs_excel 'QUIT'.
+  PERFORM <a href="#000000000005">free_object</a>.
+  CALL FUNCTION 'CONTROL_FLUSH'.
+<font color ="#8C8C8C">*  CALL METHOD OF gs_workbook 'SAVE'.</font>
+<font color ="#8C8C8C">*  PERFORM free_object.</font>
+<font color ="#8C8C8C">*  CALL FUNCTION 'CONTROL_FLUSH'.</font>
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_bom1_data</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000011"></div>
+FORM set_bom1_data USING pv_start pv_from.
+
+  DATA : lv_row    TYPE i VALUE 18,
+         lv_col    TYPE i VALUE 3,
+         lv_deli,
+         lv_target TYPE string.
+
+  DATA : ls_range    TYPE obj_record,
+         ls_interior TYPE obj_record,
+         lv_color    TYPE i VALUE 14277081.
+
+  FIELD-SYMBOLS : &ltfs_field&gt TYPE any.
+
+<font color ="#8C8C8C">* excel # ###(#)</font>
+  lv_deli = cl_abap_char_utilities=&gthorizontal_tab.
+
+
+  " A B C D E F G H I J   K  L  M  N  O  P  Q  R  S  T  U  V  W  X  Y  Z AA AB AC AD AE AF AG AH AI AJ AK AL AM AN AO AP AQ AR AS AT AU AV AW AX AY AZ
+  " 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52
+
+  " BA BB BC BD BE BF BG BH BI BJ BK BL BM BN BO BP BQ BR BS BT BU BV BW BX BY BZ
+  " 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78
+
+  lv_row = pv_start.
+  LOOP AT gt_bom_compo ASSIGNING FIELD-SYMBOL(&ltfs_compo&gt) FROM pv_from TO pv_from + 29.
+
+    IF sy-tabix MOD 2 = 0.
+      lv_target = |C{ lv_row }:AH{ lv_row }|.
+      CALL METHOD OF gs_excel 'RANGE'  = ls_range
+        EXPORTING
+         #1 = lv_target.
+
+      GET PROPERTY OF ls_range 'INTERIOR' = ls_interior.
+      SET PROPERTY OF ls_interior 'COLOR'    = lv_color.
+
+      FREE OBJECT: ls_interior, ls_range.
+    ENDIF.
+
+    " # ## #### TAB(lv_deli)# ## # ##
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 3  &ltfs_compo&gt-no.        " C# (NO)
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 5  &ltfs_compo&gt-item.      " E# (Item)
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 12 &ltfs_compo&gt-item_ref.  " L# (## Item)
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 16 &ltfs_compo&gt-item_name. " P# (##)
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 21 &ltfs_compo&gt-menge.     " U# (##)
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 24 &ltfs_compo&gt-part_name. " X# (## ## #)
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 30 &ltfs_compo&gt-lot_no.    " AD# (Lot No.)
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 34 &ltfs_compo&gt-check_man. " AH# (### ##)
+
+    lv_row += 1.
+
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form fill_excel_multi_page</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000012"></div>
+FORM create_excel_multi_page USING pv_count.
+
+  DATA : lv_string TYPE string.
+
+  DATA : ls_range  TYPE obj_record,
+         ls_target TYPE obj_record.
+
+  DATA : lv_page_height TYPE i VALUE 76,  " 1# ### ## ## # #
+         lv_target_row  TYPE i.
+
+  " 2### ## # ## ## - ## ##(76) * # ## + 1
+  lv_target_row = gc_lines_page * pv_count + 1.
+
+  lv_string = |1:{ gc_lines_page }|.
+  CALL METHOD OF gs_excel 'ROWS' = ls_range
+      EXPORTING #1 = lv_string.
+  CALL METHOD OF ls_range 'COPY'.
+
+  " 2### ## ##(A76) ## # ####
+  lv_string = |{ lv_target_row }|.
+  CALL METHOD OF gs_excel 'ROWS' = ls_target
+    EXPORTING #1 = lv_string.
+
+  " #### # ##(SELECT) ##
+  CALL METHOD OF ls_target 'SELECT'.
+  CALL METHOD OF gs_activesheet 'PASTE'.
+
+  " ## ## ###(##) ## # ### ##
+  SET PROPERTY OF gs_excel 'CUTCOPYMODE' = 0.
+  FREE OBJECT: ls_range, ls_target.
+
+  CALL FUNCTION 'CONTROL_FLUSH'.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_layout_properties</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000013"></div>
+FORM set_layout_properties USING pv_max_page.
+
+  DATA : ls_hpbreaks TYPE obj_record,
+         ls_range    TYPE obj_record.
+
+  DATA : lv_string     TYPE string,
+         lv_page_idx   TYPE i,
+         lv_break_row  TYPE i,
+         lv_last_row   TYPE i,
+         lv_print_area TYPE string.
+
+<font color ="#8C8C8C">*-- PDF ### ## # Excel ## #### ## ##</font>
+  " ### ## ## ####
+  " # ## Worksheet ####
+  GET PROPERTY OF gs_workbook 'WORKSHEETS' = gs_worksheet EXPORTING #1 = 1.
+  GET PROPERTY OF gs_worksheet 'PAGESETUP' = gs_pagesetup.
+  SET PROPERTY OF gs_pagesetup 'ORIENTATION' = 2.                           " 2 = Landscape, 1 = Portrait
+
+  SET PROPERTY OF gs_pagesetup 'TOPMARGIN'    = '10'. " ## ## ##
+  SET PROPERTY OF gs_pagesetup 'BOTTOMMARGIN' = '10'. " ## ## ##
+  SET PROPERTY OF gs_pagesetup 'LEFTMARGIN'   = '14.2'. " ## ## ##
+  SET PROPERTY OF gs_pagesetup 'RIGHTMARGIN'  = '14.2'. " ## ## ##
+  SET PROPERTY OF gs_pagesetup 'CENTERVERTICALLY' = 1. " ## ## ## ##
+  SET PROPERTY OF gs_pagesetup 'HEADERMARGIN' = '0'.
+  SET PROPERTY OF gs_pagesetup 'FOOTERMARGIN' = '0'.
+<font color ="#8C8C8C">*  GET PROPERTY OF gs_excel 'WORKBOOKS' = gs_workbook EXPORTING #1 = 1.</font>
+<font color ="#8C8C8C">*  SET PROPERTY OF gs_pagesetup 'PAPERSIZE' = 9.                             " 9-&gtA4, 8-&gtA3... ##</font>
+<font color ="#8C8C8C">*  SET PROPERTY OF gs_pagesetup 'ZOOM' = 0.</font>
+<font color ="#8C8C8C">*  SET PROPERTY OF gs_pagesetup 'FITTOPAGESWIDE' = 1.</font>
+<font color ="#8C8C8C">*  SET PROPERTY OF gs_pagesetup 'FITTOPAGESTALL' = pv_max_page.</font>
+
+  " ## ##/## ### ### ## ###
+  CALL METHOD OF gs_worksheet 'RESETALLPAGEBREAKS'.
+  " ## 76# ### ## ### ###(77#, 153#...) ## ##
+  GET PROPERTY OF gs_worksheet 'HPAGEBREAKS' = ls_hpbreaks.
+
+<font color ="#8C8C8C">*-- Print ## ###</font>
+  lv_last_row = pv_max_page * 76.
+  lv_print_area = |1:{ lv_last_row }|. " #: '1:228'
+  SET PROPERTY OF gs_pagesetup 'PRINTAREA' = lv_print_area.
+
+  " ## ## ### ### ## ###
+  CALL METHOD OF gs_worksheet 'RESETALLPAGEBREAKS'.
+
+  " ## ### ### ## ## (2###~###### ###: 77#, 153#...)
+  " (### ### ### Break# #### ## PRINTAREA## ##)
+  GET PROPERTY OF gs_worksheet 'HPAGEBREAKS' = ls_hpbreaks.
+
+  lv_page_idx = 2.
+  WHILE lv_page_idx &lt= pv_max_page.
+    lv_break_row = ( ( lv_page_idx - 1 ) * 76 ) + 1. " 77#, 153#...
+
+    GET PROPERTY OF gs_worksheet 'ROWS' = ls_range EXPORTING #1 = lv_break_row.
+    CALL METHOD OF ls_hpbreaks 'ADD' EXPORTING #1 = ls_range.
+    FREE OBJECT ls_range.
+
+    lv_page_idx = lv_page_idx + 1.
+  ENDWHILE.
+  FREE OBJECT ls_hpbreaks.
+
+<font color ="#8C8C8C">*-- Page ###</font>
+<font color ="#8C8C8C">*  lv_page_idx = 2.</font>
+<font color ="#8C8C8C">*  WHILE lv_page_idx &lt= pv_max_page.</font>
+<font color ="#8C8C8C">*    lv_break_row = ( ( lv_page_idx - 1 ) * 76 ) + 1. " 2### ###: 77#, 3### ###: 153#...</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*    GET PROPERTY OF gs_worksheet 'ROWS' = ls_range EXPORTING #1 = lv_break_row.</font>
+<font color ="#8C8C8C">*    CALL METHOD OF ls_hpbreaks 'ADD' EXPORTING #1 = ls_range.</font>
+<font color ="#8C8C8C">*    FREE OBJECT ls_range.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*    lv_page_idx = lv_page_idx + 1.</font>
+<font color ="#8C8C8C">*  ENDWHILE.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*  " ### #### ## # # ##</font>
+<font color ="#8C8C8C">*  lv_break_row = ( pv_max_page * 76 ) + 1.</font>
+<font color ="#8C8C8C">*  GET PROPERTY OF gs_worksheet 'ROWS' = ls_range EXPORTING #1 = lv_break_row.</font>
+<font color ="#8C8C8C">*  CALL METHOD OF ls_hpbreaks 'ADD' EXPORTING #1 = ls_range.</font>
+<font color ="#8C8C8C">*  FREE OBJECT ls_range.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*  FREE OBJECT ls_hpbreaks.</font>
+
+<font color ="#8C8C8C">* FitToPagesWidth, FitToPagesTall# ## {1,0}## ### # ## ## ##### ##</font>
+<font color ="#8C8C8C">*-- 0# ## ### -&gt Automation</font>
+  lv_string = |PAGE.SETUP(,,,,,,,,,,,,\{1,\}|.
+  CALL METHOD OF gs_excel 'EXECUTEEXCEL4MACRO'
+    EXPORTING
+<font color ="#8C8C8C">*     #1 = lv_string.</font>
+      #1 = 'PAGE.SETUP(,,,,,,,,,,,,{1,0})'.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_bom2_data</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt LV_TMP</font>
+<font color ="#8C8C8C">*&      --&gt LV_START</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000014"></div>
+FORM set_bom2_data USING pv_start
+                         pv_from.
+
+  DATA : lv_row    TYPE i,
+         lv_col    TYPE i VALUE 3,
+         lv_deli,
+         lv_tabix  TYPE sy-tabix,
+         lv_target TYPE string.
+
+  FIELD-SYMBOLS : &ltfs_field&gt TYPE any.
+
+  " A B C D E F G H I J   K  L  M  N  O  P  Q  R  S  T  U  V  W  X  Y  Z AA AB AC AD AE AF AG AH AI AJ AK AL AM AN AO AP AQ AR AS AT AU AV AW AX AY AZ
+  " 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52
+
+  " BA BB BC BD BE BF BG BH BI BJ BK BL BM BN BO BP BQ BR BS BT BU BV BW BX BY BZ
+  " 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78
+
+  lv_row = pv_start.
+  LOOP AT gt_bom_bond ASSIGNING FIELD-SYMBOL(&ltfs_bond&gt) FROM pv_from TO pv_from + 17.
+
+    lv_tabix = sy-tabix.
+
+    " # ## #### TAB(lv_deli)# ## # ##
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 3  lv_tabix.                    " C# (NO)
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 4  &ltfs_bond&gt-sep.               " D# (##)
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 10 &ltfs_bond&gt-bond_name.         " J# (####)
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 13 &ltfs_bond&gt-standard.          " M# (##(g))
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 15 &ltfs_bond&gt-measurement_value. " O# (###)
+
+    " ## # 10##### 2# ###...
+    IF lv_row MOD 76 &gt= 61 AND
+       lv_row MOD 76 &lt 67.
+      lv_row += 2.
+    ELSE.
+      lv_row += 1.
+    ENDIF.
+
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_bom3_data</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt LV_TMP</font>
+<font color ="#8C8C8C">*&      --&gt LV_START</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000015"></div>
+FORM set_bom3_data USING pv_start
+                         pv_from.
+
+  DATA : lv_row    TYPE i,
+         lv_col    TYPE i VALUE 3,
+         lv_deli,
+         lv_tabix  TYPE sy-tabix,
+         lv_target TYPE string.
+
+  FIELD-SYMBOLS : &ltfs_field&gt TYPE any.
+
+  " A B C D E F G H I J   K  L  M  N  O  P  Q  R  S  T  U  V  W  X  Y  Z AA AB AC AD AE AF AG AH AI AJ AK AL AM AN AO AP AQ AR AS AT AU AV AW AX AY AZ
+  " 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52
+
+  " BA BB BC BD BE BF BG BH BI BJ BK BL BM BN BO BP BQ BR BS BT BU BV BW BX BY BZ
+  " 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78
+  lv_row = pv_start.
+  LOOP AT gt_bom_history ASSIGNING FIELD-SYMBOL(&ltfs_history&gt) FROM pv_from TO pv_from + 17.
+
+    lv_tabix = sy-tabix.
+
+    " # ## #### TAB(lv_deli)# ## # ##
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 18  lv_tabix.             " R# (NO)
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 19 &ltfs_history&gt-content.  " S# (##)
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 25 &ltfs_history&gt-datum.    " Y# (Date)
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 28 &ltfs_history&gt-writer.   " AB# (###)
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 29 &ltfs_history&gt-approver. " AC# (###)
+
+    " ## # 10##### 2# ###...
+    IF lv_row MOD 76 &gt= 61 AND
+       lv_row MOD 76 &lt 67.
+      lv_row += 2.
+    ELSE.
+      lv_row += 1.
+    ENDIF.
+
+  ENDLOOP.
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_itemcode_data</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt LV_TMP</font>
+<font color ="#8C8C8C">*&      --&gt LV_START</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000016"></div>
+FORM set_itemcode_data USING pv_start
+                             pv_from.
+
+  DATA : lv_row TYPE i.
+
+  " A B C D E F G H I J   K  L  M  N  O  P  Q  R  S  T  U  V  W  X  Y  Z AA AB AC AD AE AF AG AH AI AJ AK AL AM AN AO AP AQ AR AS AT AU AV AW AX AY AZ
+  " 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52
+
+  " BA BB BC BD BE BF BG BH BI BJ BK BL BM BN BO BP BQ BR BS BT BU BV BW BX BY BZ
+  " 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78
+
+  lv_row = pv_start.
+  LOOP AT gt_item_code ASSIGNING FIELD-SYMBOL(&ltfs_code&gt) FROM pv_from TO pv_from + 29..
+
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 38 &ltfs_code&gt-knowhow_bank.
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 61 &ltfs_code&gt-date.
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 68 &ltfs_code&gt-check.
+
+    lv_row += 1.
+
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_screw</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000017"></div>
+FORM set_screw .
+
+  DATA : lv_row TYPE i.
+
+  " A B C D E F G H I J   K  L  M  N  O  P  Q  R  S  T  U  V  W  X  Y  Z AA AB AC AD AE AF AG AH AI AJ AK AL AM AN AO AP AQ AR AS AT AU AV AW AX AY AZ
+  " 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52
+
+  " BA BB BC BD BE BF BG BH BI BJ BK BL BM BN BO BP BQ BR BS BT BU BV BW BX BY BZ
+  " 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78
+  lv_row = 52.
+  LOOP AT gt_screw ASSIGNING FIELD-SYMBOL(&ltfs_screw&gt).
+
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 31 &ltfs_screw&gt-routing_n.
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 37 &ltfs_screw&gt-criteria.
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 40 &ltfs_screw&gt-in_use.
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 46 &ltfs_screw&gt-check_man.
+
+    lv_row += 1.
+
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_temperature</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000018"></div>
+FORM set_soldering .
+
+  DATA : lv_row    TYPE i,
+         lv_string TYPE string.
+
+  " A B C D E F G H I J   K  L  M  N  O  P  Q  R  S  T  U  V  W  X  Y  Z AA AB AC AD AE AF AG AH AI AJ AK AL AM AN AO AP AQ AR AS AT AU AV AW AX AY AZ
+  " 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52
+
+  " BA BB BC BD BE BF BG BH BI BJ BK BL BM BN BO BP BQ BR BS BT BU BV BW BX BY BZ
+  " 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78
+  lv_row = 52.
+  LOOP AT gt_soldering ASSIGNING FIELD-SYMBOL(&ltfs_soldering&gt).
+
+    lv_string = |{ &ltfs_soldering&gt-routing_n } ##|.
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 50 lv_string.
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 57 &ltfs_soldering&gt-temperature.
+    PERFORM <a href="#000000000009">fill_cells</a> USING lv_row 67 &ltfs_soldering&gt-check_man.
+
+    lv_row += 1.
+
+  ENDLOOP.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

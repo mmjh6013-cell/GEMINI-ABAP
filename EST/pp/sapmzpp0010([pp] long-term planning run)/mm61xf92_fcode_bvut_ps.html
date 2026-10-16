@@ -1,0 +1,123 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF92_FCODE_BVUT_PS</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF92_FCODE_BVUT_PS</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* FCODE: Bestellvorschlag umterminieren</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000451"></div>
+FORM fcode_bvut_ps.
+  DATA: lv_delkz         LIKE mdps-delkz,
+        lv_found         TYPE bool,
+        lv_selected_line LIKE sy-tabix.
+
+<font color ="#8C8C8C">*--&gt Bestellvorschlag ermitteln</font>
+  PERFORM pick_up_ez
+          USING     char1
+          CHANGING  lv_selected_line lv_found.
+  CHECK lv_found = gc_true.
+
+<font color ="#8C8C8C">*--&gt Bestellvorschlag in MDPS uebernehmen</font>
+  MOVE mdpsx TO mdps.
+<font color ="#8C8C8C">*--&gt Setzen Verarbeitungskennzeichen</font>
+  MOVE vstatv      TO am61x-vstat.
+  MOVE mdezx-delkz TO lv_delkz.
+<font color ="#8C8C8C">*--&gt Kontrollcheck Datum Null</font>
+  IF mdpsx-umdat EQ 0.
+    MOVE space TO mdpsx-umdat.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Umterminierungstermin</font>
+  IF  mdpsx-ukz01 NE space
+  AND mdpsx-umdat NE space.
+    MOVE mdpsx-umdat TO rm61x-umdat.
+  ELSE.
+    CLEAR rm61x-umdat.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Umterminierungstermin ermitteln</font>
+  PERFORM check_umdat_bv.
+  IF rm61x-umdat IS INITIAL.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Termine verschieben</font>
+  PERFORM <a href ="javascript:Link('MM61XF80_SHIFT_TERMINE_MDPS.html?id=#000000000379');">shift_termine_mdps</a> USING lv_delkz.
+<font color ="#8C8C8C">*--&gt Reset Umterminierungstermin</font>
+  CLEAR rm61x-umdat.
+<font color ="#8C8C8C">*--&gt Pruefen Aenderung</font>
+  IF mdps EQ mdpss.
+    MESSAGE s574.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Element fixieren (ausser in LFP und bei Umlagerungsres.)</font>
+  IF cm61x-plscn IS INITIAL.
+    IF mdps-delkz NE umres.
+      mdps-fix01 = xflag.
+    ENDIF.
+<font color ="#8C8C8C">*    Bei BANF/LPEIN Fixierung Auftrag plus Komponenten           "45B</font>
+    IF mdps-delkz EQ bsanf                                  "45B
+    OR mdps-delkz EQ lpein.                                 "45B
+      mdps-fix02 = xflag.                                   "45B
+    ENDIF.                                                  "45B
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Zeile in MPXX/PLKVS schreiben (alte Werte)                 "45B</font>
+  PERFORM put_mdpsx_mpsview.
+<font color ="#8C8C8C">*--&gt Neue Termine/Fix-KZ in MPXX für PLKVA                      "45B</font>
+  PERFORM termin_update_mpxx.                               "45B
+<font color ="#8C8C8C">* &gt&gt&gt&gt&gt&gt MOD 46A : HW 140661 &lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt</font>
+<font color ="#8C8C8C">*--&gt Prüfung Kapafixierung -&gt Ausplanen</font>
+  IF mdps-delkz EQ plauf                                    "46A
+  AND NOT mdps-kapfx IS INITIAL.                            "46A
+    CALL FUNCTION 'POPUP_TO_DECIDE'
+         EXPORTING
+              defaultoption = '1'
+              textline1     = text-b06
+              textline2     = text-b07
+              textline3     = text-b08
+              text_option1  = text-b09
+              text_option2  = text-b10
+              titel         = text-b11
+              start_column  = 25
+              start_row     = 6
+         IMPORTING
+              answer        = am61x-flg01.
+<font color ="#8C8C8C">*--&gt Restaurieren</font>
+    IF am61x-flg01 NE '1'.
+      MOVE-CORRESPONDING mdpss TO mdpsx.
+      PERFORM put_mdpsx_mdezx.
+      EXIT.
+    ENDIF.
+    PERFORM ausplanen_mppa.
+    CLEAR mdps-kapfx.
+  ENDIF.
+<font color ="#8C8C8C">* &gt&gt&gt&gt&gt&gt MOD 46A : HW 140661 &lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt</font>
+<font color ="#8C8C8C">*--&gt Check auf Änderungen                                       "45B</font>
+  PERFORM check_aenderung_mdps.
+  CLEAR mdst-kzatp.
+  CLEAR mdst-kzumt.
+  MESSAGE s573.
+<font color ="#8C8C8C">*--&gt MDEZX erneuern</font>
+  PERFORM put_mdpsx_mdezx.
+<font color ="#8C8C8C">*--&gt Aufsetzen in Anzeige ermitteln</font>
+  PERFORM set_mdez_position_02.
+<font color ="#8C8C8C">*--&gt Falls grosser Kopf sitzt, Daten an LM61K abschicken</font>
+<font color ="#8C8C8C">*   (insbes. wg. Bestands- und Zugangsreichweite)</font>
+  IF mdst-groko = gc_true.
+    PERFORM <a href ="javascript:Link('MM61XF57_MDSTA_AUFBAUEN.html?id=#000000000321');">mdsta_aufbauen</a>.
+    PERFORM <a href ="javascript:Link('MM61XDYN_GROKO_DATA_SEND_COMP.html?id=#000000000150');">groko_data_send_comp</a>.
+  ENDIF.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

@@ -1,0 +1,171 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZMM_SET_EXCEL_TO_ITAB</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZMM_SET_EXCEL_TO_ITAB</b></font>
+<hr>
+<pre width="100">
+FUNCTION ZMM_SET_EXCEL_TO_ITAB.
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*"*"Local Interface:</font>
+<font color ="#8C8C8C">*"  IMPORTING</font>
+<font color ="#8C8C8C">*"     REFERENCE(FILENAME) TYPE  RLGRAP-FILENAME</font>
+<font color ="#8C8C8C">*"     REFERENCE(I_BEGIN_COL) TYPE  I</font>
+<font color ="#8C8C8C">*"     REFERENCE(I_BEGIN_ROW) TYPE  I</font>
+<font color ="#8C8C8C">*"     REFERENCE(I_END_COL) TYPE  I</font>
+<font color ="#8C8C8C">*"     REFERENCE(I_END_ROW) TYPE  I</font>
+<font color ="#8C8C8C">*"  TABLES</font>
+<font color ="#8C8C8C">*"      ET_TAB TYPE  STANDARD TABLE</font>
+<font color ="#8C8C8C">*"      IT_CHECK_LIST STRUCTURE  ZMMS9000 OPTIONAL</font>
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+
+<font color ="#8C8C8C">*       <a href ="global-zmm_set_excel_to_itab.html">Global data declarations</a></font>
+  DATA: LR_LINE  TYPE REF TO DATA,
+        LT_ROW   LIKE TABLE OF ZCMS0020,
+        LV_FIELD TYPE STRING.
+
+  FIELD-SYMBOLS: &ltLS_EXCEL&gt TYPE ANY,
+                 &ltFV_VALUE&gt TYPE ANY.
+
+  CALL FUNCTION <a href ="../zcm_excel_to_internal_table/zcm_excel_to_internal_table.html">'ZCM_EXCEL_TO_INTERNAL_TABLE'</a>
+    EXPORTING
+      FILENAME                = FILENAME
+      I_BEGIN_COL             = I_BEGIN_COL
+      I_BEGIN_ROW             = I_BEGIN_ROW
+      I_END_COL               = I_END_COL
+      I_END_ROW               = I_END_ROW
+    TABLES
+      INTERN                  = LT_ROW
+    EXCEPTIONS
+      INCONSISTENT_PARAMETERS = 1
+      UPLOAD_OLE              = 2
+      OTHERS                  = 3.
+
+  IF SY-SUBRC &lt&gt 0.
+    "Can't read the file.
+    MESSAGE S000(ZMMM) WITH TEXT-E02 DISPLAY LIKE 'E'.
+    EXIT.
+
+  ENDIF.
+
+  IF LT_ROW IS INITIAL.
+    "There is no Data
+    MESSAGE S004(ZMMM) DISPLAY LIKE 'E'.
+    EXIT.
+
+  ENDIF.
+
+  " 1. #### ## #### ## ### ### ### ## ##
+  CREATE DATA LR_LINE LIKE ET_TAB.
+  ASSIGN LR_LINE-&gt* TO &ltLS_EXCEL&gt.
+
+  CHECK &ltLS_EXCEL&gt IS ASSIGNED.
+
+  DATA(LO_STRUCT) = CAST CL_ABAP_STRUCTDESCR( CL_ABAP_TYPEDESCR=&gtDESCRIBE_BY_DATA( &ltLS_EXCEL&gt ) ).
+  SORT IT_CHECK_LIST[] BY FIELD.
+
+  LOOP AT LT_ROW ASSIGNING FIELD-SYMBOL(&ltLS_RAW&gt).
+    ASSIGN COMPONENT &ltLS_RAW&gt-COL OF STRUCTURE &ltLS_EXCEL&gt TO &ltFV_VALUE&gt.
+
+    CHECK &ltFV_VALUE&gt IS ASSIGNED.
+    DATA(LV_VALUE) = &ltLS_RAW&gt-VALUE.
+
+    DATA(LO_ELEM) = CAST CL_ABAP_ELEMDESCR( CL_ABAP_TYPEDESCR=&gtDESCRIBE_BY_DATA( &ltFV_VALUE&gt ) ).
+
+    READ TABLE LO_STRUCT-&gtCOMPONENTS INTO DATA(LS_COMP) INDEX &ltLS_RAW&gt-COL.
+    IF SY-SUBRC = 0.
+      LV_FIELD = LS_COMP-NAME.
+
+    ENDIF.
+
+    "###### ## ## ## ### ##
+    READ TABLE IT_CHECK_LIST TRANSPORTING NO FIELDS
+                             WITH KEY FIELD = LV_FIELD
+                                      BINARY SEARCH.
+
+    IF SY-SUBRC = 0.
+      &ltFV_VALUE&gt = LV_VALUE.
+
+    ELSE.
+      IF LO_ELEM-&gtIS_DDIC_TYPE( ) = ABAP_TRUE.
+        DATA(LS_DDIC) = LO_ELEM-&gtGET_DDIC_FIELD( ).
+
+        CASE LS_DDIC-DATATYPE.
+          WHEN 'DATS'.
+            REPLACE ALL OCCURRENCES OF '-' IN LV_VALUE WITH ''.
+            REPLACE ALL OCCURRENCES OF '.' IN LV_VALUE WITH ''.
+            REPLACE ALL OCCURRENCES OF '/' IN LV_VALUE WITH ''.
+            CONDENSE LV_VALUE NO-GAPS.
+
+            " ## ### ##
+            IF LV_VALUE IS NOT INITIAL.
+              DATA(LV_CHK_DATS) = CONV DATS( LV_VALUE ).
+              CALL FUNCTION 'DATE_CHECK_PLAUSIBILITY'
+                EXPORTING
+                  DATE                      = LV_CHK_DATS
+                EXCEPTIONS
+                  PLAUSIBILITY_CHECK_FAILED = 1
+                  OTHERS                    = 2.
+
+              IF SY-SUBRC &lt&gt 0.
+                LV_VALUE = '00000000'.
+
+              ENDIF.
+
+            ENDIF.
+
+          WHEN 'DEC' OR 'QUAN' OR 'CURR'.
+            REPLACE ALL OCCURRENCES OF ',' IN LV_VALUE WITH ''.
+
+        ENDCASE.
+
+        IF LS_DDIC-LOWERCASE = ABAP_FALSE.
+          LV_VALUE = TO_UPPER( LV_VALUE ).
+
+        ENDIF.
+
+        IF LS_DDIC-CONVEXIT IS NOT INITIAL.
+          DATA(LV_FM_NAME) = |CONVERSION_EXIT_{ LS_DDIC-CONVEXIT }_INPUT|.
+
+          CALL FUNCTION LV_FM_NAME
+            EXPORTING
+              INPUT  = LV_VALUE
+            IMPORTING
+              OUTPUT = &ltFV_VALUE&gt
+            EXCEPTIONS
+              OTHERS = 1.
+
+        ELSE.
+          &ltFV_VALUE&gt = LV_VALUE.
+
+        ENDIF.
+
+      ELSE.
+        &ltFV_VALUE&gt = LV_VALUE.
+
+      ENDIF.
+
+    ENDIF.
+
+    AT END OF ROW.
+      APPEND &ltLS_EXCEL&gt TO ET_TAB[].
+      CLEAR &ltLS_EXCEL&gt.
+
+    ENDAT.
+
+  ENDLOOP.
+
+ENDFUNCTION.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

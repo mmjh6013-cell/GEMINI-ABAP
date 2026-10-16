@@ -1,0 +1,90 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF40_GET_RESULTS</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF40_GET_RESULTS</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       FORM GET_RESULTS                                              *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000254"></div>
+FORM GET_RESULTS USING TASKNAME.
+  DATA: RECV        TYPE RECV.
+  DATA: H_STOPX LIKE CM61X-STOPX.                        "HW 155335
+<font color ="#8C8C8C">*</font>
+  CLEAR RECV.
+  IF KEEPING_TASK IS INITIAL.
+    RECEIVE RESULTS FROM FUNCTION 'MRP_MATERIAL_PARALLEL'
+            IMPORTING
+                      TINDX  = RECV-INDEX
+                      RTIME  = RECV-RTIME
+                      ISTATS = RECV-STATN
+                      STOPX  = H_STOPX                    "HW 155335
+            TABLES    CM61D_TAB = RECV-CM61DX
+                      TPLANTX   = PLANTX
+                      PERF_TAB  = RECV-PERFY
+                      NREAD_TAB = NREAD
+            EXCEPTIONS SYSTEM_FAILURE        = 1 MESSAGE RECV-MSGTX
+                       COMMUNICATION_FAILURE = 2 MESSAGE RECV-MSGTX.
+  ELSE.                                "Kontext erhalten
+    RECEIVE RESULTS FROM FUNCTION 'MRP_MATERIAL_PARALLEL'
+            KEEPING TASK
+            IMPORTING
+                      TINDX  = RECV-INDEX
+                      RTIME  = RECV-RTIME
+                      ISTATS = RECV-STATN
+                      STOPX  = H_STOPX                  "HW 155335
+            TABLES    CM61D_TAB = RECV-CM61DX
+                      TPLANTX   = PLANTX
+                      PERF_TAB  = RECV-PERFY
+                      NREAD_TAB = NREAD
+            EXCEPTIONS SYSTEM_FAILURE        = 1 MESSAGE RECV-MSGTX
+                       COMMUNICATION_FAILURE = 2 MESSAGE RECV-MSGTX.
+  ENDIF.
+  RECV-SUBRC = SY-SUBRC.
+<font color ="#8C8C8C">*--&gt Uebergabe Fehlermeldungen</font>
+  IF SY-SUBRC NE 0.
+    RECV-MSGID = SY-MSGID.
+    RECV-MSGNO = SY-MSGNO.
+    RECV-MSGV1 = SY-MSGV1.
+<font color ="#8C8C8C">*  ELSE.</font>
+<font color ="#8C8C8C">*    clear recv-msgtx.</font>
+  ENDIF.
+  IF SY-SUBRC = 1.
+<font color ="#8C8C8C">*--&gt system failure mit 'Maximale Anzahl Modi' ?</font>
+    IF  SY-MSGID = 'SR'
+    AND SY-MSGNO = '044'
+    AND SY-MSGV1 ='GEN_SAPDEXT_CALLED'.
+<font color ="#8C8C8C">*--&gt marker: set task to 'error' -&gt do not use it again</font>
+      RECV-SUBRC = 9.
+    ENDIF.
+  ENDIF.
+  TASK_FINISHED = XFLAG.
+  RECV-TNAME = TASKNAME.
+  APPEND RECV TO RECVX.
+<font color ="#8C8C8C">*</font>
+  IF REFRESH_FLAG IS INITIAL.          "never when started by RMM...
+<font color ="#8C8C8C">*   refresh screen.</font>
+    SET USER-COMMAND 'OKCD'.           "refresh screen
+    REFRESH_FLAG = XFLAG.
+  ENDIF.
+<font color ="#8C8C8C">*---&gt STOPX-Flag, falls eine Einzeltask mit STOPX       "HW 155335</font>
+  IF H_STOPX EQ XFLAG.                                  "
+    CM61X-STOPX = XFLAG.                                "
+  ENDIF.                                                "
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

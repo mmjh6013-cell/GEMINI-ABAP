@@ -1,0 +1,160 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XT01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XT01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*   INCLUDE MM61XT01                         3.0(mp)                   *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Data declarations for MRP list comparison</font>
+<font color ="#8C8C8C">* Included in SAPMM61R, SAPMM61X</font>
+<font color ="#8C8C8C">* needs texts TEXT-C..(in every program thats contains MM61XT01 !!):</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+
+TABLES: RC61X.
+DATA: RC61X-INDEX LIKE SY-TABIX,            "Hilfsfelder ('lokal')
+      RC61X-NLINE LIKE SY-TABIX.
+DATA: TEXT_FRAME1(50),
+      TEXT_FRAME2(55).
+
+DATA: BEGIN OF TEXT1,                  "text parameters for frame 1
+        FRAME_DLI1 LIKE TEXT_FRAME1,
+        FRAME_DLI2 LIKE TEXT_FRAME1,
+        FRAME_DIFF LIKE TEXT_FRAME1,
+      END OF TEXT1.
+
+DATA: BEGIN OF TEXT2,                  "Text parameters for frame 2
+        FRAME_DLI1 LIKE TEXT_FRAME2,
+        FRAME_DLI2 LIKE TEXT_FRAME2,
+        FRAME_DIFF LIKE TEXT_FRAME2,
+      END OF TEXT2.
+
+DATA: BEGIN OF MDAGX OCCURS 0.  "Vergleichstabelle Dispo-Listen
+        include structure <a href ="mdag/dictionary-mdag.html">MDAG</a>.
+DATA: END OF MDAGX.
+DATA: MDAGX_LOOPS LIKE SY-TABIX.
+
+DATA: BEGIN OF MDEZV OCCURS 0.  "Vergleich: DispoEL/Periode 3.0(mp)
+      include structure <a href ="mdez/dictionary-mdez.html">MDEZ</a>.
+DATA: END OF MDEZV.
+DATA: MDEZV_LOOPS LIKE SY-TABIX.
+
+DATA: BEGIN OF tc_ez_hold,
+        active       TYPE xfeld,
+        lines        TYPE cxtab_control-lines,
+        top_line     TYPE cxtab_control-top_line,
+        current_line TYPE cxtab_control-current_line,
+      END OF tc_ez_hold.
+
+DATA: BEGIN OF VERGLEICH,                             "3.0(mp)
+      STATU(1) TYPE C VALUE '3',
+      DYNGR    LIKE SY-DYNGR,            "DynproGruppe (Overview/Detail)
+      CTYPE    TYPE C,
+      PERIO    LIKE MDAG-EXTSU,
+      PVALU    TYPE I VALUE 0,             "Schwellwert (in Prozent)
+      DYN01    LIKE SY-DYNNR VALUE '0332',
+      DYN02    LIKE SY-DYNNR VALUE '0352',
+      PKEY1    LIKE SY-PFKEY,
+      PKEY2    LIKE SY-PFKEY,
+      TITLE    LIKE SY-TITLE,
+      END OF VERGLEICH.
+DATA: STATU_DLI1 LIKE VERGLEICH-STATU VALUE '1',
+      STATU_DLI2 LIKE VERGLEICH-STATU VALUE '2',
+      STATU_DIFF LIKE VERGLEICH-STATU VALUE '3',
+      STATU_BOTH LIKE VERGLEICH-STATU VALUE '4',
+      CTYPE_MD04_DLIS LIKE VERGLEICH-STATU VALUE '1',
+      CTYPE_PLAN_DLIS LIKE VERGLEICH-STATU VALUE '2',
+      CTYPE_PLAN_MD04 LIKE VERGLEICH-STATU VALUE '3',
+      CTYPE_PLSC_MD04 LIKE VERGLEICH-STATU VALUE '4',
+      CTYPE_PLSC_PLSC LIKE VERGLEICH-STATU VALUE '5',
+      CTYPE_PPLN_DLIS LIKE VERGLEICH-STATU VALUE '6',
+      CTYPE_PPLN_PPLN LIKE VERGLEICH-STATU VALUE '7',
+      CTYPE_PPLN_PLSC LIKE VERGLEICH-STATU VALUE '8',
+      CTYPE_DLIS_MD04 LIKE VERGLEICH-STATU VALUE '9',
+      CTYPE_PLIS_DLIS LIKE VERGLEICH-STATU VALUE 'A',
+      CTYPE_PLIS_PLIS LIKE VERGLEICH-STATU VALUE 'B',
+      CTYPE_MD04_PLSC LIKE VERGLEICH-STATU VALUE 'C',      "new SA_46a
+      CTYPE_DLIS_PLIS LIKE VERGLEICH-STATU VALUE 'D',      "new SA_46a
+      DYNGR_OVERVIEW LIKE SY-DYNGR VALUE '0332',
+      DYNGR_DETAIL   LIKE SY-DYNGR VALUE '0352'.
+
+DATA:                                            "Kopf DL-Vergl.
+      SUBSCREEN_CMPHEAD LIKE AM61R-DYNNR.        "value '830'
+
+<font color ="#8C8C8C">*--&gt Tabellen fuer Dispo-Listenvergleich</font>
+DATA BEGIN OF MDPS2 OCCURS 0.          "Schnittstelle: DispoListe 2
+    include structure <a href ="mdps/dictionary-mdps.html">MDPS</a>.
+DATA END OF MDPS2.
+
+DATA BEGIN OF MDEZ1 OCCURS 0.          "Einzelzeilen 1
+    include structure <a href ="mdez/dictionary-mdez.html">MDEZ</a>.
+DATA END OF MDEZ1.
+
+DATA BEGIN OF MDEZ2 OCCURS 0.          "Einzelzeilen 2
+    include structure <a href ="mdez/dictionary-mdez.html">MDEZ</a>.
+DATA END OF MDEZ2.
+
+DATA BEGIN OF MDEZ1_PER OCCURS 0.     "Einzelzeilen fuer best. Periode 1
+    include structure <a href ="mdez/dictionary-mdez.html">MDEZ</a>.
+DATA END OF MDEZ1_PER.
+
+DATA BEGIN OF PLSC2 OCCURS 0.     "2. Szenario
+    INCLUDE STRUCTURE PLSC.
+DATA END OF PLSC2.
+
+
+DATA BEGIN OF MDEZ2_PER OCCURS 0.     "Einzelzeilen fuer best. Periode 1
+    include structure <a href ="mdez/dictionary-mdez.html">MDEZ</a>.
+DATA END OF MDEZ2_PER.
+
+
+DATA: BEGIN OF MDKP2.                   "DispoListenkopf 2
+        include structure <a href ="mdkp/dictionary-mdkp.html">MDKP</a>.
+DATA: END OF MDKP2.
+
+DATA: BEGIN OF CM61M2.                  "Materialparameter 2
+        INCLUDE STRUCTURE CM61M.
+DATA: END OF CM61M2.
+
+DATA: BEGIN OF CM61W2.                  "Werksparameter 2
+        INCLUDE STRUCTURE CM61W.
+DATA: END OF CM61W2.
+
+DATA: BEGIN OF CM61X2.                  "Steuerparameter 2
+        INCLUDE STRUCTURE CM61X.
+DATA: END OF CM61X2.
+
+DATA: BEGIN OF MT61D2.                  "Materialview  2
+        include structure <a href ="mt61d/dictionary-mt61d.html">MT61D</a>.
+DATA: END OF MT61D2.
+
+<font color ="#8C8C8C">*--&gt FCODE-Tabelle fuer Exclude-FCODE's</font>
+DATA: BEGIN OF EXTAB_CMP OCCURS 5,
+        FCODE(4) TYPE C,
+      END   OF EXTAB_CMP.
+
+DATA: FC_VRGL LIKE SY-TCODE VALUE 'VRGL',
+      FC_CMP1 LIKE SY-TCODE VALUE 'CMP1',
+      FC_CMP2 LIKE SY-TCODE VALUE 'CMP2',
+      FC_CMP3 LIKE SY-TCODE VALUE 'CMP3',
+      FC_CMP4 LIKE SY-TCODE VALUE 'CMP4',
+      FC_CMP5 LIKE SY-TCODE VALUE 'CMP5',
+      FC_DLI1 LIKE SY-TCODE VALUE 'DLI1',
+      FC_DLI2 LIKE SY-TCODE VALUE 'DLI2',
+      FC_BOTH LIKE SY-TCODE VALUE 'BOTH',
+      FC_DIFF LIKE SY-TCODE VALUE 'DIFF'.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

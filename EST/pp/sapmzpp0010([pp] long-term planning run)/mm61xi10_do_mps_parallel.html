@@ -1,0 +1,99 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XI10_DO_MPS_PARALLEL</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XI10_DO_MPS_PARALLEL</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* MPS-Planungslauf parallel                                            *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000595"></div>
+MODULE DO_MPS_PARALLEL INPUT.
+  CHECK RM61X-PARAL = XFLAG.
+
+<font color ="#8C8C8C">*--&gt INITIALISIERUNGEN</font>
+<font color ="#8C8C8C">*--&gt Tabelle mit Destinations lesen</font>
+  PERFORM FILL_TASKX.
+
+<font color ="#8C8C8C">*--&gt Steuer-KZ TRANSAKTION</font>
+<font color ="#8C8C8C">*--&gt Kommunikationsaerea fuer Transaktion erstellen</font>
+  PERFORM ERSTELLEN_CM61X.
+<font color ="#8C8C8C">*--&gt ATP initialisieren bzw. Puffer deaktivieren, falls CM61X-ATPDA = X</font>
+  PERFORM ATP_INITIALIZE.
+<font color ="#8C8C8C">*--&gt Parallel-Statistik-Initialisierung / Startzeitpunkt</font>
+  PERFORM <a href ="javascript:Link('MM61XF88_BEGINN_STATISTIK.html?id=#000000000397');">BEGINN_STATISTIK</a>.
+<font color ="#8C8C8C">*--&gt Initialization</font>
+  PERFORM <a href ="javascript:Link('MM61XF88_MRP_RUN_INIT.html?id=#000000000404');">mrp_run_badi_init</a>.
+
+<font color ="#8C8C8C">*--&gt WERKSDATEN</font>
+<font color ="#8C8C8C">*--&gt Werksuebergr. Planung : Tabelle mit Werken lesen</font>
+  PERFORM CHECK_MULTI_PLANT.
+<font color ="#8C8C8C">*--&gt Planung VM-Tabelle DBVM aktiv/inaktiv</font>
+  PERFORM READ_T000MD.
+<font color ="#8C8C8C">*--&gt Check on Existence of Plant MRP Areas</font>
+  PERFORM check_mdlw_exist IN PROGRAM saplmrp1.
+<font color ="#8C8C8C">*--&gt Planungswerk bzw. Planungsumfang einlesen</font>
+  PERFORM FILL_PLANTX.
+
+  LOOP AT PLANTX.
+<font color ="#8C8C8C">*--&gt Aktuelles Werk zuweisen</font>
+    PERFORM <a href ="javascript:Link('MM61XF40_ASSIGN_PLANT.html?id=#000000000240');">ASSIGN_PLANT</a>.
+<font color ="#8C8C8C">*--&gt Kommunikationsaerea -Werksebene- erstellen</font>
+    CALL FUNCTION 'MD_READ_PLANT'
+         EXPORTING
+              EWERKS = CM61X-WERKS
+              ECM61X = CM61X
+         IMPORTING
+              ICM61W = CM61W
+              IT399D = T399D
+         EXCEPTIONS
+              ERROR  = 1.
+    IF SY-SUBRC &gt 0.
+      MESSAGE ID SY-MSGID TYPE 'A' NUMBER SY-MSGNO
+              WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Planungslauf sperren</font>
+    PERFORM <a href ="javascript:Link('MM61XF31_ENQUEUE_MRP_RUN.html?id=#000000000201');">ENQUEUE_MRP_RUN</a> USING CM61X-PLOBJ            "MRP-Lauf
+                                  CM61X-PLSCN            "=SPACE
+                                  CM61X-WERKS
+                                  PLANTX-BERID.
+<font color ="#8C8C8C">*--&gt Planungslauf sperren fuer MRP-Teile, falls mitgeplant</font>
+    IF CM61X-ICMRP EQ XFLAG.
+       PERFORM <a href ="javascript:Link('MM61XF31_ENQUEUE_MRP_RUN.html?id=#000000000201');">ENQUEUE_MRP_RUN</a> USING MDOBJB
+                                     CM61X-PLSCN
+                                     CM61X-WERKS
+                                     PLANTX-BERID.
+    ENDIF.
+  ENDLOOP.                                        "PLANTX
+<font color ="#8C8C8C">*--&gt Werksunabh. Pre-Read DB-Tabellen</font>
+  CALL FUNCTION 'MD_MRP_PREREAD'
+       TABLES NREAD_TAB = NREAD.
+
+<font color ="#8C8C8C">*--&gt MATERIALVORMERKUNGEN</font>
+<font color ="#8C8C8C">*--&gt Initialisierung des Set-Keys MDVM/DMVM</font>
+  PERFORM <a href ="javascript:Link('MM61XMDV_INIT_SET_KEY.html?id=#000000000697');">INIT_SET_KEY</a>.
+<font color ="#8C8C8C">*--&gt Materialvormerkungen lesen</font>
+  PERFORM MDMMX_FILL.
+  MDMMX_TINDX = 1.
+  CLEAR NEW_LEVEL_FLAG.
+  IF NOT MDMMX[] IS INITIAL.
+     RM61X-DISST = MDMMX-DISST.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Dispatcher-Dynpro aufrufen</font>
+  CALL SCREEN <a href ="javascript:Link('0400.html?id=#000000000942');">400</a>.                     "DYNPR-DISPATCHER.
+ENDMODULE.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

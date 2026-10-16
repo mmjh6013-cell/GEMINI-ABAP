@@ -1,0 +1,305 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XMEM_SHOW_MRP_LIST</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XMEM_SHOW_MRP_LIST</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  SHOW_MRP_LIST                                                       *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000723"></div>
+FORM show_mrp_list
+     USING iv_material   LIKE mt61d-matnr
+           iv_plant      LIKE mt61d-werks
+           iv_berid      LIKE mdlv-berid
+           is_line       TYPE mrp_list_line_type
+           iv_changemode TYPE bool
+           iv_callmode   TYPE bool.
+
+  DATA: lv_found          TYPE bool,
+        lv_change_element TYPE bool,
+        ls_line           TYPE mrp_list_line_type,
+        lv_maybechanged   TYPE bool,
+        ls_message        TYPE messa,                   "note 600940
+        lv_index          LIKE sy-tabix,
+        lv_next_screen    LIKE sy-dynnr.
+
+<font color ="#8C8C8C">*--&gt Planungsergebnis aus Memory holen</font>
+  CALL FUNCTION 'MD_READ_MRP_DATA_FROM_MEMORY'
+       EXPORTING
+            iv_memid            = id_ph
+            iv_plscn            = cm61x-plscn
+            iv_material         = iv_material
+            iv_plant            = iv_plant
+            iv_berid            = iv_berid
+       IMPORTING
+            es_mdkp             = mdkp
+            es_cm61m            = cm61m
+            es_cm61b            = cm61b
+            es_cm61d            = cm61d
+            et_mdpsx            = mdpsx[]
+       EXCEPTIONS
+            decompression_error = 2.
+  IF sy-subrc &gt 0.
+    MESSAGE ID sy-msgid TYPE 'E' NUMBER sy-msgno
+            WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    EXIT.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Werksdaten zum ausgewaehlten Material holen</font>
+  CALL FUNCTION 'MD_READ_PLANT'
+       EXPORTING
+            ewerks = iv_plant
+            ecm61x = cm61x
+       IMPORTING
+            icm61w = cm61w
+            it399d = t399d
+       EXCEPTIONS
+            error  = 1.
+  IF sy-subrc &gt 0.
+    MESSAGE ID sy-msgid TYPE 'E' NUMBER sy-msgno
+            WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    EXIT.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Materialdaten incl. Kennzeichen für Materialnotiz lesen</font>
+  CALL FUNCTION 'MD_READ_MATERIAL'
+       EXPORTING  ewerks  = iv_plant
+                  ematnr  = iv_material
+                  eberid  = iv_berid
+       IMPORTING  imt61d  = mt61d
+                  icm61b  = cm61b
+<font color ="#8C8C8C">*                 HASTEXT = RM61X-MANOT                   "46a</font>
+       EXCEPTIONS error   = 1.
+  IF sy-subrc &gt 0.
+    MESSAGE ID sy-msgid TYPE 'E' NUMBER sy-msgno
+            WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    EXIT.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Anzuzeigendes Material setzen</font>
+  rm61x-matnr = iv_material.
+  rm61x-werks = iv_plant.
+  rm61x-berid = iv_berid.
+  rm61x-bertx = cm61b-bertx.
+  rm61x-disst = space.
+
+<font color ="#8C8C8C">*--&gt Ausgabemengeneinheit</font>
+  mdst-meinh = mt61d-meins.
+
+<font color ="#8C8C8C">*--&gt Pruefen Anzeigeversion</font>
+  IF  mdst-anzei &lt&gt psi_activ          "Periodensummen
+  AND mdst-anzei &lt&gt pssi_activ         "Periodensummen/Auftrag
+  AND mdst-anzei &lt&gt psezsi_activ       "Periodensummen/Einzelzeilen
+  AND mdst-anzei &lt&gt ezi_activ          "Einzelzeilen
+  AND mdst-anzei &lt&gt ezsi_activ.        "Einzelzeilen/Auftrag
+    mdst-anzei = ezi_activ.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Dispoabbruch: Message ausgeben</font>
+  IF mdkp-msgar = chara
+  OR mdkp-msgar = chare.
+    mdst-anzei = err_activ.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Warnung zum Material</font>
+  IF NOT mdkp-msgnr IS INITIAL.
+    MESSAGE ID mdkp-msgid TYPE 'S' NUMBER mdkp-msgnr
+            WITH mdkp-msgv1 mdkp-msgv2 mdkp-msgv3 mdkp-msgv4.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Anzeigetabelle aufbauen</font>
+  PERFORM put_mdpsx_mdezx.
+
+<font color ="#8C8C8C">*--&gt Display of the MD04-list: Fill values in MDEZ to display the</font>
+<font color ="#8C8C8C">* storage location data (3094403)</font>
+  CALL FUNCTION 'MD_MDEZX_ENRICH'
+       EXPORTING
+            IV_MATERIAL  = IV_MATERIAL
+            IV_PLANT     = IV_PLANT
+       TABLES
+            MDEZX    = MDEZX
+       EXCEPTIONS
+            error_message = 01
+            OTHERS        = 02.
+
+<font color ="#8C8C8C">*--&gt Pruefen ob Materialnotiz vorhanden</font>
+  PERFORM check_matnotiz
+          USING    rm61x-matnr rm61x-werks
+          CHANGING rm61x-manot rm61x-mntxt.
+
+<font color ="#8C8C8C">*--&gt Pruefen, ob WWS-Aktionen für den Artikel existieren</font>
+  PERFORM check_promotion USING rm61x-matnr sy-datlo rm61x-kzpromo.
+
+<font color ="#8C8C8C">*--&gt Pruefen, ob Saisonartikel</font>
+<font color ="#8C8C8C">*@001-Begin</font>
+<font color ="#8C8C8C">* PERFORM CHECK_SEASON USING RM61X-MATNR G_KZSEASN.</font>
+  PERFORM check_season USING rm61x-matnr
+                             mdkp-dismm
+                             mdkp-disvf
+                             g_kzseasn.
+<font color ="#8C8C8C">*@001-End</font>
+
+<font color ="#8C8C8C">*--&gt Cursor auf ein bestimmtes Dispoelement stellen ?</font>
+  lv_found          = gc_false.
+  IF is_line-mdez_index &gt 0.
+    lv_found = gc_true.
+    ls_line  = is_line.
+  ELSEIF is_line-mdps_index &gt 0.
+    PERFORM mdpsx_find_mdezx USING is_line-mdps_index CHANGING ls_line.
+    IF ls_line-mdez_index &gt 0.
+      lv_found = gc_true.
+    ENDIF.
+  ELSEIF is_line-mdps-delnr &lt&gt space.
+    PERFORM order_find_mdpsx
+            USING    is_line-mdps CHANGING lv_index lv_found.
+    IF lv_found = gc_true.
+      PERFORM mdpsx_find_mdezx
+              USING lv_index CHANGING ls_line.
+      IF ls_line-mdez_index &gt 0.
+        lv_found = gc_true.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Soll das ausgewaehlte Dispoelement zum Aendern angeboten werden ?</font>
+  lv_change_element = gc_false.
+  IF  iv_changemode = gc_true
+  AND lv_found      = gc_true.         "Element wurde gefunden
+<font color ="#8C8C8C">*--&gt check changeability (note 600940)</font>
+    PERFORM <a href ="javascript:Link('MM61XF50_MAY_BE_CHANGED.html?id=#000000000274');">may_be_changed</a> USING    ls_line-mdps
+                                    char1
+                           CHANGING lv_maybechanged
+                                    ls_message.    "dummy
+    IF lv_maybechanged = gc_true.
+      mdpsx = ls_line-mdps.            "TODO
+      PERFORM put_mdpsx_mpsview.
+      IF am61x-rcode = char0.
+        lv_change_element = gc_true.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Vorbereitungen fuer das Aendern eines Dispoelementes</font>
+  IF lv_change_element = gc_true.
+    mdpss       = ls_line-mdps.
+    mdpss-xline = ls_line-mdps_index.
+    mdezs       = ls_line-mdez.
+    mdezs-xline = ls_line-mdez_index.
+    mdezx       = ls_line-mdez.
+    am61x-vstat = vstatv.              "Verarbeitungsstatus 'Veraendern'
+    am61x-delkz = mdpss-delkz.         "DELKZ ausgewaehltes Dispoelement
+  ELSE.
+    CLEAR: am61x-delkz, am61x-vstat.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Top-Line bestimmen</font>
+  tc_ez-top_line = 1.
+  IF lv_found = gc_true.
+    PERFORM mdez_vorbereiten_vr USING ls_line-mdez_index.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Dispoergebnis anzeigen</font>
+  IF mdst-anzei = err_activ.
+    PERFORM <a href ="javascript:Link('MM61XF57_MDSTA_AUFBAUEN.html?id=#000000000321');">mdsta_aufbauen</a>.
+    PERFORM <a href ="javascript:Link('MM61XDYN_GROKO_DATA_SEND_COMP.html?id=#000000000150');">groko_data_send_comp</a>.
+    PERFORM groko_dynp_build.
+    mdst-groko = gc_true.
+    lv_next_screen   = '0720'.         "Rahmendynpro mit grossem Kopf
+    subscreen_zeilen = '0790'.         "Dispoabbruch
+  ELSEIF lv_change_element = gc_false. "Nix zu aendern
+    IF mdst-anzei = psi_activ          "Periodensummen
+    OR mdst-anzei = pssi_activ
+    OR mdst-anzei = psezsi_activ.
+      mdst-anzei = psi_activ.
+      PERFORM <a href ="javascript:Link('MM61XF95_SET_PERS_SCREEN.html?id=#000000000524');">set_pers_screen</a>.
+      PERFORM fcode_pers.
+      IF mdst-groko = gc_true.         "Periodensummen mit grossem Kopf
+        PERFORM <a href ="javascript:Link('MM61XF57_MDSTA_AUFBAUEN.html?id=#000000000321');">mdsta_aufbauen</a>.
+        PERFORM <a href ="javascript:Link('MM61XDYN_GROKO_DATA_SEND_COMP.html?id=#000000000150');">groko_data_send_comp</a>.
+        PERFORM groko_dynp_build.      "Loko-GK
+        lv_next_screen = '0720'.
+      ELSE.                            "Periodensummen mit kleinem Kopf
+        lv_next_screen = '0710'.
+      ENDIF.
+    ELSEIF mdst-anzei = ezi_activ      "Einzelzeilen
+    OR     mdst-anzei = ezsi_activ.
+      mdst-anzei = ezi_activ.
+      PERFORM set_einz_screen.
+      IF mdst-groko = gc_true.         "Einzelzeilen Großer Kopf
+        PERFORM <a href ="javascript:Link('MM61XF57_MDSTA_AUFBAUEN.html?id=#000000000321');">mdsta_aufbauen</a>.
+        PERFORM <a href ="javascript:Link('MM61XDYN_GROKO_DATA_SEND_COMP.html?id=#000000000150');">groko_data_send_comp</a>.
+        PERFORM groko_dynp_build.      "Loko-GK
+        lv_next_screen = '0720'.
+      ELSE.                            "Einzelzeilein kleiner Kopf
+        lv_next_screen = '0710'.
+      ENDIF.
+    ENDIF.
+  ELSE.                                "Es gibt was zu aendern
+    IF mdst-anzei = ezi_activ          "Einzelzeilen
+    OR mdst-anzei = ezsi_activ.
+      mdst-anzei = ezsi_activ.         "Einzelzeilen-Split
+<font color ="#8C8C8C">*     PERFORM GET_INITIAL_FIELD_LENGTH.</font>
+      PERFORM get_columtc_size.
+      PERFORM <a href ="javascript:Link('MM61XTCI_MODIFYTC_SCREEN_750_C.html?id=#000000000891');">modifytc_screen_750_colums</a>.
+      subscreen_zeilen = '0750'.
+      lv_next_screen = '0730'.
+    ELSEIF mdst-anzei = psi_activ      "PeriodenSummen
+    OR     mdst-anzei = pssi_activ
+    OR     mdst-anzei = psezsi_activ.
+      mdst-anzei = pssi_activ.         "PeriodenSummen Split interaktiv
+      PERFORM get_initial_field_length_ps.
+      PERFORM get_columtc_ps_size.
+      PERFORM <a href ="javascript:Link('MM61XTCI_MODIFYTC_SCREEN_760_C.html?id=#000000000893');">modifytc_screen_760_colums</a>.
+      subscreen_zeilen = '0760'.
+      PERFORM fcode_pers.
+      lv_next_screen = '0730'.
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Naechstes Bild aufrufen</font>
+  IF iv_callmode = gc_true.
+    CALL SCREEN lv_next_screen.
+  ELSE.
+    SET SCREEN lv_next_screen. LEAVE SCREEN.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt rm61x für Materialübersicht mit Kopfmaterial füllen       CO 427441</font>
+  rm61x-matnr = gv_top_material.                              "CO 427441
+  rm61x-werks = gv_top_plant.                                 "CO 427441
+  rm61x-berid = gv_top_berid.                                 "CO 427441
+  rm61x-bertx = gv_top_bertx.                                 "CO 427441
+
+<font color ="#8C8C8C">*--&gt Check Returncode: Bei 'Abbrechen'/'Beenden' ganz raus</font>
+  IF am61x-rcode EQ chara.
+    SET SCREEN 0. LEAVE SCREEN.
+<font color ="#8C8C8C">*--&gt Springen Zurueck</font>
+  ELSEIF am61x-xcode = 'BACK'.
+    PERFORM pop_dialogstack.
+<font color ="#8C8C8C">*--&gt Springen zur Uebersicht der Materialien</font>
+  ELSEIF am61x-xcode = 'OVVW'.
+    PERFORM clear_dialogstack.
+    PERFORM <a href ="javascript:Link('MM61XMEM_SHOW_PLANNED_MATERIAL.html?id=#000000000727');">show_planned_materials</a>.
+<font color ="#8C8C8C">*--&gt Springen zum Kopfmaterial</font>
+  ELSEIF am61x-xcode = 'TOPM'.
+    PERFORM clear_dialogstack.
+    PERFORM show_mrp_list_single
+            USING gv_top_material gv_top_plant gv_top_berid gc_true.
+  ELSEIF am61x-xcode = 'SAVE'.
+    PERFORM save_mrp_result.
+  ENDIF.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

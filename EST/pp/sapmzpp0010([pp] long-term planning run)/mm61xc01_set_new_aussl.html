@@ -1,0 +1,190 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XC01_SET_NEW_AUSSL</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XC01_SET_NEW_AUSSL</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Setzen neu Ausnahmemeldung in Abhaengigkeit der Prioritaet</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000032"></div>
+FORM set_new_aussl USING newas           "neue Ausnahme
+                         aktas           "vorh. Ausnahme (hohe Prio.)
+                         oldas.          "vorh. Ausnahme (kleinere Prio)
+<font color ="#8C8C8C">*--&gt Lokale Datenfelder</font>
+  DATA: l_newpr       LIKE t458a-aspri,        "Priorität zu NEWAS
+        l_aktpr       LIKE t458a-aspri,        "Priorität zu AKTAS
+        l_oldpr       LIKE t458a-aspri.        "Priorität zu OLDAS
+<font color ="#8C8C8C">*--&gt Hilfsfelder initialisieren</font>
+  CLEAR l_newpr.
+  CLEAR l_aktpr.
+  CLEAR l_oldpr.
+
+<font color ="#8C8C8C">*--&gt Leseflag ueberpruefen</font>
+  IF asslx_xflag NE xflag.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Falls zu setzende Ausnahme bereits vorhanden: RAUS!</font>
+  IF newas EQ aktas
+  OR newas EQ oldas.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">* set MRP issues for certain Exceptions</font>
+<font color ="#8C8C8C">* workaround for missing local variables and unknown global variables</font>
+  FIELD-SYMBOLS: &ltlv_berid&gt TYPE berid,
+                 &ltls_mdkp&gt  TYPE mdkp,
+                 &ltls_plaf&gt  TYPE plaf,
+                 &ltlv_matnr&gt TYPE matnr.                   "note 3167817
+  DATA: lv_no_berid TYPE berid,
+        lv_matnr    TYPE matnr,                           "note 3167817
+        lv_msgv1    TYPE msgv1.                           "note 3167817
+  ASSIGN ('MDKPDB-BERID') TO &ltlv_berid&gt.
+  IF sy-subrc &lt&gt 0.
+    " assign anything
+    ASSIGN lv_no_berid TO &ltlv_berid&gt.
+  ENDIF.
+
+  " find MDKP
+  ASSIGN ('MDKP') TO &ltls_mdkp&gt.
+  ASSIGN ('PLAF') TO &ltls_plaf&gt.
+
+
+  IF &ltls_mdkp&gt IS ASSIGNED AND &ltlv_berid&gt IS ASSIGNED AND &ltls_mdkp&gt-plscn IS INITIAL.
+    CASE newas.
+      WHEN ausa9. " Planning aborted
+        cl_pph_mrp_issues=&gtget_instance( if_pps4_mrp_const=&gtc_pph_mrp_kind_abap )-&gtadd_issue_to_buffer(
+          iv_matnr = &ltls_mdkp&gt-matnr
+          iv_werks = &ltls_mdkp&gt-plwrk
+          iv_berid = &ltlv_berid&gt
+          iv_msgid = 'PPH_MRP'
+          iv_msgty = 'A'
+          iv_msgno = '234'
+        ).
+      WHEN auss1 OR auss2.  " no BOM
+        cl_pph_mrp_issues=&gtget_instance( if_pps4_mrp_const=&gtc_pph_mrp_kind_abap )-&gtadd_issue_to_buffer(
+          iv_matnr = &ltls_mdkp&gt-matnr
+          iv_werks = &ltls_mdkp&gt-plwrk
+          iv_berid = &ltlv_berid&gt
+          iv_msgid = 'PPH_MRP'
+          iv_msgty = 'E'
+          iv_msgno = '183'
+        ).
+      WHEN auss4. " Phantom not exploded
+<font color ="#8C8C8C">*note 3167817 - add MATNR of phantom to message</font>
+        CLEAR: lv_matnr.                                  "note 3167817
+        ASSIGN ('MDPAA-MATNR') TO &ltlv_matnr&gt.             "note 3167817
+        IF sy-subrc &lt&gt 0.                                 "note 3167817
+          ASSIGN lv_matnr TO &ltlv_matnr&gt.                  "note 3167817
+        ENDIF.                                            "note 3167817
+        lv_msgv1 = &ltlv_matnr&gt.                            "note 3167817
+        cl_pph_mrp_issues=&gtget_instance( if_pps4_mrp_const=&gtc_pph_mrp_kind_abap )-&gtadd_issue_to_buffer(
+         iv_matnr = &ltls_mdkp&gt-matnr
+         iv_werks = &ltls_mdkp&gt-plwrk
+         iv_berid = &ltlv_berid&gt
+         iv_msgid = 'PPH_MRP'
+         iv_msgty = 'E'
+         iv_msgno = '184'
+         iv_msgv1 = lv_msgv1                              "note 3167817
+        ).
+      WHEN auss5. " No CUOBJ
+        cl_pph_mrp_issues=&gtget_instance( if_pps4_mrp_const=&gtc_pph_mrp_kind_abap )-&gtadd_issue_to_buffer(
+          iv_matnr = &ltls_mdkp&gt-matnr
+          iv_werks = &ltls_mdkp&gt-plwrk
+          iv_berid = &ltlv_berid&gt
+          iv_msgid = 'PPH_MRP'
+          iv_msgty = 'E'
+          iv_msgno = '187'
+        ).
+      WHEN auss6. " Discontinuation: required beyond date
+        cl_pph_mrp_issues=&gtget_instance( if_pps4_mrp_const=&gtc_pph_mrp_kind_abap )-&gtadd_issue_to_buffer(
+          iv_matnr = &ltls_mdkp&gt-matnr
+          iv_werks = &ltls_mdkp&gt-plwrk
+          iv_berid = &ltlv_berid&gt
+          iv_msgid = 'PPH_MRP'
+          iv_msgty = 'E'
+          iv_msgno = '232'
+        ).
+      WHEN ausp1 OR ausp2 OR ausp3 OR ausp4. " Scheduling error occured
+        IF &ltls_plaf&gt IS ASSIGNED AND
+           &ltls_plaf&gt-trmer EQ '4'.   " routing error.
+           cl_pph_mrp_issues=&gtget_instance( if_pps4_mrp_const=&gtc_pph_mrp_kind_abap )-&gtadd_issue_to_buffer(
+              iv_matnr = &ltls_mdkp&gt-matnr
+              iv_werks = &ltls_mdkp&gt-plwrk
+              iv_berid = &ltlv_berid&gt
+              iv_msgid = 'PPH_MRP'
+              iv_msgty = 'W'
+              iv_msgno = '252'
+            ).
+        ELSE.
+          cl_pph_mrp_issues=&gtget_instance( if_pps4_mrp_const=&gtc_pph_mrp_kind_abap )-&gtadd_issue_to_buffer(
+            iv_matnr = &ltls_mdkp&gt-matnr
+            iv_werks = &ltls_mdkp&gt-plwrk
+            iv_berid = &ltlv_berid&gt
+            iv_msgid = 'PPH_MRP'
+            iv_msgty = 'E'
+            iv_msgno = '233'
+          ).
+        ENDIF.
+      WHEN ausc1. " Quota quantities exceeded
+        cl_pph_mrp_issues=&gtget_instance( if_pps4_mrp_const=&gtc_pph_mrp_kind_abap )-&gtadd_issue_to_buffer(
+          iv_matnr = &ltls_mdkp&gt-matnr
+          iv_werks = &ltls_mdkp&gt-plwrk
+          iv_berid = &ltlv_berid&gt
+          iv_msgid = 'PPH_MRP'
+          iv_msgty = 'E'
+          iv_msgno = '235'
+        ).
+    ENDCASE.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Ersteinstieg  (noch keine Ausnahem zu diesem Element vorhanden)</font>
+  IF aktas IS INITIAL.
+    READ TABLE asslx
+         WITH KEY aussl = newas BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      IF asslx-asnot NE xflag.
+        MOVE newas TO aktas.
+      ENDIF.
+    ENDIF.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Prioritaet der neuen Ausnahmemeldungen ermitteln</font>
+  READ TABLE asslx WITH KEY aussl = newas BINARY SEARCH.
+  IF sy-subrc &lt&gt 0.
+    EXIT.
+  ENDIF.
+  MOVE asslx-aspri TO l_newpr.
+<font color ="#8C8C8C">*--&gt Pruefen NEW-Ausnahmemeldung</font>
+  IF asslx-asnot EQ xflag.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Prioritaet der alten Ausnahmemeldungen ermitteln</font>
+  READ TABLE asslx WITH KEY aussl = oldas BINARY SEARCH.
+  IF sy-subrc = 0. MOVE asslx-aspri TO l_oldpr. ENDIF.
+  READ TABLE asslx WITH KEY aussl = aktas BINARY SEARCH.
+  IF sy-subrc = 0. MOVE asslx-aspri TO l_aktpr. ENDIF.
+<font color ="#8C8C8C">*--&gt Neue Ausnahmemeldung (als erste Ausnahme) setzen</font>
+  IF l_newpr GE l_aktpr.
+    MOVE aktas TO oldas.
+    MOVE newas TO aktas.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Neue Ausnahmemeldung als zweite Ausnahmemeldung</font>
+  IF l_newpr GE l_oldpr.
+    MOVE newas TO oldas.                        "K11K093775 (mp)
+    EXIT.
+  ENDIF.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

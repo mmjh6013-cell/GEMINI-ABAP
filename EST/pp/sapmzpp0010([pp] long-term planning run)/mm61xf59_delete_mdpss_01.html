@@ -1,0 +1,91 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF59_DELETE_MDPSS_01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF59_DELETE_MDPSS_01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Bestellvorschlag loeschen (FCODE: BVDL)</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000338"></div>
+FORM delete_mdpss_01.
+<font color ="#8C8C8C">*--&gt Planauftraege mit WE-menge duerfen nicht geloescht werden</font>
+  IF  mdpss-delkz EQ plauf
+  AND mdpss-mdmng GT 0.
+<font color ="#8C8C8C">* Teilrückgemeldeter Planauftrag &1 darf nicht gelöscht werden.</font>
+    MESSAGE e243 WITH mdpss-delnr.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Prüfen Bei Neuanlage Auftrag nix zu tun</font>
+  CHECK NOT mdpss-xline IS INITIAL.                      "HW 153219
+<font color ="#8C8C8C">*--&gt Zeile loeschen</font>
+  DELETE mdpsx INDEX mdpss-xline.
+<font color ="#8C8C8C">*--&gt Reset aktuelle Aufloesung</font>
+  IF mdpss-aktal EQ xflag OR cm61x-inmem = gc_true.
+    CALL FUNCTION 'MD_FREE_MDPMI_MEMORY'
+         EXPORTING ersnum = mdpss-rsnum.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Reset Quotierung</font>
+  PERFORM reset_quotierung_mdpss.
+<font color ="#8C8C8C">*--&gt Verarbeitungskennzeichen ueberpruefen</font>
+<font color ="#8C8C8C">*--&gt Rel. 2.2: Wenn ein Planauftrag neu hinzugefuegt wurde, dann</font>
+<font color ="#8C8C8C">*--&gt terminiert wurde (im Dialog - Kapa-Planung), dann geloescht</font>
+<font color ="#8C8C8C">*--&gt wird, muessen hier die zugeh. Kapa-Bedarfe geloescht werden.</font>
+<font color ="#8C8C8C">*--&gt Fuer geaend./orig. Plaufs laeuft Kapa-Loeschen ueber MDPSO</font>
+  IF mdpss-vstat EQ vstath.
+    IF mdpss-delkz EQ plauf
+    OR mdpss-delkz EQ saauf.
+      IF NOT mdpss-trmer IS INITIAL         "wurde terminiert ?
+      OR NOT mdpss-rater IS INITIAL
+      OR NOT mdpss-groer IS INITIAL.
+        PERFORM mps_capacity_del_plaf USING mdpss-delnr.
+      ENDIF.
+    ENDIF.
+    mdpss-vstat = vstatl.                                  "new SA 45A
+    PERFORM <a href ="javascript:Link('MM61XMEM_UPDATE_MRP_DATA_IN_ME.html?id=#000000000728');">update_mrp_data_in_memory</a>
+            USING mdkp mdpss cm61b mdpsx[] mdpso[].
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Setzen Löschkennzeichen</font>
+  MOVE vstatl TO mdpss-vstat.
+<font color ="#8C8C8C">*--&gt Reset Umterminierungskennzeichen</font>
+  CLEAR mdpss-ukz01.
+  CLEAR mdpss-umdat.
+<font color ="#8C8C8C">*--&gt Reset Ausnahmeschluessel</font>
+  CLEAR mdpss-aussl.
+  CLEAR mdpss-oldsl.
+<font color ="#8C8C8C">*--&gt Reset Fixierungskennzeichen</font>
+  CLEAR mdpss-fix01.
+  CLEAR mdpss-fix02.
+<font color ="#8C8C8C">*--&gt Reset ATP-Menge</font>
+  CLEAR mdpss-mng04.
+<font color ="#8C8C8C">*--&gt Reset Aufloesungsdaten</font>
+  CLEAR mdpss-aktal.
+  CLEAR mdpss-paltr.
+  CLEAR mdpss-revlv.
+  CLEAR mdpss-aennr.
+  CLEAR mdpss-frthw.
+  IF mdpss-verid IS INITIAL.
+    CLEAR mdpss-stlan.
+    CLEAR mdpss-stalt.
+    CLEAR mdpss-bom_versn.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Tabelleneintrag in MDPSO uebernehmen</font>
+  PERFORM insert_sorted_mdpso USING mdpss.
+<font color ="#8C8C8C">*--&gt Daten fuer Planung im Hauptspeicher aktualisieren</font>
+  PERFORM <a href ="javascript:Link('MM61XMEM_UPDATE_MRP_DATA_IN_ME.html?id=#000000000728');">update_mrp_data_in_memory</a>
+          USING mdkp mdpss cm61b mdpsx[] mdpso[].
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

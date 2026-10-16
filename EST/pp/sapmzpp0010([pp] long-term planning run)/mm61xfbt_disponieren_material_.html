@@ -1,0 +1,149 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XFBT_DISPONIEREN_MATERIAL_</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XFBT_DISPONIEREN_MATERIAL_</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  Material disponieren</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000548"></div>
+FORM DISPONIEREN_MATERIAL_BT.
+  get_start_time time1.
+<font color ="#8C8C8C">*--&gt Kommunikationsbereich für Werk erstellen</font>
+  CALL FUNCTION 'MD_READ_PLANT'
+    EXPORTING
+      ewerks = mt61d-werks
+      ecm61x = cm61x
+    IMPORTING
+      icm61w = cm61w
+      it399d = t399d
+    EXCEPTIONS
+      error  = 1.
+  IF SY-SUBRC &gt 0.
+    MESSAGE ID SY-MSGID TYPE 'A' NUMBER SY-MSGNO
+            WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Dispositionstabelle aufbauen</font>
+  CALL FUNCTION 'AUFBAUEN_MDPSX_DISPOSITION'
+       EXPORTING
+            ECM61X = CM61X
+            ECM61W = CM61W
+            ECM61D = CM61D
+            ECM61B = CM61B
+            EMT61D = MT61D
+            ET399D = T399D
+            ET438A = T438A
+       IMPORTING
+            IMDKP  = MDKP
+            IMT61D = MT61D
+            ICM61M = CM61M
+            ICM61D = CM61D
+            IMDSTA = MDSTA
+            IBADIT = STATN-BADIT_READ
+       TABLES
+            MDPSX  = MDPSX
+            MDPSO  = MDPSO
+            MDPSL  = MDPSL
+            MDLPY  = MDLPY
+            EQUKX  = EQUKX
+            EQUPX  = EQUPX
+            EQUMX  = EQUMX
+            LORTX  = LORTX
+       EXCEPTIONS
+            ERROR_MESSAGE = 02
+            ERROR  = 01.
+  IF SY-SUBRC NE 0.
+    RUN_TIME STATN-READT TIME2 TIME1.
+    PERFORM ERROR_HANDLING.
+    MOVE CHAR1 TO AM61X-RCODE.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">* Note 2341056: Check MRP type again in case it was changed in BADI above</font>
+  IF MDKP-DISVF = DISVFN.
+    RUN_TIME STATN-READT TIME2 TIME1.
+    MOVE '61' TO SY-MSGID.
+    MOVE 'E' TO SY-MSGTY.
+    MOVE '008' TO SY-MSGNO.
+    PERFORM ERROR_HANDLING.
+    MOVE CHAR1 TO AM61X-RCODE.
+    EXIT.
+  ENDIF.
+  RUN_TIME STATN-READT TIME2 TIME1.
+
+  get_start_time time1.
+
+"{ Begin ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+<font color ="#8C8C8C">*--&gt PIC : Generate merged MDPSX for SUS+MPN  (46a)</font>
+  IF NOT CM61M-PICID IS INITIAL.
+    PERFORM PIC_MERGE_MDPSX CHANGING SY-SUBRC.
+    IF SY-SUBRC NE 0.
+      RUN_TIME STATN-LOTST TIME2 TIME1.
+      PERFORM ERROR_HANDLING.
+      MOVE CHAR1 TO AM61X-RCODE.
+      EXIT.
+    ENDIF.
+    RUN_TIME STATN-LOTST TIME2 TIME1.
+  ENDIF.
+"{ End ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+
+ENHANCEMENT-POINT DISPONIEREN_MATERIAL_BT_01 SPOTS ES_SAPMM61X.
+<font color ="#8C8C8C">*--&gt Dispositionsrechnung</font>
+  CALL FUNCTION 'DO_DISPOSITIONSRECHNUNG'
+       EXPORTING
+            ECM61X = CM61X
+            ECM61W = CM61W
+            ECM61M = CM61M
+            ECM61D = CM61D
+            EMDKP  = MDKP
+            EMT61D = MT61D
+            ET399D = T399D
+            ECM61B = CM61B
+       IMPORTING
+            IMDKP         = MDKP
+            IBADIT_SOURCE = STATN-BADIT_SOURCE
+            IBADIT_CUOBJ  = STATN-BADIT_CUOBJ
+       TABLES
+            MDPSO  = MDPSO
+            MDPSX  = MDPSX
+            MDPSL  = MDPSL
+            EQUKX  = EQUKX
+            EQUPX  = EQUPX
+            EQUMX  = EQUMX
+            LORTX  = LORTX
+       EXCEPTIONS
+            ERROR_MESSAGE  = 01.
+  IF SY-SUBRC NE 0.
+    RUN_TIME STATN-LOTST TIME2 TIME1.
+    PERFORM ERROR_HANDLING.
+    MOVE CHAR1 TO AM61X-RCODE.
+    EXIT.
+  ENDIF.
+  RUN_TIME STATN-LOTST TIME2 TIME1.
+<font color ="#8C8C8C">*--&gt BOM explosion, scheduling via routing</font>
+  PERFORM <a href ="javascript:Link('MM61XC02_STUECKLISTE_AUFLOESEN.html?id=#000000000073');">STUECKLISTE_AUFLOESEN_BT</a>.
+  IF AM61X-RCODE NE CHAR0.
+    EXIT.
+  ENDIF.
+  PERFORM <a href ="javascript:Link('MM61XC02_SCHEDULING_MRP_BT.html?id=#000000000066');">SCHEDULING_MRP_BT</a> CHANGING AM61X-RCODE.
+  IF AM61X-RCODE NE CHAR0.
+    PERFORM ERROR_HANDLING.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Returncode zuruecksetzen</font>
+  MOVE CHAR0 TO AM61X-RCODE.
+ENDFORM.                    "DISPONIEREN_MATERIAL_BT
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

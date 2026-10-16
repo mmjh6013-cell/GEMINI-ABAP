@@ -1,0 +1,88 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF52_MPPA_VORBEREITEN</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF52_MPPA_VORBEREITEN</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* MPPA vorbereiten                                                     *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000287"></div>
+FORM mppa_vorbereiten.
+<font color ="#8C8C8C">*--&gt Fixierungskennzeichen vorschlagen</font>
+  IF am61x-delkz EQ plauf.
+    MOVE xflag TO mppa-auffx.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Umsetzungskennzeichen vorschlagen</font>
+  IF cm61x-plscn IS INITIAL                "nicht in Langfristplanung
+  AND mppa-vrpla NE xflag.                 "keine Vorplanung
+    MOVE xflag TO mppa-umskz.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt WEBAZ vorbesetzen</font>
+  MOVE mdkp-webaz  TO mppa-webaz.
+<font color ="#8C8C8C">*--&gt Planungs-/Reservierungswwerk</font>
+  MOVE mdkp-plwrk TO mppa-plwrk.
+  IF mppa-sobes EQ sobesp
+  OR mppa-sobes EQ sobesu.
+    MOVE mdkp-wrk02 TO mppa-pwwrk.
+  ELSE.
+    MOVE mdkp-plwrk TO mppa-pwwrk.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Lagerort vorschlagen</font>
+  PERFORM vorschlagen_lgort CHANGING mppa-lgort.
+<font color ="#8C8C8C">*--&gt Unterdeckungsdaten ueberpruefen</font>
+ENHANCEMENT-SECTION     mppa_vorbereiten_01 SPOTS es_sapmm61x.
+  IF mppa-sobkz EQ sobkze
+  OR mppa-sobkz EQ sobkzq
+  OR mppa-sobkz EQ sobkzb. "{ ENHO ADSUB_MM61XF52_MPPA_VORBERE000 IS-AD-SUC AD_SUB }
+    IF  exezx-plaab NE kndpla
+    AND exezx-plaab NE propla
+    AND exezx-plaab NE cstpla."{ ENHO ADSUB_MM61XF52_MPPA_VORBERE000 IS-AD-SUC AD_SUB }
+      EXIT.
+    ENDIF.
+  ELSE.
+    IF  exezx-plaab NE netpla
+    AND exezx-plaab NE brtpla.
+      EXIT.
+    ENDIF.
+  ENDIF.
+END-ENHANCEMENT-SECTION.
+<font color ="#8C8C8C">*--&gt Check Unterdeckungsmenge</font>
+  IF exezx-mng01 LT 0.
+    mppa-gsmng = exezx-mng01 * -1.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Check Losgroessenparameter</font>
+  PERFORM check_mppa_mengen.
+<font color ="#8C8C8C">*--&gt Check Unterdeckungstermin</font>
+  IF NOT exezx-dat00 IS INITIAL.
+    IF mppa-webaz GT 0.
+<font color ="#8C8C8C">*--&gt Umrechnen Unterdeckungstermin</font>
+      PERFORM convert_gkday_fkday_minus USING exezx-dat00 cm61w-fabkl.
+<font color ="#8C8C8C">*--&gt WEBAZ subtrahieren</font>
+      am61x-sfday = mdcal-fkday - mppa-webaz.
+<font color ="#8C8C8C">*--&gt NEW-Endtermin bestimmen</font>
+      PERFORM convert_fkday_gkday USING am61x-sfday cm61w-fabkl.
+      MOVE mdcal-gkday TO mppa-pedtr.
+    ELSE.
+      MOVE exezx-dat00 TO mppa-pedtr.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Starttermin bestimmen</font>
+    PERFORM comp_psttr.
+<font color ="#8C8C8C">*--&gt Eroeffnungstermin bestimmen</font>
+    PERFORM comp_pertr.
+  ENDIF.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

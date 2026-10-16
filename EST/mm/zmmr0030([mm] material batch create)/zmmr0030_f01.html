@@ -1,0 +1,615 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZMMR0030_F01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZMMR0030_F01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZMMR0030_F01</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form INITIALIZATION</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000005"></div>
+FORM initialization .
+
+  DATA: ls_dyntxt TYPE smp_dyntxt.
+
+  DEFINE _insrt_func.
+    ls_dyntxt-icon_id   = &1.
+    ls_dyntxt-icon_text = &2.
+    ls_dyntxt-quickinfo = &2.
+    sscrfields-&3 = ls_dyntxt.
+
+  END-OF-DEFINITION.
+
+  _insrt_func: icon_xls TEXT-002 functxt_01.
+
+ENDFORM.
+
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form f4_filepath</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      &lt-- P_FILE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000006"></div>
+FORM f4_filepath  CHANGING pv_file TYPE rlgrap-filename.
+
+  DATA: lt_file_table TYPE filetable,
+        lv_rc         TYPE i.
+
+  " 1. ## #### ### ## ### ##
+  cl_gui_frontend_services=&gtfile_open_dialog(
+    EXPORTING
+      window_title            = 'Select Migration Excel File'
+      default_extension       = 'XLSX'
+      " ## ### ### # ### ## ##
+      file_filter             = 'Excel Files (*.xls, *.xlsx)|*.xls;*.xlsx|All Files (*.*)|*.*'
+    CHANGING
+      file_table              = lt_file_table
+      rc                      = lv_rc
+    EXCEPTIONS
+      file_open_dialog_failed = 1
+      cntl_error              = 2
+      error_no_gui            = 3
+      not_supported_by_gui    = 4
+      OTHERS                  = 5
+  ).
+
+  " 2. #### ### ##### #### ##
+  IF sy-subrc = 0.
+    " ### READ TABLE (# ## ### ## ### ###)
+    READ TABLE lt_file_table INTO DATA(ls_file_table) INDEX 1.
+    pv_file = ls_file_table.
+
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form AT_SELECTION_SCREEN</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000007"></div>
+FORM at_selection_screen .
+
+  CASE sy-ucomm.
+    WHEN 'FC01'.
+      PERFORM <a href="#000000000008">download_template</a>.
+
+  ENDCASE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form DOWNLOAD_TEMPLATE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000008"></div>
+FORM download_template .
+
+  DATA: ls_wwwdata           TYPE wwwdatatab,
+        lv_objid             TYPE wwwdata-objid,
+        lv_filename          TYPE string,
+        lv_path              TYPE string,
+        lv_fullpath          TYPE string,
+        lv_fullpath2         TYPE rlgrap-filename,
+        lv_default_file_name TYPE string,
+        lv_action            TYPE i.
+
+  lv_default_file_name = TEXT-002.
+
+  cl_gui_frontend_services=&gtfile_save_dialog(
+    EXPORTING
+      window_title      = 'Select path to save template'
+      default_extension = 'xlsx'
+      default_file_name = lv_default_file_name
+      file_filter       = 'Excel Files (*.xlsx)|*.xlsx'
+    CHANGING
+      filename          = lv_filename
+      path              = lv_path
+      fullpath          = lv_fullpath
+      user_action       = lv_action
+    EXCEPTIONS
+      OTHERS            = 1
+  ).
+
+  CHECK lv_action = cl_gui_frontend_services=&gtaction_ok.
+
+  ls_wwwdata-relid = 'MI'.
+  ls_wwwdata-objid = 'ZMMR0030'.
+
+  SELECT SINGLE objid
+    INTO lv_objid
+    FROM wwwdata
+   WHERE relid = ls_wwwdata-relid
+     AND objid = ls_wwwdata-objid.
+
+  IF sy-subrc &lt&gt 0.
+    "Excel template not found on server. (Check SMW0)
+    MESSAGE s000 WITH TEXT-e01 DISPLAY LIKE 'E'.
+    RETURN.
+
+  ENDIF.
+
+  lv_fullpath2 = lv_fullpath.
+
+  CALL FUNCTION 'DOWNLOAD_WEB_OBJECT'
+    EXPORTING
+      key         = ls_wwwdata
+      destination = lv_fullpath2
+    EXCEPTIONS
+      OTHERS      = 1.
+
+  IF sy-subrc = 0.
+    "Template downloaded successfully.
+    MESSAGE s000 WITH TEXT-s01.
+
+    cl_gui_frontend_services=&gtexecute(
+           EXPORTING
+             document               = lv_fullpath
+         ).
+
+  ELSE.
+    "Error occurred while downloading the template.
+    MESSAGE s000 WITH TEXT-e02 DISPLAY LIKE 'E'.
+
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form UPLOAD_EXCEL_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000009"></div>
+FORM upload_excel_data .
+
+  DATA: lt_row        LIKE TABLE OF zcms0020, "### ## ###?
+        lt_check_list LIKE TABLE OF zmms9000,
+        lt_excel      LIKE gt_excel,
+        ls_excel      LIKE gs_excel.
+
+  DATA: lv_col TYPE i,
+        lv_row TYPE i,
+        lv_tab TYPE string,
+        lv_str TYPE string.
+
+  FIELD-SYMBOLS: &ltfv_value&gt TYPE any,
+                 &ltls_excel&gt TYPE any.
+
+  IF p_file IS INITIAL.
+    "File path is empty.
+    MESSAGE s000 WITH TEXT-e03 DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+
+  ENDIF.
+
+  DESCRIBE FIELD gs_excel TYPE FINAL(lv_type) COMPONENTS lv_col.
+
+  "  LT_CHECK_LIST = VALUE #( ( FIELD = 'VTEXT' ) ).
+
+  CALL FUNCTION <a href ="zmm_set_excel_to_itab/zmm_set_excel_to_itab.html">'ZMM_SET_EXCEL_TO_ITAB'</a>
+    EXPORTING
+      filename      = p_file
+      i_begin_col   = 1
+      i_begin_row   = 2
+      i_end_col     = lv_col
+      i_end_row     = 99999
+    TABLES
+      et_tab        = lt_excel
+      it_check_list = lt_check_list.
+
+  MOVE-CORRESPONDING lt_excel TO gt_data.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CHECK_AND_MAKE_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000010"></div>
+FORM check_and_make_data .
+
+  FIELD-SYMBOLS: &ltls_data&gt LIKE gs_data.
+  FIELD-SYMBOLS: &ltlv_date&gt TYPE any.
+
+  " ## # ## ### # ### (##+##)
+  TYPES: BEGIN OF ty_dup_key,
+           matnr TYPE matnr,
+           charg TYPE charg_d,
+         END OF ty_dup_key.
+
+  DATA lt_dup_check TYPE HASHED TABLE OF ty_dup_key
+                    WITH UNIQUE KEY matnr charg.
+
+
+
+  "# ## ##
+  LOOP AT gt_data ASSIGNING &ltls_data&gt.
+
+    CLEAR: &ltls_data&gt-icon,
+           &ltls_data&gt-msg.
+
+    "-------------------------------
+    "1. ## ### ## ## ## (MATNR)
+    "-------------------------------
+    SELECT SINGLE matnr
+      FROM mara
+      WHERE matnr = @&ltls_data&gt-matnr
+      INTO @DATA(lv_matnr).
+
+    IF sy-subrc &lt&gt 0.
+      &ltls_data&gt-icon = icon_led_red.
+      &ltls_data&gt-msg = |## #### #### ####.|.
+      CONTINUE.
+    ENDIF.
+
+    "-------------------------------
+    "1-1. ## # ##/## ## ## ##
+    "    (## MATNR+CHARG # ## ## ### ### ##)
+    "-------------------------------
+    READ TABLE lt_dup_check
+         WITH TABLE KEY matnr = &ltls_data&gt-matnr
+                              charg = &ltls_data&gt-charg
+         TRANSPORTING NO FIELDS.
+
+    IF sy-subrc = 0.
+      " ## ## ### ## ##/### # # ###
+      &ltls_data&gt-icon = icon_led_red.
+      &ltls_data&gt-msg  = |## ## ### ##/## ### ####|.
+      CONTINUE.
+    ELSE.
+      " ## ## ##/## ## # ## #### ##
+      INSERT VALUE ty_dup_key(
+               matnr = &ltls_data&gt-matnr
+               charg = &ltls_data&gt-charg )
+             INTO TABLE lt_dup_check.
+    ENDIF.
+
+
+
+    "-------------------------------
+    "2. ## ## ## ## ## (CHARG)
+    "-------------------------------
+    SELECT SINGLE charg
+     FROM mch1
+     WHERE matnr = @&ltls_data&gt-matnr
+       AND charg = @&ltls_data&gt-charg
+     INTO @DATA(lv_charg).
+
+    IF sy-subrc = 0.
+      &ltls_data&gt-icon = icon_led_yellow.
+      &ltls_data&gt-msg  = |#### ## #####.|.
+      CONTINUE.
+    ENDIF.
+
+    "-------------------------------
+    "3. ## ### ## (ZHSDAT, ZBUDAT, ZVFDAT, ZLWEDT)
+    " #, #, # #### '.'### ###... #######?
+    "-------------------------------
+    DATA : lv_date_error TYPE abap_bool.
+    DATA : lv_col_name   TYPE string.
+
+    DO 5 TIMES.
+      DATA(lv_idx) = sy-index.
+
+      CLEAR lv_col_name.
+      CLEAR lv_date_error.
+      UNASSIGN &ltlv_date&gt.
+
+      CASE lv_idx.
+        WHEN 1. ASSIGN &ltls_data&gt-zhsdat TO &ltlv_date&gt. lv_col_name = 'Date of Manufacture'.
+        WHEN 2. ASSIGN &ltls_data&gt-zbudat TO &ltlv_date&gt. lv_col_name = 'POSTING_DATE'.
+        WHEN 3. ASSIGN &ltls_data&gt-zvfdat TO &ltlv_date&gt. lv_col_name = 'SLED_DATE'.
+        WHEN 4. ASSIGN &ltls_data&gt-zlwedt TO &ltlv_date&gt. lv_col_name = 'Date of last goods receipt'.
+        WHEN 5. ASSIGN &ltls_data&gt-zndate TO &ltlv_date&gt. lv_col_name = 'Inter GR_Date'.
+      ENDCASE.
+
+
+
+      "#### #### '.' ##, Trim
+      DATA(lv_date_str) = CONV string( &ltlv_date&gt ).
+      REPLACE ALL OCCURRENCES OF '.' IN lv_date_str WITH ''.
+      CONDENSE lv_date_str NO-GAPS.
+
+      "8## #### ##
+      IF strlen( lv_date_str ) &lt&gt 8
+         OR lv_date_str CN '0123456789'.
+        lv_date_error   = abap_true.
+        &ltls_data&gt-icon  = icon_led_red.
+        &ltls_data&gt-msg   = |{ lv_col_name } ## ### ## ### ####.|.
+        EXIT.  " ## EXIT
+      ENDIF.
+
+      "DATS # ##
+      DATA(lv_date_dats) = CONV dats( lv_date_str ).
+
+      " ## ### ##
+      CALL FUNCTION 'DATE_CHECK_PLAUSIBILITY'
+        EXPORTING
+          date                      = lv_date_dats
+        EXCEPTIONS
+          plausibility_check_failed = 1
+          OTHERS                    = 2.
+
+      IF sy-subrc &lt&gt 0.
+        lv_date_error   = abap_true.
+        &ltls_data&gt-icon  = icon_led_red.
+        &ltls_data&gt-msg   = |{ lv_col_name } ## ### ## ### ####.|.
+        EXIT.
+      ELSE.
+        " #### ### ## gs_data ### ###
+        &ltlv_date&gt = lv_date_dats.
+      ENDIF.
+
+    ENDDO.
+
+    " ## # #### ### # ## # ## #### ##
+    IF lv_date_error = abap_true.
+      CONTINUE.
+    ENDIF.
+
+    "-------------------------------
+    "4. S/W Version ## (ZVERSION)
+    " ## : xx.xx
+    " ### 2## ##
+    " #### ### 2##
+    " ### ##
+    "-------------------------------
+    DATA(lv_ver) = |{ &ltls_data&gt-zversion }|.   " ### ##
+    CONDENSE lv_ver NO-GAPS.                   " ## ## (##/##)
+
+    " ####(## ###) ## ##
+    IF lv_ver IS NOT INITIAL.
+
+      " ###: ## 1~2## + '.' + ## 2##
+      FIND PCRE '^[0-9]{1,2}\.[0-9]{2}$'
+           IN lv_ver
+           MATCH COUNT DATA(lv_ver_cnt).
+
+      IF sy-subrc &lt&gt 0.
+        &ltls_data&gt-icon = icon_led_red.
+        &ltls_data&gt-msg  = |S/W Version# ### ####.| .
+        CONTINUE.
+      ENDIF.
+
+    ENDIF.
+
+
+
+    "-------------------------------
+    "5. Next Inspection ### ## ( ZVFNUM )
+    " ##, ## 4##
+    "-------------------------------
+    DATA(lv_zvfnum) = |{ &ltls_data&gt-zvfnum }|.
+    CONDENSE lv_zvfnum NO-GAPS.
+    lv_col_name = |Next Inspection ### ### ####.|.
+
+    IF lv_zvfnum IS INITIAL.
+      &ltls_data&gt-icon = icon_led_red.
+      &ltls_data&gt-msg  = lv_col_name.
+      CONTINUE.
+    ENDIF.
+
+    FIND PCRE '^[0-9]{1,4}$'
+         IN lv_zvfnum
+         MATCH COUNT DATA(lv_num_cnt).
+
+    IF sy-subrc &lt&gt 0.
+      &ltls_data&gt-icon = icon_led_red.
+      &ltls_data&gt-msg  = lv_col_name.
+      CONTINUE.
+    ENDIF.
+
+
+    "-------------------------------
+    "6. Customer Location ## (ZDESTI)
+    " ### : V / L / C / N / P / I / U
+    "-------------------------------
+    DATA(lv_zdesti) = |{ &ltls_data&gt-zdesti }|.
+    CONDENSE lv_zdesti NO-GAPS.
+    TRANSLATE lv_zdesti TO UPPER CASE.
+
+    IF  lv_zdesti &lt&gt 'V'
+     AND lv_zdesti &lt&gt 'L'
+     AND lv_zdesti &lt&gt 'C'
+     AND lv_zdesti &lt&gt 'N'
+     AND lv_zdesti &lt&gt 'P'
+     AND lv_zdesti &lt&gt 'I'
+     AND lv_zdesti &lt&gt 'U'.
+
+      &ltls_data&gt-icon = icon_led_red.
+      &ltls_data&gt-msg  = |Customer Location# ### ####.| .
+      CONTINUE.
+    ENDIF.
+
+
+    "-------------------------------
+    "7. 4M Number ## ## (ZFMNUM)
+    " ## 20#
+    "-------------------------------
+    DATA(lv_fm) = |{ &ltls_data&gt-zfmnum }|.
+    CONDENSE lv_fm NO-GAPS.
+
+    IF lv_fm IS NOT INITIAL AND strlen( lv_fm ) &gt 20.
+      &ltls_data&gt-icon = icon_led_red.
+      &ltls_data&gt-msg  = |4M Number# ## 20### #####.| .
+      CONTINUE.
+    ENDIF.
+
+    "-------------------------------
+    "8. ECO Number ## ## (ZECONUM)
+    " ## 20#
+    "-------------------------------
+    DATA(lv_eco) = |{ &ltls_data&gt-zeconum }|.
+    CONDENSE lv_eco NO-GAPS.
+
+    IF lv_eco IS NOT INITIAL AND strlen( lv_eco ) &gt 20.
+      &ltls_data&gt-icon = icon_led_red.
+      &ltls_data&gt-msg  = |ECO Number# ## 20### #####.| .
+      CONTINUE.
+    ENDIF.
+
+
+
+  ENDLOOP.
+
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SAVE_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000011"></div>
+FORM save_data .
+
+  DATA: lt_selrows TYPE lvc_t_row,
+        ls_selrow  TYPE lvc_s_row.
+
+  " EXPORTING
+  DATA: ls_it_data TYPE zmms0542.
+
+  " IMPORTING(Return ##)
+  DATA: ls_return TYPE zmms0501.
+
+
+
+  FIELD-SYMBOLS: &ltls_data&gt LIKE gs_data.
+
+  DATA: lv_version_text TYPE c LENGTH 5,
+<font color ="#8C8C8C">*        lv_version      TYPE c LENGTH 4,</font>
+<font color ="#8C8C8C">*        lv_version      TYPE p LENGTH 2 DECIMALS 2,</font>
+        lv_version      TYPE zmms0542-zversion,
+        lv_success_cnt  TYPE i VALUE 0.
+
+  CALL METHOD go_grid-&gtget_selected_rows
+    IMPORTING
+      et_index_rows = lt_selrows.
+
+  IF lt_selrows IS INITIAL.
+    MESSAGE '### ## ####.' TYPE 'S' DISPLAY LIKE 'E'.
+    RETURN.
+  ENDIF.
+
+  LOOP AT lt_selrows INTO ls_selrow.
+
+    READ TABLE gt_data ASSIGNING &ltls_data&gt INDEX ls_selrow-index.
+    IF sy-subrc &lt&gt 0.
+      CONTINUE.
+    ENDIF.
+
+    IF &ltls_data&gt-icon = icon_led_red
+    OR &ltls_data&gt-icon = icon_led_yellow
+    OR &ltls_data&gt-icon = icon_led_green.
+      CONTINUE.
+    ENDIF.
+
+
+
+    " S/W Version 20.04 # 2004 # ##
+<font color ="#8C8C8C">*    CLEAR: lv_version_text, lv_version.</font>
+<font color ="#8C8C8C">*    lv_version_text = &ltls_data&gt-zversion.</font>
+<font color ="#8C8C8C">*    REPLACE ALL OCCURRENCES OF '.' IN lv_version_text WITH ''.</font>
+<font color ="#8C8C8C">*    lv_version = lv_version_text.</font>
+
+    " S/W Version : '20.04', '1.03' ### DEC 4 2 # ##
+    CLEAR lv_version.
+    lv_version = &ltls_data&gt-zversion.  " # #### ## ## ## ###
+
+
+
+
+
+    " ZMMS0542 ###
+    CLEAR ls_it_data.
+    ls_it_data-matnr    = &ltls_data&gt-matnr.
+    ls_it_data-charg    = &ltls_data&gt-charg.
+    ls_it_data-zhsdat   = &ltls_data&gt-zhsdat.
+    ls_it_data-zbudat   = &ltls_data&gt-zbudat.
+    ls_it_data-zvfdat   = &ltls_data&gt-zvfdat.
+    ls_it_data-zlwedt   = &ltls_data&gt-zlwedt.
+    ls_it_data-zlicha   = &ltls_data&gt-zlicha.
+    ls_it_data-zpcharg  = &ltls_data&gt-zpcharg.
+    ls_it_data-zversion = lv_version.
+    ls_it_data-zvfnum   = &ltls_data&gt-zvfnum.
+
+    ls_it_data-zdesti   = &ltls_data&gt-zdesti.
+    ls_it_data-zfmnum   = &ltls_data&gt-zfmnum.
+    ls_it_data-zeconum  = &ltls_data&gt-zeconum.
+    ls_it_data-zndate   = &ltls_data&gt-zndate.
+
+
+    CLEAR ls_return.
+
+
+    CALL FUNCTION <a href ="zmm_create_batch_number/zmm_create_batch_number.html">'ZMM_CREATE_BATCH_NUMBER'</a>
+      EXPORTING
+        is_data   = ls_it_data
+      IMPORTING
+        es_return = ls_return.
+
+    " status = 'S' # ## ##
+    IF ls_return-status = 'S'.
+      &ltls_data&gt-icon = icon_led_green.
+      lv_success_cnt = lv_success_cnt + 1.
+
+    ELSE.
+      &ltls_data&gt-icon = icon_led_red.
+
+      IF ls_return-message IS INITIAL.
+        &ltls_data&gt-msg = |## ## # ### ######.(STATUS={ ls_return-status })|.
+      ELSE.
+        &ltls_data&gt-msg = ls_return-message.
+      ENDIF.
+
+    ENDIF.
+
+
+
+  ENDLOOP.
+
+  PERFORM <a href ="javascript:Link('ZMMR0030_F02.html?id=#000000000013');">go_grid_refresh</a> USING go_grid.
+  MESSAGE |# { lv_success_cnt }## ### #######.| TYPE 'S'.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

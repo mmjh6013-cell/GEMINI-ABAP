@@ -1,0 +1,125 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XMDV_FILL_CM61DTAB_FROM_MD</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XMDV_FILL_CM61DTAB_FROM_MD</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  FILL_CM61DTAB_FROM_MDMMX</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  ---&gt TSIZE     Portion size (# materials per task) (I)              *</font>
+<font color ="#8C8C8C">*  &lt--&gt TINDX     Current Index on MDMMX   (I/O)                       *</font>
+<font color ="#8C8C8C">*  &lt--&gt NEW_LEVEL_FLAG  Indicator for change of low-level-code (I/O)   *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000693"></div>
+FORM fill_cm61dtab_from_mdmmx
+     USING    tsize          TYPE md_tsize
+     CHANGING tindx          TYPE i
+              new_level_flag LIKE am61x-flg01.
+
+  DATA:   v_matnr            LIKE am61x-matnr,
+          port_index         TYPE i,
+          nline              LIKE sy-tabix,
+          lv_tsize           TYPE md_tsize,
+          lv_mdmmx_lines     TYPE md_tsize.
+
+<font color ="#8C8C8C">* Initialisierung Exitcode / Vorgängermaterial</font>
+  CLEAR v_matnr.                       "Vorgängermat.
+  MOVE indx1 TO port_index.            "Portionsindex
+  MOVE tsize TO lv_tsize.              "portion size
+  CLEAR cm61d_tab. REFRESH cm61d_tab.  "RFC-Planungspaket
+
+<font color ="#8C8C8C">*  &gt Determine Number of entries</font>
+  DESCRIBE TABLE mdmmx LINES lv_mdmmx_lines.
+<font color ="#8C8C8C">*  &gt HANA : Adapt Package Size to lv_hana_psize</font>
+  IF cl_pph_mdpsx_selection=&gtget_hana_active( ) = abap_true.
+    IF gv_number_tasks IS NOT INITIAL.
+      lv_tsize =   lv_mdmmx_lines DIV gv_number_tasks .
+      IF lv_tsize &lt gv_hana_psize.   "Do not get below a certain threshold
+        lv_tsize = gv_hana_psize.
+      ENDIF.
+    ELSE.
+      lv_tsize = gv_hana_psize.
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Auffinden der nächsten nichtleeren Dispostufe</font>
+  DO.
+
+<font color ="#8C8C8C">*--&gt Vorgängermaterial merken</font>
+    v_matnr = mdmmx-matnr.
+<font color ="#8C8C8C">*--&gt Naechsten Eintrag aus MDMMX ermitteln</font>
+    READ TABLE mdmmx INDEX tindx.
+    IF sy-subrc NE 0.                  "Konsistenzpruefung
+      MESSAGE e005(md) WITH 'SAPMM61X' 'NEXT_MDMMX_PORTION'.
+    ENDIF.
+
+<font color ="#8C8C8C">*--&gt call BADI to change size for next package</font>
+    IF NOT gv_md_mrp_run_parallel_act IS INITIAL.           "HW 557324
+      CALL METHOD gv_md_mrp_run_parallel-&gtset_package_size
+        EXPORTING
+          im_plobj = cm61x-plobj
+          im_plscn = cm61x-plscn
+          im_disst = mdmmx-disst
+          im_matnr = mdmmx-matnr
+          im_plwrk = mdmmx-plwrk
+          im_berid = mdmmx-berid
+          im_plmod = cm61x-plmod
+        CHANGING
+          ch_tsize = lv_tsize.
+    ENDIF.
+
+<font color ="#8C8C8C">*--&gt Check: Max. RFC-Portionsgröße erreicht</font>
+    IF ( port_index GT lv_tsize
+         AND mdmmx-matnr NE v_matnr )
+    OR ( port_index GT 1               "Auft. innerh. Mat.   "HW 544814
+         AND mdmmx-parmx GT 0 ).
+      CLEAR port_index.
+      CLEAR v_matnr.
+      EXIT.
+    ENDIF.
+
+<font color ="#8C8C8C">*--&gt Materialvormerkung uebernehmen in CM61D_TAB</font>
+    ADD 1 TO tindx.                    "Zeigerpos. MDMMX hochsetzen
+    ADD 1 TO port_index.               "Zaehler akt. Portion hochsetzen
+    PERFORM put_mdmmx_to_cm61d.        " USING MDMMX CM61X CM61D.
+    cm61d_tab = cm61d.
+    APPEND cm61d_tab.
+
+<font color ="#8C8C8C">*--&gt Check: MDMMX vollständig abgearbeitet --&gt Neue MDMMX-Portion</font>
+    DESCRIBE TABLE mdmmx LINES nline.
+    IF tindx GT nline.
+      IF new_level_flag NE xflag.
+<font color ="#8C8C8C">*--&gt  Kein Dispostufenwechsel n. alter Portion (etwa psize) registriert</font>
+        PERFORM <a href ="javascript:Link('MM61XMDV_MDMMX_FILL.html?id=#000000000698');">mdmmx_fill</a>.
+        tindx = 1.                     "Zeigerpos. MDMMX rücksetzen
+        IF mdmmx[] IS INITIAL.
+          new_level_flag   = xflag.
+          EXIT.
+        ENDIF.
+      ELSE.
+<font color ="#8C8C8C">*--&gt Dispostufenwechsel vor vollst. Portionsende (Verbindung schliessen)</font>
+        new_level_flag   = xflag.
+        EXIT.
+      ENDIF.
+    ENDIF.
+
+  ENDDO.
+
+ENDFORM.                               " FILL_CM61DTAB_FROM_MDMMX
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

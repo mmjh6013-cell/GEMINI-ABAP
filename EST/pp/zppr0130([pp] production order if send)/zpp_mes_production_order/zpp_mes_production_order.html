@@ -1,0 +1,358 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZPP_MES_PRODUCTION_ORDER</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZPP_MES_PRODUCTION_ORDER</b></font>
+<hr>
+<pre width="100">
+FUNCTION zpp_mes_production_order.
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*"*"Local Interface:</font>
+<font color ="#8C8C8C">*"  IMPORTING</font>
+<font color ="#8C8C8C">*"     REFERENCE(IV_AUFNR) TYPE  AUFNR</font>
+<font color ="#8C8C8C">*"     REFERENCE(IV_ZSEQ) TYPE  ZESEQ</font>
+<font color ="#8C8C8C">*"  EXPORTING</font>
+<font color ="#8C8C8C">*"     REFERENCE(ES_REPLY) TYPE  ZCMS0060</font>
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+
+<font color ="#8C8C8C">*       <a href ="global-zpp_mes_production_order.html">Global data declarations</a></font>
+  " For IS Req
+  DATA : zcl_proxy_req TYPE REF TO zppco_pp0070_so,
+         fault         TYPE REF TO cx_ai_system_fault,
+         zerror        TYPE string,
+         zreq_req      TYPE zpppp0070_send_req_mt,
+         zres_req      TYPE zpppp0070_send_res_mt.
+
+  DATA : lt_log TYPE TABLE OF zppt0200l,
+         ls_log TYPE zppt0200l.
+
+  DATA : lt_component TYPE TABLE OF zpps0170,
+         ls_component TYPE zpps0170,
+         lt_discrete  TYPE TABLE OF zpps0171,
+         ls_discrete  TYPE zpps0171.
+
+  DATA : ls_ifkey_key  TYPE zcms0030,
+         ls_ifkey_info TYPE zcms0040,
+         lv_seq_log    TYPE zppt0200l-if_item,
+         lv_err,
+         lv_err_msg    TYPE string.
+
+  DATA : BEGIN OF ls_main,
+           zseq       TYPE zppt0200-zseq,
+           if_sys     TYPE zeifsys,
+           werks      TYPE caufv-werks,
+           aufnr      TYPE caufv-aufnr,
+           auart      TYPE caufv-auart,
+           gamng      TYPE caufv-gamng,
+           meins      TYPE afpo-meins,
+           gltrp      TYPE caufv-gltrp,
+           fevor      TYPE caufv-fevor,
+           verid      TYPE afpo-verid,
+           matnr      TYPE afpo-matnr,
+           ord_iud    TYPE zppt0200-ord_iud,
+           ord_status TYPE zppt0200-ord_status,
+           if_type    TYPE zppt0200-if_type,
+           rsnum      TYPE resb-rsnum,
+           rspos      TYPE resb-rspos,
+           matnr_re   TYPE resb-matnr,
+           maktx      TYPE makt-maktx,
+           arbpl      TYPE crhd-arbpl,
+           bdmng      TYPE resb-bdmng,  " ERFMG ##
+           meins_re   TYPE resb-meins,  " ERFME ##
+           charg      TYPE resb-charg,
+           lgort      TYPE resb-lgort,
+           zzissue    TYPE marc-zzissue,
+         END OF ls_main,
+         lt_main    LIKE TABLE OF ls_main,
+         lt_sending LIKE TABLE OF ls_main.
+
+<font color ="#8C8C8C">*-- 1. Total Table ##</font>
+  SELECT DISTINCT a~zseq,
+         b~werks, b~aufnr, b~auart,
+         b~gamng, c~meins, b~gstrp AS gltrp,
+         b~fevor, c~verid, c~matnr,
+         a~ord_iud, a~ord_status, a~if_type,
+         d~rsnum, d~rspos,
+         CASE d~txtps WHEN 'X' THEN d~potx1 ELSE d~matnr END AS matnr_re,
+         CASE d~txtps WHEN 'X' THEN t2~maktx ELSE t1~maktx END AS maktx,
+         f~arbpl,
+         d~erfmg AS bdmng,
+         d~erfme AS meins_re,
+<font color ="#8C8C8C">*         d~bdmng,</font>
+<font color ="#8C8C8C">*         d~meins AS meins_re,</font>
+         d~charg, d~lgort,
+         g~zzissue
+    FROM zppt0200 AS a INNER JOIN caufv AS b
+                               ON a~aufnr = b~aufnr
+                       INNER JOIN afpo AS c
+                               ON b~aufnr = c~aufnr
+                       INNER JOIN resb AS d
+                               ON b~aufnr = d~aufnr
+                              AND b~rsnum = d~rsnum
+                       LEFT  JOIN afvc AS e
+                               ON d~aufpl = e~aufpl
+                              AND d~plnfl = e~plnfl
+                              AND d~vornr = e~vornr
+                              AND d~aplzl = e~aplzl
+                       LEFT  JOIN crhd AS f
+                               ON e~arbid = f~objid
+                       LEFT  JOIN marc AS g
+                               ON d~matnr = g~matnr
+                              AND b~werks = g~werks
+                       LEFT  JOIN makt AS t1
+                               ON d~matnr = t1~matnr
+                              AND t1~spras = @sy-langu
+                       LEFT  JOIN makt AS t2
+                               ON d~potx1 = t2~matnr
+                              AND t2~spras = @sy-langu
+    WHERE a~aufnr = @iv_aufnr
+      AND a~zseq  = @iv_zseq
+      AND b~autyp = '10'
+      AND d~xloek &lt&gt @abap_true
+      AND d~dumps &lt&gt @abap_true
+      AND a~if_type NOT IN ( 'S', 'P' )
+    INTO CORRESPONDING FIELDS OF TABLE @lt_main.
+
+<font color ="#8C8C8C">*-- 2. ### ##</font>
+  IF lt_main[] IS INITIAL.
+    es_reply-type = 'I'.
+    es_reply-message = TEXT-e01.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">*-- Log ###</font>
+  CLEAR es_reply.
+  PERFORM initialize_ifkey USING 'MES' 'PP0070_SO'
+                           CHANGING ls_ifkey_key ls_ifkey_info es_reply.
+
+<font color ="#8C8C8C">*-- 3. Sending Log ##</font>
+  MOVE-CORRESPONDING lt_main[] TO lt_sending[].
+  LOOP AT lt_sending ASSIGNING FIELD-SYMBOL(&ltfs_log&gt).
+
+    CLEAR ls_log.
+
+    MOVE-CORRESPONDING ls_ifkey_key  TO ls_log.
+    MOVE-CORRESPONDING ls_ifkey_info TO ls_log.
+    lv_seq_log += 1.
+
+    " Sending I/F Key ##
+    ls_log-if_date_send = ls_ifkey_key-if_date.
+    ls_log-if_time_send = ls_ifkey_key-if_time.
+    ls_log-if_id_send   = ls_ifkey_key-if_id.
+    ls_log-if_key_send  = ls_ifkey_key-if_key.
+
+    " Discrete
+    ls_log = VALUE #( BASE ls_log
+                        werks      = &ltfs_log&gt-werks
+                        aufnr      = &ltfs_log&gt-aufnr
+                        matnr      = &ltfs_log&gt-matnr
+                        ord_status = &ltfs_log&gt-ord_status
+                        comp_arpbl = &ltfs_log&gt-arbpl
+                        fevor      = &ltfs_log&gt-fevor
+                        prdline    = &ltfs_log&gt-verid
+                        qty        = &ltfs_log&gt-gamng
+                        gltrp      = &ltfs_log&gt-gltrp ).
+
+    " Component
+    ls_log = VALUE #( BASE ls_log
+                        if_item         = lv_seq_log
+                        werks_comp      = &ltfs_log&gt-werks
+                        aufnr_comp      = &ltfs_log&gt-aufnr
+                        prdline_comp    = &ltfs_log&gt-verid
+                        auart_comp      = &ltfs_log&gt-auart
+                        matnr_comp      = &ltfs_log&gt-matnr_re
+                        qty_comp        = &ltfs_log&gt-gamng
+                        gltrp_comp      = &ltfs_log&gt-gltrp
+                        ord_status_comp = &ltfs_log&gt-ord_status
+                        comp_posnr      = &ltfs_log&gt-rspos
+                        comp_idnrk      = &ltfs_log&gt-matnr_re
+                        comp_desc       = &ltfs_log&gt-maktx
+                        comp_arpbl_comp = &ltfs_log&gt-arbpl
+                        comp_menge      = &ltfs_log&gt-bdmng
+                        comp_meins      = &ltfs_log&gt-meins_re
+                        comp_batch      = &ltfs_log&gt-charg
+                        comp_lgort      = &ltfs_log&gt-lgort
+                        comp_supply     = &ltfs_log&gt-zzissue ).
+
+    " ## ### ##
+    PERFORM check_field_missing_po USING ls_log
+                                   CHANGING lv_err.
+    APPEND ls_log TO lt_log.
+
+  ENDLOOP.
+
+<font color ="#8C8C8C">*-- Log Table ##</font>
+  TRY.
+      INSERT zppt0200l FROM TABLE lt_log.
+      IF sy-subrc = 0.
+        COMMIT WORK AND WAIT.
+      ELSE.
+        ROLLBACK WORK.
+        lv_err_msg = TEXT-e05.
+        REPLACE ALL OCCURRENCES OF '&' IN lv_err_msg WITH 'ZPPT0200L'.
+        es_reply-type = 'E'.
+        es_reply-message = lv_err_msg.
+        RETURN.
+      ENDIF.
+
+    CATCH cx_root.
+      lv_err_msg = TEXT-e05.
+      REPLACE ALL OCCURRENCES OF '&' IN lv_err_msg WITH 'ZPPT0200L'.
+      es_reply-type = 'E'.
+      es_reply-message = lv_err_msg.
+      RETURN.
+  ENDTRY.
+
+  IF lv_err = abap_true.
+    es_reply-type = 'E'.
+    es_reply-message = TEXT-e06.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">*-- 4. I/F Send Table Setting</font>
+  LOOP AT lt_sending ASSIGNING FIELD-SYMBOL(&ltfs_grp_discrete&gt)
+    GROUP BY ( werks      = &ltfs_grp_discrete&gt-werks
+               aufnr      = &ltfs_grp_discrete&gt-aufnr
+               matnr      = &ltfs_grp_discrete&gt-matnr
+               ord_status = &ltfs_grp_discrete&gt-ord_status
+               comp_arpbl = &ltfs_grp_discrete&gt-arbpl
+               fevor      = &ltfs_grp_discrete&gt-fevor
+               prdline    = &ltfs_grp_discrete&gt-verid
+               qty        = &ltfs_grp_discrete&gt-gamng
+               gltrp      = &ltfs_grp_discrete&gt-gltrp ) ASSIGNING FIELD-SYMBOL(&ltfs_grp_component&gt).
+
+    " Discrete ##
+    CLEAR : ls_discrete.
+    ls_discrete = VALUE #( BASE ls_discrete
+                            werks      = &ltfs_grp_component&gt-werks
+                            aufnr      = &ltfs_grp_component&gt-aufnr
+                            matnr      = &ltfs_grp_component&gt-matnr
+                            ord_status = &ltfs_grp_component&gt-ord_status
+                            comp_arpbl = &ltfs_grp_component&gt-comp_arpbl
+                            fevor      = &ltfs_grp_component&gt-fevor
+                            prdline    = &ltfs_grp_component&gt-prdline
+                            qty        = &ltfs_grp_component&gt-qty
+                            gltrp      = &ltfs_grp_component&gt-gltrp ).
+
+    APPEND ls_discrete TO lt_discrete.
+
+    " Component ##
+    LOOP AT GROUP &ltfs_grp_component&gt ASSIGNING FIELD-SYMBOL(&ltfs_component&gt).
+      CLEAR : ls_component.
+      ls_component = VALUE #( BASE ls_component
+                                werks       = &ltfs_component&gt-werks
+                                aufnr       = &ltfs_component&gt-aufnr
+                                prdline     = &ltfs_component&gt-verid
+                                auart       = &ltfs_component&gt-auart
+                                matnr       = &ltfs_component&gt-matnr_re
+                                qty         = &ltfs_component&gt-gamng
+                                gltrp       = &ltfs_component&gt-gltrp
+                                ord_status  = &ltfs_component&gt-ord_status
+                                comp_posnr  = &ltfs_component&gt-rspos
+                                comp_idnrk  = &ltfs_component&gt-matnr_re
+                                comp_desc   = &ltfs_component&gt-maktx
+                                comp_arpbl  = &ltfs_component&gt-arbpl
+                                comp_menge  = &ltfs_component&gt-bdmng
+                                comp_meins  = &ltfs_component&gt-meins_re
+                                comp_batch  = &ltfs_component&gt-charg
+                                comp_lgort  = &ltfs_component&gt-lgort
+                                comp_supply = &ltfs_component&gt-zzissue ).
+
+      APPEND ls_component TO lt_component.
+    ENDLOOP.
+
+  ENDLOOP.
+
+
+<font color ="#8C8C8C">*-- 5. I/F Send</font>
+<font color ="#8C8C8C">*-- 5-1. # ### I/F Key # Table Send</font>
+  TRY.
+      CREATE OBJECT zcl_proxy_req.
+
+      MOVE-CORRESPONDING lt_discrete TO zreq_req-mes_wip_discrete_jobs_v.
+      MOVE-CORRESPONDING lt_component TO zreq_req-mes_wip_component_v.
+
+      CALL METHOD zcl_proxy_req-&gtpp0070_so
+        EXPORTING
+          input  = zreq_req
+        IMPORTING
+          output = zres_req.
+
+    CATCH cx_ai_system_fault INTO fault.
+      CALL METHOD fault-&gtget_text
+        RECEIVING
+          result = zerror.
+      es_reply-type = 'E'.
+      es_reply-message = zerror.
+      RETURN.
+  ENDTRY.
+
+  " Reply ##
+  es_reply-type    = zres_req-if_status.
+  es_reply-message = zres_req-if_err_msg.
+
+  " IS Return ## Log ##
+  LOOP AT lt_log ASSIGNING FIELD-SYMBOL(&ltfs_log_result&gt).
+
+    &ltfs_log_result&gt-if_status_get  = zres_req-if_status.
+    &ltfs_log_result&gt-if_err_msg_get = zres_req-if_err_msg.
+
+  ENDLOOP.
+
+<font color ="#8C8C8C">*-- 6. I/F # ####</font>
+  " I/F Sending# ## Data Get -&gt Input SEQ## ### # ####
+  " ## ## MES# #### ## ### ## P or S Status# ##
+  SELECT DISTINCT a~*
+    FROM zppt0200 AS a
+    WHERE a~aufnr = @iv_aufnr
+      AND a~zseq &lt= @iv_zseq
+      AND a~if_type NOT IN ('P', 'S' )
+    INTO TABLE @DATA(lt_update).
+
+  " ### SEQ# S# ## #### ## #### P#
+  LOOP AT lt_update ASSIGNING FIELD-SYMBOL(&ltfs_update&gt).
+
+    &ltfs_update&gt-if_type = 'P'.
+    &ltfs_update&gt-if_msg  = zres_req-if_err_msg.
+    &ltfs_update&gt-aedat   = sy-datum.
+    &ltfs_update&gt-aenam   = sy-uname.
+    &ltfs_update&gt-aezet   = sy-uzeit.
+
+    AT LAST.
+      READ TABLE lt_log ASSIGNING FIELD-SYMBOL(&ltfs_log_get&gt)
+                        WITH KEY aufnr    = &ltfs_update&gt-aufnr.
+      IF sy-subrc = 0.
+        &ltfs_update&gt-if_type = &ltfs_log_get&gt-if_type.
+      ENDIF.
+    ENDAT.
+
+  ENDLOOP.
+
+  MODIFY zppt0200 FROM TABLE lt_update.
+  IF sy-subrc = 0.
+    COMMIT WORK AND WAIT.
+  ELSE.
+    ROLLBACK WORK.
+  ENDIF.
+
+  MODIFY zppt0200l FROM TABLE lt_log.
+  IF sy-subrc = 0.
+    COMMIT WORK AND WAIT.
+  ELSE.
+    ROLLBACK WORK.
+  ENDIF.
+
+ENDFUNCTION.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

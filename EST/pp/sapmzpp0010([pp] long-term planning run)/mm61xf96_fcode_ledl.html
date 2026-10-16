@@ -1,0 +1,104 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF96_FCODE_LEDL</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF96_FCODE_LEDL</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Anzeigen letztes Ergebnis</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000531"></div>
+FORM FCODE_LEDL.
+DATA: LV_NEXT_SCREEN LIKE SY-DYNNR.        "note 446873
+<font color ="#8C8C8C">*--&gt Reset RCODE</font>
+  MOVE SPACE TO AM61X-FLG01.
+<font color ="#8C8C8C">*--&gt letze markierte Liste suchen</font>
+  DO.
+  MDKEX_XLINE = MDKEX_XLINE - 1.
+  IF MDKEX_XLINE LE 0.
+    EXIT.
+  ENDIF.
+  READ TABLE MDKEX INDEX MDKEX_XLINE.
+  IF SY-SUBRC NE 0.
+    EXIT.
+  ENDIF.
+  IF MDKEX-MAKZG EQ XFLAG.
+    MOVE XFLAG TO AM61X-FLG01.
+    EXIT.
+  ENDIF.
+  ENDDO.
+<font color ="#8C8C8C">*--&gt Import der Daten</font>
+  IF AM61X-FLG01 EQ XFLAG.
+    CALL FUNCTION 'MD_READ_MRP_DATA_FROM_MEMORY'
+         EXPORTING  IV_MEMID               = ID_PH
+                    IV_PLSCN               = CM61X-PLSCN
+                    IV_MATERIAL            = MDKEX-MATNR
+                    IV_PLANT               = MDKEX-PLWRK
+                    IV_BERID               = MDKEX-BERID
+         IMPORTING  ES_MDKP                = MDKP
+                    ES_CM61M               = CM61M
+                    ES_CM61B               = CM61B
+                    ES_MDSTA               = MDSTA
+                    ES_MT61D               = MT61D
+                    ET_MDPSX               = MDPSX[]
+         EXCEPTIONS MATERIAL_NOT_IN_MEMORY = 1
+                    DECOMPRESSION_ERROR    = 2
+                    TABLE_NOT_IN_MEMORY    = 3.
+    IF SY-SUBRC NE 0.
+      MOVE SPACE TO AM61X-FLG01.
+    ENDIF.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Check Suchflag</font>
+  IF AM61X-FLG01 EQ SPACE.
+    MOVE CHARR TO AM61X-RCODE.
+    SET SCREEN 0.
+    LEAVE SCREEN.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Reset Status</font>
+  CLEAR STATB.
+<font color ="#8C8C8C">*--&gt Suchsteuerung initialisieren</font>
+  CLEAR MDSTA.
+  PERFORM <a href ="javascript:Link('MM61XAUS_INIT_SUCHSTEUERUNG.html?id=#000000000009');">INIT_SUCHSTEUERUNG</a>.
+<font color ="#8C8C8C">*--&gt Daten für Dispos-Kopf</font>
+  MOVE MDKP-MATNR TO RM61X-MATNR.
+  MOVE MDKP-PLWRK TO RM61X-WERKS.
+  MOVE MDKP-DISST TO RM61X-DISST.
+  MOVE CM61B-BERID TO RM61X-BERID.
+<font color ="#8C8C8C">*--&gt abgebrochenes Material                  note 446873</font>
+  IF MDKP-MSGAR EQ CHARA
+  OR MDKP-MSGAR EQ CHARE.
+    PERFORM MDSTA_AUFBAUEN.
+    PERFORM GROKO_DATA_SEND_COMP.
+    PERFORM <a href ="javascript:Link('MM61XDYN_GROKO_DYNP_BUILD.html?id=#000000000153');">GROKO_DYNP_BUILD</a>.
+    MDST-GROKO = GC_TRUE.
+    MDST-ANZEI = ERR_ACTIV.
+    LV_NEXT_SCREEN   = '0720'.         "Rahmendynpro mit grossem Kopf
+    SUBSCREEN_ZEILEN = '0790'.         "Dispoabbruch
+    CALL SCREEN LV_NEXT_SCREEN.
+  ELSE.
+<font color ="#8C8C8C">*--&gt Pruefen Anzeigeversion</font>
+    IF  MDST-ANZEI &lt&gt PSI_ACTIV          "Periodensummen
+    AND MDST-ANZEI &lt&gt PSSI_ACTIV         "Periodensummen/Auftrag
+    AND MDST-ANZEI &lt&gt PSEZSI_ACTIV       "Periodensummen/Einzelzeilen
+    AND MDST-ANZEI &lt&gt EZI_ACTIV          "Einzelzeilen
+    AND MDST-ANZEI &lt&gt EZSI_ACTIV.        "Einzelzeilen/Auftrag
+      MDST-ANZEI = EZI_ACTIV.
+    ENDIF.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Anzeige aufrufen</font>
+  PERFORM <a href ="javascript:Link('MM61XF30_SHOW_MDEZX.html?id=#000000000195');">SHOW_MDEZX</a> USING CHARS.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

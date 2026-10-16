@@ -1,0 +1,85 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF32_CHECK_PRGRP_MP</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF32_CHECK_PRGRP_MP</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Pruefen Produktgruppe bei interaktiver Planung</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000210"></div>
+FORM CHECK_PRGRP_MP.
+<font color ="#8C8C8C">*--&gt Prüfen Produktgruppe</font>
+  DATA: L_BERID LIKE MDLV-BERID.                            "note 913381
+  PERFORM <a href ="javascript:Link('MM61XF36_CHECK_PRGRP_IP.html?id=#000000000227');">CHECK_PRGRP_IP</a>.
+<font color ="#8C8C8C">*--&gt Materialien zur Produktgruppe lesen</font>
+  CALL FUNCTION 'MC_PG_STRUKTUR'
+       EXPORTING
+            iprgrp                       = rm61x-matnr
+            iwerks                       = rm61x-werks
+       TABLES
+            ipgmit                       = pgmix
+       EXCEPTIONS
+            pg_or_material_not_found     = 01
+                  UNIT_CONVERSION_NOT_POSSIBLE = 02.
+       IF SY-SUBRC NE 0.
+         MESSAGE E004 WITH RM61X-MATNR RM61X-WERKS.
+       ENDIF.
+  LOOP AT PGMIX.
+<font color ="#8C8C8C">*--&gt Check Authority for Material           "HW 496092</font>
+    IF cm61x-plscn IS INITIAL.
+      AUTHORITY-CHECK OBJECT 'M_MTDI_ORG'
+           ID 'MDAKT' FIELD t450n-mdakt
+           ID 'WERKS' FIELD pgmix-werks
+           ID 'DISPO' FIELD pgmix-dispo.
+    ELSE.
+      AUTHORITY-CHECK OBJECT 'M_LFPL_ORG'
+           ID 'MDATL' FIELD t450n-mdaty
+           ID 'PLSCN' FIELD cm61x-plscn
+           ID 'WERKS' FIELD pgmix-werks.
+    ENDIF.
+    IF sy-subrc &lt&gt 0.
+      DELETE pgmix INDEX sy-tabix.
+      MESSAGE s605(mf) WITH pgmix-werks pgmix-dispo.
+      CONTINUE.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Pruefen ob Material auf diesem DB geplant wird</font>
+<font color ="#8C8C8C">*   IF NOT T000MD-DISFG IS INITIAL.</font>
+      IF MDLV-BERTY = '01' AND PGMIX-WERKS &lt&gt RM61X-WERKS.  "note 913381
+        MOVE PGMIX-WERKS TO L_BERID.
+        PERFORM <a href ="javascript:Link('MM61XC02_READ_MT61D.html?id=#000000000059');">READ_MT61D</a> USING PGMIX-MATNR PGMIX-WERKS L_BERID.
+      ELSE.
+        PERFORM <a href ="javascript:Link('MM61XC02_READ_MT61D.html?id=#000000000059');">READ_MT61D</a> USING PGMIX-MATNR PGMIX-WERKS RM61X-BERID.
+      ENDIF.
+<font color ="#8C8C8C">*--&gt  Nur planen, wenn zu diesem Dispobereich vorhanden</font>
+      CHECK SY-SUBRC EQ 0.
+<font color ="#8C8C8C">*   ENDIF.</font>
+    CALL FUNCTION 'MD_PLAN_THIS_MATERIAL_NEXT'
+         EXPORTING IV_MATERIAL     = PGMIX-MATNR
+                   IV_PLANT        = PGMIX-WERKS
+                   IV_BERID        = CM61B-BERID
+                   IV_BERTY        = CM61B-BERTY
+                   IV_DISST        = PGMIX-DISST
+<font color ="#8C8C8C">*                  IV_PLAUF        = CM61X-PLAUF.      "NOTE 131843</font>
+                   IV_PLAUF        = CM61X-PLAUF       "NOTE 131843
+                   IV_PRGFLAG      = XFLAG.            "NOTE 131843
+  ENDLOOP.
+<font color ="#8C8C8C">*--&gt PGMIX freigeben</font>
+  MOVE mt61d-maktx TO rm61x-txmat.                              "3564857
+  MOVE MPRO2-MAKTX TO MT61D-MAKTX.   "NOTE 3284327
+  FREE PGMIX.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

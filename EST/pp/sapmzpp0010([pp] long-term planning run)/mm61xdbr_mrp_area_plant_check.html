@@ -1,0 +1,105 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XDBR_MRP_AREA_PLANT_CHECK</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XDBR_MRP_AREA_PLANT_CHECK</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       FORM MRP_AREA_PLANT_CHECK                                     *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       checks consistency mrp area / plant                           *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  BERID       mrp area                                          *</font>
+<font color ="#8C8C8C">*  --&gt  WERKS       plant                                             *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000135"></div>
+FORM MRP_AREA_PLANT_CHECK USING BERID LIKE MDLV-BERID
+                                BERTX LIKE MDLV-BERTX
+                                WERKS LIKE MDLW-WERKS.
+  STATICS:
+    BERID_OLD LIKE MDLV-BERID,
+    BERTX_OLD LIKE MDLV-BERTX,
+    WERKS_OLD LIKE MDLW-WERKS,
+    FIRST_CALL TYPE C VALUE 'X'.
+<font color ="#8C8C8C">*--&gt clear bertx.      "Dispobereichsname initialisieren</font>
+<font color ="#8C8C8C">*--&gt plant and mrp area is initial</font>
+  IF WERKS IS INITIAL AND BERID IS INITIAL.
+<font color ="#8C8C8C">*    IF T000MD-DISFG IS INITIAL.</font>
+<font color ="#8C8C8C">*     MESSAGE E327(MD).    "Dispobereich nicht aktiv</font>
+<font color ="#8C8C8C">*    ELSE.</font>
+     MESSAGE E320(MD).    "Dispobereich aktiv
+<font color ="#8C8C8C">*   ENDIF.</font>
+  ENDIF.
+<font color ="#8C8C8C">*--&gt check client flag</font>
+<font color ="#8C8C8C">*  PERFORM READ_T000MD.</font>
+<font color ="#8C8C8C">*  IF  T000MD-DISFG IS INITIAL</font>
+<font color ="#8C8C8C">*  AND T000MD-UDBVM IS INITIAL.                              "HW 624642</font>
+<font color ="#8C8C8C">**--&gt normally impossible (BERID filled by SET/GET but client flag OFF)</font>
+<font color ="#8C8C8C">*    CLEAR BERID.</font>
+<font color ="#8C8C8C">*    EXIT.</font>
+<font color ="#8C8C8C">*  ENDIF.</font>
+<font color ="#8C8C8C">*--&gt OLD-Vergleichswerte bei Erstaufruf ermitteln</font>
+  IF NOT FIRST_CALL IS INITIAL.
+    CLEAR FIRST_CALL.
+    BERID_OLD = GLOBAL_BERID_OLD.      "in PBO gefuellt
+    BERTX_OLD = GLOBAL_BERTX_OLD.
+    WERKS_OLD = GLOBAL_WERKS_OLD.      "in PBO gefuellt
+
+  ENDIF.
+<font color ="#8C8C8C">*--&gt check berid versus plant</font>
+  IF BERID IS INITIAL.
+<font color ="#8C8C8C">*--&gt get plant MRP area</font>
+    PERFORM <a href ="javascript:Link('MM61XDBR_BERID_FOR_WERKS.html?id=#000000000131');">BERID_FOR_WERKS</a> USING WERKS CHANGING BERID BERTX.
+  ELSE.
+<font color ="#8C8C8C">*--&gt determine plant (4.0c logik: MRP area belongs to exactly 1 plant)</font>
+    PERFORM <a href ="javascript:Link('MM61XDBR_READ_MDLV.html?id=#000000000136');">READ_MDLV</a> USING BERID CHANGING MDLV.
+    IF WERKS IS INITIAL.
+<font color ="#8C8C8C">*--&gt set plant</font>
+      WERKS = MDLV-WERZG.
+      BERTX = MDLV-BERTX.
+    ELSEIF WERKS NE MDLV-WERZG.        "4.0c: check MDLV is sufficient
+      IF     WERKS_OLD NE WERKS
+      AND    BERID_OLD EQ BERID.
+<font color ="#8C8C8C">*--&gt User hat Werk geandert, also BERID anpassen</font>
+        PERFORM <a href ="javascript:Link('MM61XDBR_BERID_FOR_WERKS.html?id=#000000000131');">BERID_FOR_WERKS</a> USING WERKS CHANGING BERID BERTX.
+        PERFORM <a href ="javascript:Link('MM61XDBR_READ_MDLV.html?id=#000000000136');">READ_MDLV</a> USING BERID CHANGING MDLV.
+<font color ="#8C8C8C">*--&gt wird bei sofortigem Leave To Transaction beneotigt (MD04):</font>
+<font color ="#8C8C8C">*       IF NOT T000MD-DISFG IS INITIAL.                     "Note 898006</font>
+          SET PARAMETER ID 'BERID' FIELD BERID.
+<font color ="#8C8C8C">*       ENDIF.</font>
+      ELSEIF WERKS_OLD EQ WERKS
+      AND    BERID_OLD NE BERID.
+<font color ="#8C8C8C">*--&gt User hat DB geandert, also Werk anpassen</font>
+        WERKS = MDLV-WERZG.
+        BERTX = MDLV-BERTX.
+<font color ="#8C8C8C">*--&gt wird bei sofortigem Leave To Transaction beneotigt (MD04):</font>
+        SET PARAMETER ID 'WRK' FIELD WERKS.
+      ELSE.
+<font color ="#8C8C8C">*   Dispobereich &1 und Werk &2 passen nicht zueinander</font>
+        MESSAGE E317(MD) WITH BERID WERKS.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Dispobereichstext.</font>
+    MOVE MDLV-BERTX TO BERTX.                               "Note 1801696
+
+<font color ="#8C8C8C">*--&gt Werte fuer Vergleich merken</font>
+  BERID_OLD = BERID.
+  BERTX_OLD = BERTX.
+  WERKS_OLD = WERKS.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

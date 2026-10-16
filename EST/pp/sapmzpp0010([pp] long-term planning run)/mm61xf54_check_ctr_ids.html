@@ -1,0 +1,128 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF54_CHECK_CTR_IDS</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF54_CHECK_CTR_IDS</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&  Include           MM61XF54_CHECK_CTR_IDS</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  CHECK_CTR_IDS</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       Check Contract IDs (ERP-Contract vs. Central Contract SRM)</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000300"></div>
+FORM check_ctr_ids  USING    pv_ekorg
+                             pv_fieldname
+                    CHANGING pv_konnr
+                             pv_konps
+                             pv_srm_contract_id
+                             pv_srm_contract_itm.
+
+  DATA: l_ebeln_srm TYPE bbp_bapi_ebeln_k,
+        l_ebelp_srm TYPE bbp_itemno,
+        l_ebeln_erp TYPE ebeln,
+        l_ebelp_erp TYPE ebelp,
+        l_conv      TYPE REF TO cl_mmbsi_cc_conv.
+
+<font color ="#8C8C8C">** Check for EhP4-Switch CCM</font>
+  CHECK cl_ops_switch_check=&gtmm_sfws_p2pse( ) = 'X'.
+
+  CLEAR: l_ebeln_srm, l_ebelp_srm,
+         l_ebeln_erp, l_ebelp_erp.
+
+  LOOP AT SCREEN.
+    IF screen-name EQ pv_fieldname.
+      EXIT.
+    ENDIF.
+  ENDLOOP.
+  IF screen-input        EQ '0'     AND
+     AM61X-VSTAT         NE 'A'     AND NOT
+     pv_konnr            IS INITIAL AND
+     pv_srm_contract_id  IS INITIAL AND
+     pv_srm_contract_itm IS INITIAL.
+    CLEAR: pv_konnr, pv_konps.
+    request_kz = 'X'.
+    EXIT.
+  ENDIF.
+  IF ( NOT pv_srm_contract_id  IS INITIAL AND
+           pv_srm_contract_itm IS INITIAL OR
+           pv_srm_contract_id  IS INITIAL AND
+       NOT pv_srm_contract_itm IS INITIAL ) OR
+     ( NOT pv_konnr            IS INITIAL AND
+           pv_konps            IS INITIAL OR
+           pv_konnr            IS INITIAL AND
+       NOT pv_konps            IS INITIAL ).
+    MESSAGE e008(mm_ccm).
+  ENDIF.
+
+  IF NOT pv_konnr IS INITIAL AND
+         screen-input EQ '1'.
+<font color ="#8C8C8C">** Check, if there is a corresponding SRM-ID</font>
+    l_conv = cl_mmbsi_cc_conv=&gtget_instance(                "1632920
+                 cl_mmpur_constants=&gtbstyp_b ).
+    CALL METHOD l_conv-&gtconv_erp2srm
+      EXPORTING
+        iv_ebeln         = pv_konnr
+        iv_ebelp         = pv_konps
+      IMPORTING
+        ev_ebeln_srm     = l_ebeln_srm
+        ev_ebelp_srm     = l_ebelp_srm
+      EXCEPTIONS
+        no_srm_contract = 1
+        OTHERS          = 2.
+
+    IF sy-subrc EQ 0.
+      IF NOT pv_srm_contract_id  IS INITIAL     AND (
+             pv_srm_contract_id  NE l_ebeln_srm OR
+             pv_srm_contract_itm NE l_ebelp_srm     ).
+        MESSAGE e009(mm_ccm).
+      ELSEIF pv_srm_contract_id IS INITIAL.
+        MOVE: l_ebeln_srm TO pv_srm_contract_id,
+              l_ebelp_srm TO pv_srm_contract_itm.
+      ENDIF.
+    ELSEIF NOT pv_srm_contract_id IS INITIAL.
+      MESSAGE e009(mm_ccm).
+    ENDIF.
+  ELSEIF NOT pv_srm_contract_id IS INITIAL.
+    CALL FUNCTION 'MMBSI_GET_ERP_ID'
+      EXPORTING
+        iv_ebeln                 = pv_srm_contract_id
+        iv_ebelp                 = pv_srm_contract_itm
+        iv_ekorg                 = pv_ekorg
+        iv_dialog                = 'X'
+      IMPORTING
+        ev_ebeln_erp             = l_ebeln_erp
+        ev_ebelp_erp             = l_ebelp_erp
+      EXCEPTIONS
+        no_srm_contract       = 1
+        cancelled_by_user     = 2
+        no_unique_entry_found = 3
+        OTHERS                = 4.
+
+    IF sy-subrc EQ 1.
+      MESSAGE e010(mm_ccm).
+    ELSEIF sy-subrc NE 0.
+      MESSAGE e011(mm_ccm).
+    ENDIF.
+    MOVE: l_ebeln_erp TO pv_konnr,
+          l_ebelp_erp TO pv_konps.
+    request_kz = 'X'.
+  ENDIF.
+
+ENDFORM.                    " CHECK_CTR_IDS
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

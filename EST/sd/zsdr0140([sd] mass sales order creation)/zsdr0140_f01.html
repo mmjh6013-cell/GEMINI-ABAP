@@ -1,0 +1,5952 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZSDR0140_F01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZSDR0140_F01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZSDR0140_F01</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form INIT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Program initialization</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000003"></div>
+FORM init .
+
+  DATA:
+    ls_dyntxt TYPE smp_dyntxt.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SELECTION SCREEN FUNCTION KEY 1</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  CLEAR ls_dyntxt.
+
+  ls_dyntxt-text      = TEXT-006.
+  ls_dyntxt-icon_id   = icon_xls.
+  ls_dyntxt-icon_text = TEXT-006.
+  ls_dyntxt-quickinfo = TEXT-006.
+
+  sscrfields-functxt_01 = ls_dyntxt.
+  gv_title = sy-title.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SET_SCREEN</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Selection screen PBO: collect required fields</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000004"></div>
+FORM set_screen .
+
+  CLEAR gt_required.
+
+  LOOP AT SCREEN.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* REQUIRED FIELD</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+    screen-required =
+      COND #( WHEN screen-required = gc_1
+              THEN gc_2
+              ELSE screen-required ).
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* REQUIRED FIELD COLLECTION</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+    IF screen-required = gc_2
+       AND screen-active = gc_1.
+
+      COLLECT screen-name
+        INTO gt_required.
+
+    ENDIF.
+
+    MODIFY SCREEN.
+
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SCREEN_CONTROL</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Required field check before execution</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000005"></div>
+FORM screen_control .
+
+  DATA:
+    lv_text TYPE string.
+
+  CHECK sscrfields-ucomm = 'ONLI'.
+
+  LOOP AT gt_required
+    INTO DATA(lv_required).
+
+    ASSIGN (lv_required)
+      TO FIELD-SYMBOL(&ltlv_value&gt).
+
+    CHECK sy-subrc = 0.
+
+    IF &ltlv_value&gt IS INITIAL.
+
+      CLEAR lv_text.
+
+      CASE lv_required.
+
+        WHEN 'S_VKORG-LOW'.
+          lv_text = TEXT-f01.
+
+        WHEN 'S_VKBUR-LOW'.
+          lv_text = TEXT-f02.
+
+        WHEN 'S_VKGRP-LOW'.
+          lv_text = TEXT-f03.
+
+        WHEN 'S_VTWEG-LOW'.
+          lv_text = TEXT-f04.
+
+        WHEN 'P_FILE'.
+          lv_text = TEXT-002.
+
+        WHEN OTHERS.
+          lv_text = lv_required.
+
+      ENDCASE.
+
+      SET CURSOR FIELD lv_required.
+
+      MESSAGE e278(00)
+        WITH lv_text.
+
+    ENDIF.
+
+  ENDLOOP.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SCREEN_UCOMM</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Selection screen user command handling</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000006"></div>
+FORM screen_ucomm .
+
+  CASE sy-ucomm.
+
+    WHEN 'FC01'.
+
+      PERFORM <a href="#000000000008">excel_format_download</a>.
+
+    WHEN OTHERS.
+
+  ENDCASE.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form F4_FILENAME</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& File open dialog</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000007"></div>
+FORM f4_filename USING pv_file TYPE any.
+
+  DATA:
+    lt_filetable TYPE filetable,
+    lv_rc        TYPE i,
+    lv_title     TYPE string.
+
+  lv_title = TEXT-003.
+
+  cl_gui_frontend_services=&gtfile_open_dialog(
+    EXPORTING
+      window_title            = lv_title
+      file_filter             = cl_gui_frontend_services=&gtfiletype_excel
+    CHANGING
+      file_table              = lt_filetable
+      rc                      = lv_rc
+    EXCEPTIONS
+      file_open_dialog_failed = 1
+      cntl_error              = 2
+      error_no_gui            = 3
+      not_supported_by_gui    = 4
+      OTHERS                  = 5 ).
+
+  IF sy-subrc = 0
+     AND lv_rc &gt 0.
+
+    pv_file =
+      VALUE #( lt_filetable[ 1 ]-filename OPTIONAL ).
+
+  ELSEIF sy-subrc &lt&gt 0.
+
+    MESSAGE ID sy-msgid
+      TYPE gc_s
+      NUMBER sy-msgno
+      WITH sy-msgv1
+           sy-msgv2
+           sy-msgv3
+           sy-msgv4
+      DISPLAY LIKE gc_e.
+
+  ENDIF.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form EXCEL_FORMAT_DOWNLOAD</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Download Excel upload template from SMW0</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000008"></div>
+FORM excel_format_download .
+
+  DATA:
+    lv_result TYPE char1,
+    lv_title  TYPE string.
+
+  CLEAR lv_result.
+
+  lv_title = TEXT-004.
+  lv_title = |{ lv_title }_{ sy-datum }|.
+
+  zcl_cm_util=&gtsmw0_download(
+    EXPORTING
+      i_relid  = 'MI'
+      i_objid  = gc_smw0_objid
+      i_title  = lv_title
+      i_excute = gc_x
+    RECEIVING
+      r_result = lv_result
+  ).
+
+  IF lv_result &lt&gt gc_s
+     AND lv_result IS NOT INITIAL.
+
+    MESSAGE s017
+      DISPLAY LIKE gc_e.
+
+  ENDIF.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form PROCESS_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Main upload / validation flow</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000009"></div>
+FORM process_data .
+
+  DATA:
+    lv_count TYPE i.
+
+  CLEAR gv_error.
+
+  PERFORM <a href="#000000000010">excel_upload</a> CHANGING gv_error.
+  CHECK gv_error = abap_false.
+
+  PERFORM <a href="#000000000011">make_upload_data</a>.
+  PERFORM <a href="#000000000015">get_check_master_data</a>.
+  PERFORM <a href="#000000000016">check_display_data</a>.
+  PERFORM <a href="#000000000063">set_display_amount</a>.
+  PERFORM <a href="#000000000054">check_upload_error</a> CHANGING gv_error.
+
+  IF gv_error = abap_true.
+    PERFORM <a href="#000000000053">show_error_popup</a>.
+    RETURN.
+  ENDIF.
+
+  PERFORM <a href="#000000000018">get_display_text</a>.
+  PERFORM <a href="#000000000029">set_display_status</a>.
+  PERFORM <a href="#000000000028">set_edit_style</a>.
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* RECORD COUNT</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  lv_count = lines( gt_disp ).
+
+  IF lv_count = 0.
+
+    MESSAGE s022
+      DISPLAY LIKE gc_e.
+
+    RETURN.
+  ENDIF.
+
+  MESSAGE s004
+    WITH lv_count.
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* DISPLAY ALV</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  CALL SCREEN <a href ="javascript:Link('0100.html?id=#000000000073');">0100</a>.
+
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form EXCEL_UPLOAD</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Excel upload data processing (17 ## ## ##)</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000010"></div>
+FORM excel_upload CHANGING pv_error TYPE abap_bool.
+
+  DATA:
+    lt_intern TYPE TABLE OF zcms0020,
+    lv_value  TYPE string.
+
+  FIELD-SYMBOLS:
+    &ltls_upload&gt TYPE gty_upload,
+    &ltlv_field&gt  TYPE any.
+
+  CLEAR:
+    pv_error,
+    gt_upload.
+
+  CALL FUNCTION <a href ="zcm_excel_to_internal_table/zcm_excel_to_internal_table.html">'ZCM_EXCEL_TO_INTERNAL_TABLE'</a>
+    EXPORTING
+      filename                = p_file
+      i_begin_col             = 1
+      i_begin_row             = gc_excel_begin_row
+      i_end_col               = gc_excel_end_col
+      i_end_row               = 9999
+    TABLES
+      intern                  = lt_intern
+    EXCEPTIONS
+      inconsistent_parameters = 1
+      upload_ole              = 2
+      OTHERS                  = 3.
+
+  IF sy-subrc &lt&gt 0.
+
+    pv_error = abap_true.
+    MESSAGE s017 DISPLAY LIKE gc_e.
+    RETURN.
+
+  ENDIF.
+
+  IF lt_intern IS INITIAL.
+
+    pv_error = abap_true.
+    MESSAGE s022 DISPLAY LIKE gc_e.
+    RETURN.
+
+  ENDIF.
+
+  SORT lt_intern BY row col.
+
+  LOOP AT lt_intern INTO DATA(ls_intern).
+
+    CHECK ls_intern-col BETWEEN 1 AND gc_excel_end_col.
+
+    AT NEW row.
+      APPEND INITIAL LINE TO gt_upload ASSIGNING &ltls_upload&gt.
+      &ltls_upload&gt-excel_row = ls_intern-row.
+    ENDAT.
+
+    CHECK &ltls_upload&gt IS ASSIGNED.
+
+    lv_value = ls_intern-value.
+
+    SHIFT lv_value LEFT DELETING LEADING space.
+    SHIFT lv_value RIGHT DELETING TRAILING space.
+
+    CASE ls_intern-col.
+
+      WHEN 1 OR 4 OR 12 OR 13 OR 15 OR 17. " AUART, AUGRU, MEINS, WERKS, WAERK
+        CONDENSE lv_value NO-GAPS.
+        TRANSLATE lv_value TO UPPER CASE.
+
+      WHEN 5 OR 6 OR 7 OR 10. " KUNAG, KUNWE, KUNRG, MATNR
+        CONDENSE lv_value NO-GAPS.
+
+      WHEN 2 OR 9. " PRSDT, EDATU
+        CONDENSE lv_value NO-GAPS.
+        REPLACE ALL OCCURRENCES OF '.' IN lv_value WITH space.
+        REPLACE ALL OCCURRENCES OF '-' IN lv_value WITH space.
+        REPLACE ALL OCCURRENCES OF '/' IN lv_value WITH space.
+        CONDENSE lv_value NO-GAPS.
+
+      WHEN 11 OR 14 OR 16. " KWMENG, NETPR, FIXED_CHANGED_RATE
+        CONDENSE lv_value NO-GAPS.
+        REPLACE ALL OCCURRENCES OF ',' IN lv_value WITH space.
+        CONDENSE lv_value NO-GAPS.
+
+      WHEN OTHERS.
+
+    ENDCASE.
+
+    UNASSIGN &ltlv_field&gt.
+    ASSIGN COMPONENT ls_intern-col OF STRUCTURE &ltls_upload&gt TO &ltlv_field&gt.
+
+    IF sy-subrc = 0 AND &ltlv_field&gt IS ASSIGNED.
+      &ltlv_field&gt = lv_value.
+    ENDIF.
+
+  ENDLOOP.
+
+  DELETE gt_upload
+    WHERE auart              IS INITIAL
+      AND prsdt              IS INITIAL
+      AND bstkh              IS INITIAL
+      AND augru              IS INITIAL
+      AND kunag              IS INITIAL
+      AND kunwe              IS INITIAL
+      AND kunrg              IS INITIAL
+      AND bstkd_e            IS INITIAL
+      AND edatu              IS INITIAL
+      AND matnr              IS INITIAL
+      AND kwmeng             IS INITIAL
+      AND meins              IS INITIAL
+      AND werks              IS INITIAL
+      AND netpr              IS INITIAL
+      AND waerk              IS INITIAL
+      AND fixed_changed_rate IS INITIAL
+      AND abrvw              IS INITIAL.
+
+  IF gt_upload IS INITIAL.
+
+    pv_error = abap_true.
+    MESSAGE s022 DISPLAY LIKE gc_e.
+
+  ENDIF.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form MAKE_UPLOAD_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Build ALV display rows from uploaded data</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form MAKE_UPLOAD_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000011"></div>
+FORM make_upload_data .
+
+  DATA:
+    ls_disp TYPE gty_disp,
+    lv_line TYPE i.
+
+  CLEAR gt_disp.
+
+  LOOP AT gt_upload INTO DATA(ls_upload).
+
+    CLEAR:
+      ls_disp,
+      lv_line.
+
+    lv_line = ls_upload-excel_row.
+
+    ls_disp-excel_row = ls_upload-excel_row.
+    ls_disp-new       = abap_true.
+    ls_disp-row_kind  = gc_row_ready.
+    ls_disp-kpein     = 1.
+
+    ls_disp-vkorg = s_vkorg-low.
+    ls_disp-vkbur = s_vkbur-low.
+    ls_disp-vkgrp = s_vkgrp-low.
+    ls_disp-vtweg = s_vtweg-low.
+
+    PERFORM <a href="#000000000012">apply_upload_field</a> USING lv_line 'AUART' ls_upload-auart CHANGING ls_disp.
+    PERFORM <a href="#000000000012">apply_upload_field</a> USING lv_line 'PRSDT' ls_upload-prsdt CHANGING ls_disp.
+    PERFORM <a href="#000000000012">apply_upload_field</a> USING lv_line 'BSTKH' ls_upload-bstkh CHANGING ls_disp.
+    PERFORM <a href="#000000000012">apply_upload_field</a> USING lv_line 'AUGRU' ls_upload-augru CHANGING ls_disp.
+    PERFORM <a href="#000000000012">apply_upload_field</a> USING lv_line 'KUNAG' ls_upload-kunag CHANGING ls_disp.
+    PERFORM <a href="#000000000012">apply_upload_field</a> USING lv_line 'KUNWE' ls_upload-kunwe CHANGING ls_disp.
+    PERFORM <a href="#000000000012">apply_upload_field</a> USING lv_line 'KUNRG' ls_upload-kunrg CHANGING ls_disp.
+    PERFORM <a href="#000000000012">apply_upload_field</a> USING lv_line 'BSTKD_E' ls_upload-bstkd_e CHANGING ls_disp.
+    PERFORM <a href="#000000000012">apply_upload_field</a> USING lv_line 'EDATU' ls_upload-edatu CHANGING ls_disp.
+    PERFORM <a href="#000000000012">apply_upload_field</a> USING lv_line 'MATNR' ls_upload-matnr CHANGING ls_disp.
+    PERFORM <a href="#000000000012">apply_upload_field</a> USING lv_line 'KWMENG' ls_upload-kwmeng CHANGING ls_disp.
+    PERFORM <a href="#000000000012">apply_upload_field</a> USING lv_line 'MEINS' ls_upload-meins CHANGING ls_disp.
+    PERFORM <a href="#000000000012">apply_upload_field</a> USING lv_line 'WERKS' ls_upload-werks CHANGING ls_disp.
+    PERFORM <a href="#000000000012">apply_upload_field</a> USING lv_line 'VSTEL' ls_upload-vstel CHANGING ls_disp.
+
+    " 15# ##(KRW)# ##(NETPR) ## ## ## ##!
+    PERFORM <a href="#000000000012">apply_upload_field</a> USING lv_line 'WAERK' ls_upload-waerk CHANGING ls_disp.
+
+    " 14# ##(NETPR) ## (## ## KRW# #### ## ###)
+    PERFORM <a href="#000000000012">apply_upload_field</a> USING lv_line 'NETPR' ls_upload-netpr CHANGING ls_disp.
+
+    " ####(PRICE_UNIT)# ####(MEINS)# ### ## ##
+    ls_disp-price_unit = ls_disp-meins.
+
+    " 16# ##(1) ##
+    PERFORM <a href="#000000000012">apply_upload_field</a> USING lv_line 'FIXED_CHANGED_RATE' ls_upload-fixed_changed_rate CHANGING ls_disp.
+
+    PERFORM <a href="#000000000012">apply_upload_field</a> USING lv_line 'ABRVW' ls_upload-abrvw CHANGING ls_disp.
+
+    APPEND ls_disp TO gt_disp.
+
+  ENDLOOP.
+
+ENDFORM.
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form APPLY_UPLOAD_FIELD</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Apply one upload cell value with format validation</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000012"></div>
+FORM apply_upload_field
+  USING    pv_line      TYPE i
+           pv_fieldname TYPE lvc_fname
+           pv_value     TYPE any
+  CHANGING ps_disp      TYPE gty_disp.
+
+  DATA:
+    lv_value TYPE string,
+    lv_error TYPE abap_bool,
+    lv_text  TYPE string.
+
+  lv_value = pv_value.
+
+  PERFORM <a href="#000000000013">check_field_value</a>
+    USING    pv_fieldname
+             lv_value
+    CHANGING ps_disp
+             lv_error
+             lv_text.
+
+  IF lv_error = abap_true.
+
+    PERFORM <a href="#000000000014">set_upload_error</a>
+      USING    pv_line
+               lv_text
+      CHANGING ps_disp.
+
+  ENDIF.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CHECK_FIELD_VALUE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Format / mandatory validation of one uploaded field</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000013"></div>
+FORM check_field_value
+  USING    pv_fieldname TYPE lvc_fname
+           pv_value     TYPE string
+  CHANGING ps_disp      TYPE gty_disp
+           pv_error     TYPE abap_bool
+           pv_text      TYPE string.
+
+  DATA:
+    lv_value TYPE string,
+    lv_date  TYPE sy-datum,
+    lv_auart TYPE vbak-auart,
+    lv_kunnr TYPE kunnr,
+    lv_label TYPE string.
+
+  CLEAR:
+    pv_error,
+    pv_text.
+
+  lv_value = pv_value.
+
+  CASE pv_fieldname.
+
+    WHEN 'AUART'.
+
+      lv_value = to_upper( zcl_cm_util=&gtregex_replace( i_data  = lv_value
+                                                       i_space = abap_true ) ).
+
+      IF lv_value IS INITIAL.
+        pv_error = abap_true.
+        pv_text  = TEXT-e01.
+        RETURN.
+      ENDIF.
+
+      PERFORM <a href="#000000000055">check_length</a>
+        USING    lv_value 4 TEXT-f11
+        CHANGING pv_error pv_text.
+
+      CHECK pv_error = abap_false.
+
+      CALL FUNCTION 'CONVERSION_EXIT_AUART_INPUT'
+        EXPORTING
+          input  = lv_value
+        IMPORTING
+          output = lv_auart.
+
+      IF lv_auart = gc_zke
+         OR lv_auart = gc_zkr.
+
+        pv_error = abap_true.
+
+        pv_text =
+          replace(
+            val  = TEXT-e02
+            sub  = '&1'
+            with = lv_auart ).
+
+        RETURN.
+
+      ENDIF.
+
+      ps_disp-auart = lv_auart.
+
+    WHEN 'ABRVW'.
+
+      CONDENSE lv_value NO-GAPS.
+      TRANSLATE lv_value TO UPPER CASE.
+
+      PERFORM <a href="#000000000055">check_length</a>
+        USING    lv_value 3 TEXT-f70
+        CHANGING pv_error pv_text.
+
+      CHECK pv_error = abap_false.
+
+      ps_disp-abrvw = lv_value.
+
+    WHEN 'BSTKH'.
+
+      PERFORM <a href="#000000000055">check_length</a>
+        USING    lv_value 35 TEXT-f13
+        CHANGING pv_error pv_text.
+
+      CHECK pv_error = abap_false.
+
+      ps_disp-bstkh = lv_value.
+
+    WHEN 'AUGRU'.
+
+      lv_value = to_upper( zcl_cm_util=&gtregex_replace( i_data  = lv_value
+                                                       i_space = abap_true ) ).
+
+      PERFORM <a href="#000000000055">check_length</a>
+        USING    lv_value 3 TEXT-f14
+        CHANGING pv_error pv_text.
+
+      CHECK pv_error = abap_false.
+
+      ps_disp-augru = lv_value.
+
+    WHEN 'KUNAG' OR 'KUNWE' OR 'KUNRG'.
+
+      lv_value = zcl_cm_util=&gtregex_replace( i_data  = lv_value
+                                             i_space = abap_true ).
+
+      IF lv_value IS INITIAL.
+        pv_error = abap_true.
+        pv_text  = replace( val = TEXT-e03 sub = '&1' with = pv_fieldname ).
+        RETURN.
+      ENDIF.
+
+      lv_label = SWITCH #( pv_fieldname
+                           WHEN 'KUNAG' THEN TEXT-f16
+                           WHEN 'KUNWE' THEN TEXT-f18
+                           ELSE TEXT-f20 ).
+
+      PERFORM <a href="#000000000055">check_length</a>
+        USING    lv_value 10 lv_label
+        CHANGING pv_error pv_text.
+
+      CHECK pv_error = abap_false.
+
+      CLEAR lv_kunnr.
+
+      CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+        EXPORTING
+          input  = lv_value
+        IMPORTING
+          output = lv_kunnr.
+
+      CASE pv_fieldname.
+        WHEN 'KUNAG'. ps_disp-kunag = lv_kunnr.
+        WHEN 'KUNWE'. ps_disp-kunwe = lv_kunnr.
+        WHEN 'KUNRG'. ps_disp-kunrg = lv_kunnr.
+      ENDCASE.
+
+    WHEN 'BSTKD_E'.
+
+      PERFORM <a href="#000000000055">check_length</a>
+        USING    lv_value 35 TEXT-f22
+        CHANGING pv_error pv_text.
+
+      CHECK pv_error = abap_false.
+
+      ps_disp-bstkd_e = lv_value.
+
+    WHEN 'EDATU' OR 'PRSDT'.
+
+<font color ="#8C8C8C">* Closing date requirement is checked by order type in CHECK_ROW_DATA.</font>
+      IF pv_fieldname = 'EDATU' AND lv_value IS INITIAL.
+        CLEAR ps_disp-edatu.
+        RETURN.
+      ENDIF.
+
+      PERFORM <a href="#000000000056">convert_date</a>
+        USING    lv_value
+        CHANGING lv_date
+                 pv_error.
+
+      IF pv_error = abap_true.
+        pv_text = TEXT-e04.
+        RETURN.
+      ENDIF.
+
+      CASE pv_fieldname.
+        WHEN 'EDATU'. ps_disp-edatu = lv_date.
+        WHEN 'PRSDT'. ps_disp-prsdt = lv_date.
+      ENDCASE.
+
+    WHEN 'MATNR'.
+
+      lv_value = zcl_cm_util=&gtregex_replace( i_data  = lv_value
+                                             i_space = abap_true ).
+
+      IF lv_value IS INITIAL.
+        pv_error = abap_true.
+        pv_text  = TEXT-e05.
+        RETURN.
+      ENDIF.
+
+      CALL FUNCTION 'CONVERSION_EXIT_MATN1_INPUT'
+        EXPORTING
+          input        = lv_value
+        IMPORTING
+          output       = ps_disp-matnr
+        EXCEPTIONS
+          length_error = 1
+          OTHERS       = 2.
+
+      IF sy-subrc &lt&gt 0.
+        pv_error = abap_true.
+        pv_text  = TEXT-e06.
+      ENDIF.
+
+    WHEN 'KWMENG'.
+
+      lv_value = zcl_cm_util=&gtregex_replace( i_data  = lv_value
+                                             i_space = abap_true ).
+
+      REPLACE ALL OCCURRENCES OF ',' IN lv_value WITH ``.
+
+      TRY.
+          ps_disp-kwmeng = EXACT #( CONV decfloat34( lv_value ) ).
+          IF ps_disp-kwmeng &lt= 0.
+            RAISE EXCEPTION TYPE cx_sy_conversion_no_number.
+          ENDIF.
+        CATCH cx_sy_conversion_error cx_sy_arithmetic_error.
+          pv_error = abap_true.
+          pv_text  = TEXT-e07.
+      ENDTRY.
+
+    WHEN 'MEINS'.
+
+      lv_value = to_upper( zcl_cm_util=&gtregex_replace( i_data  = lv_value
+                                                       i_space = abap_true ) ).
+
+      IF lv_value IS INITIAL.
+        pv_error = abap_true.
+        pv_text  = TEXT-e08.
+        RETURN.
+      ENDIF.
+
+      CALL FUNCTION 'CONVERSION_EXIT_CUNIT_INPUT'
+        EXPORTING
+          input          = lv_value
+          language       = sy-langu
+        IMPORTING
+          output         = ps_disp-meins
+        EXCEPTIONS
+          unit_not_found = 1
+          OTHERS         = 2.
+
+      IF sy-subrc &lt&gt 0.
+        pv_error = abap_true.
+        pv_text  = TEXT-e09.
+      ENDIF.
+
+    WHEN 'WERKS'.
+
+      lv_value = to_upper( zcl_cm_util=&gtregex_replace( i_data  = lv_value
+                                                       i_space = abap_true ) ).
+
+      IF lv_value IS INITIAL.
+        pv_error = abap_true.
+        pv_text  = TEXT-e10.
+        RETURN.
+      ENDIF.
+
+      PERFORM <a href="#000000000055">check_length</a>
+        USING    lv_value 4 TEXT-f28
+        CHANGING pv_error pv_text.
+
+      CHECK pv_error = abap_false.
+
+      ps_disp-werks = lv_value.
+
+    WHEN 'VSTEL'.
+
+      lv_value = to_upper( zcl_cm_util=&gtregex_replace( i_data  = lv_value
+                                                       i_space = abap_true ) ).
+
+      " VSTEL# 4##### ## 4 ## (TEXT-xxx# #### ## ### ### ##)
+      PERFORM <a href="#000000000055">check_length</a>
+        USING    lv_value 4 TEXT-f38
+        CHANGING pv_error pv_text.
+
+      CHECK pv_error = abap_false.
+
+      ps_disp-vstel = lv_value.
+
+
+
+    WHEN 'WAERK'.
+
+      lv_value = to_upper( zcl_cm_util=&gtregex_replace( i_data  = lv_value
+                                                       i_space = abap_true ) ).
+      " ##(NETPR)# ## ## ### ## ##### ## ## ## ##
+      IF lv_value IS INITIAL.
+        CLEAR ps_disp-waerk.
+        RETURN.
+      ENDIF.
+
+      PERFORM <a href="#000000000055">check_length</a>
+        USING    lv_value 5 TEXT-f33
+        CHANGING pv_error pv_text.
+
+      CHECK pv_error = abap_false.
+
+      ps_disp-waerk = lv_value.
+
+    WHEN 'NETPR'.
+
+      PERFORM <a href="#000000000021">price_set_external</a>
+        USING    lv_value
+        CHANGING ps_disp
+                 pv_error
+                 pv_text.
+
+    WHEN 'PRICE_UNIT'.
+
+      lv_value = to_upper( zcl_cm_util=&gtregex_replace( i_data  = lv_value
+                                                       i_space = abap_true ) ).
+
+      IF lv_value IS NOT INITIAL.
+
+        CALL FUNCTION 'CONVERSION_EXIT_CUNIT_INPUT'
+          EXPORTING
+            input          = lv_value
+            language       = sy-langu
+          IMPORTING
+            output         = ps_disp-price_unit
+          EXCEPTIONS
+            unit_not_found = 1
+            OTHERS         = 2.
+
+        IF sy-subrc &lt&gt 0.
+          pv_error = abap_true.
+          pv_text  = TEXT-e09.
+        ENDIF.
+
+      ELSE.
+        ps_disp-price_unit = ps_disp-meins.
+      ENDIF.
+
+    WHEN 'FIXED_CHANGED_RATE'.
+
+      lv_value = zcl_cm_util=&gtregex_replace( i_data  = lv_value
+                                             i_space = abap_true ).
+
+      REPLACE ALL OCCURRENCES OF ',' IN lv_value WITH ``.
+
+      IF lv_value IS INITIAL.
+        CLEAR ps_disp-fixed_changed_rate.
+        RETURN.
+      ENDIF.
+
+      TRY.
+          ps_disp-fixed_changed_rate = EXACT #( CONV decfloat34( lv_value ) ).
+          IF ps_disp-fixed_changed_rate &lt= 0.
+            RAISE EXCEPTION TYPE cx_sy_conversion_no_number.
+          ENDIF.
+        CATCH cx_sy_conversion_error cx_sy_arithmetic_error.
+          pv_error = abap_true.
+          pv_text  = TEXT-e13.
+      ENDTRY.
+
+    WHEN OTHERS.
+
+  ENDCASE.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SET_UPLOAD_ERROR</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Keep only the first error message on the row</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000014"></div>
+FORM set_upload_error
+  USING    pv_line TYPE i
+           pv_text TYPE string
+  CHANGING ps_disp TYPE gty_disp.
+
+  CHECK ps_disp-msgty IS INITIAL.
+
+  ps_disp-msgty = gc_e.
+
+  MESSAGE s003
+    WITH TEXT-005
+         pv_line
+         pv_text
+         space
+    INTO ps_disp-message.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form GET_CHECK_MASTER_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Load master data used by row validation</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000015"></div>
+FORM get_check_master_data .
+
+  TYPES:
+    BEGIN OF lty_kunnr,
+      kunnr TYPE kunnr,
+    END OF lty_kunnr,
+
+    BEGIN OF lty_matnr,
+      matnr TYPE matnr,
+    END OF lty_matnr,
+
+    BEGIN OF lty_marc_key,
+      matnr TYPE matnr,
+      werks TYPE werks_d,
+    END OF lty_marc_key,
+
+    BEGIN OF lty_werks,
+      werks TYPE werks_d,
+    END OF lty_werks,
+
+    " [##] ####(VSTEL) ## ##
+    BEGIN OF lty_vstel,
+      vstel TYPE vstel,
+    END OF lty_vstel,
+
+    BEGIN OF lty_auart,
+      auart TYPE auart,
+    END OF lty_auart,
+
+    BEGIN OF lty_augru,
+      augru TYPE augru,
+    END OF lty_augru,
+
+    BEGIN OF lty_waers,
+      waers TYPE waers,
+    END OF lty_waers.
+
+  DATA:
+    lt_kunnr    TYPE SORTED TABLE OF lty_kunnr WITH UNIQUE KEY kunnr,
+    lt_matnr    TYPE SORTED TABLE OF lty_matnr WITH UNIQUE KEY matnr,
+    lt_marc_key TYPE SORTED TABLE OF lty_marc_key WITH UNIQUE KEY matnr werks,
+    lt_werks    TYPE SORTED TABLE OF lty_werks WITH UNIQUE KEY werks,
+    lt_vstel    TYPE SORTED TABLE OF lty_vstel WITH UNIQUE KEY vstel, " [##]
+    lt_auart    TYPE SORTED TABLE OF lty_auart WITH UNIQUE KEY auart,
+    lt_augru    TYPE SORTED TABLE OF lty_augru WITH UNIQUE KEY augru,
+    lt_waers    TYPE SORTED TABLE OF lty_waers WITH UNIQUE KEY waers.
+
+  CLEAR:
+    gt_kna1,
+    gt_mara,
+    gt_makt,
+    gt_marc,
+    gt_t001w,
+    gt_tvst,
+    gt_tvak,
+    gt_tvau,
+    gt_tcurc,
+    gt_augru_assign,
+    gt_tvlv.
+
+<font color ="#8C8C8C">* Usage codes are validated independently of text availability.</font>
+  SELECT *
+    FROM tvlv
+    INTO TABLE @gt_tvlv.
+
+  LOOP AT gt_disp INTO DATA(ls_disp).
+
+    IF ls_disp-kunag IS NOT INITIAL.
+      INSERT VALUE #( kunnr = ls_disp-kunag ) INTO TABLE lt_kunnr.
+    ENDIF.
+
+    IF ls_disp-kunwe IS NOT INITIAL.
+      INSERT VALUE #( kunnr = ls_disp-kunwe ) INTO TABLE lt_kunnr.
+    ENDIF.
+
+    IF ls_disp-kunrg IS NOT INITIAL.
+      INSERT VALUE #( kunnr = ls_disp-kunrg ) INTO TABLE lt_kunnr.
+    ENDIF.
+
+    IF ls_disp-matnr IS NOT INITIAL.
+      INSERT VALUE #( matnr = ls_disp-matnr ) INTO TABLE lt_matnr.
+    ENDIF.
+
+    IF ls_disp-matnr IS NOT INITIAL AND ls_disp-werks IS NOT INITIAL.
+      INSERT VALUE #( matnr = ls_disp-matnr werks = ls_disp-werks ) INTO TABLE lt_marc_key.
+    ENDIF.
+
+    IF ls_disp-werks IS NOT INITIAL.
+      INSERT VALUE #( werks = ls_disp-werks ) INTO TABLE lt_werks.
+    ENDIF.
+    " [##] ## ### ##### VSTEL ##
+    IF ls_disp-vstel IS NOT INITIAL.
+      INSERT VALUE #( vstel = ls_disp-vstel ) INTO TABLE lt_vstel.
+    ENDIF.
+
+    IF ls_disp-auart IS NOT INITIAL.
+      INSERT VALUE #( auart = ls_disp-auart ) INTO TABLE lt_auart.
+    ENDIF.
+
+    IF ls_disp-augru IS NOT INITIAL.
+      INSERT VALUE #( augru = ls_disp-augru ) INTO TABLE lt_augru.
+    ENDIF.
+
+    IF ls_disp-waerk IS NOT INITIAL.
+      INSERT VALUE #( waers = ls_disp-waerk ) INTO TABLE lt_waers.
+    ENDIF.
+
+  ENDLOOP.
+
+  IF lt_kunnr IS NOT INITIAL.
+    SELECT kunnr, name1 FROM kna1 FOR ALL ENTRIES IN @lt_kunnr WHERE kunnr = @lt_kunnr-kunnr INTO TABLE @gt_kna1.
+  ENDIF.
+
+  IF lt_matnr IS NOT INITIAL.
+    SELECT matnr, meins FROM mara FOR ALL ENTRIES IN @lt_matnr WHERE matnr = @lt_matnr-matnr INTO TABLE @gt_mara.
+    SELECT matnr, maktx FROM makt FOR ALL ENTRIES IN @lt_matnr WHERE spras = @sy-langu AND matnr = @lt_matnr-matnr INTO TABLE @gt_makt.
+  ENDIF.
+
+  IF lt_marc_key IS NOT INITIAL.
+    SELECT matnr, werks FROM marc FOR ALL ENTRIES IN @lt_marc_key WHERE matnr = @lt_marc_key-matnr AND werks = @lt_marc_key-werks INTO TABLE @gt_marc.
+  ENDIF.
+
+  IF lt_werks IS NOT INITIAL.
+    SELECT * FROM t001w FOR ALL ENTRIES IN @lt_werks WHERE werks = @lt_werks-werks INTO TABLE @gt_t001w.
+  ENDIF.
+
+  " [##] #### ###(TVST) ##
+  IF lt_vstel IS NOT INITIAL.
+    SELECT * FROM tvst FOR ALL ENTRIES IN @lt_vstel WHERE vstel = @lt_vstel-vstel INTO TABLE @gt_tvst.
+  ENDIF.
+
+
+  IF lt_auart IS NOT INITIAL.
+    SELECT * FROM tvak FOR ALL ENTRIES IN @lt_auart WHERE auart = @lt_auart-auart INTO TABLE @gt_tvak.
+  ENDIF.
+
+  IF lt_augru IS NOT INITIAL.
+    SELECT * FROM tvau FOR ALL ENTRIES IN @lt_augru WHERE augru = @lt_augru-augru INTO TABLE @gt_tvau.
+  ENDIF.
+
+  IF lt_waers IS NOT INITIAL.
+    SELECT * FROM tcurc FOR ALL ENTRIES IN @lt_waers WHERE waers = @lt_waers-waers INTO TABLE @gt_tcurc.
+  ENDIF.
+
+  SELECT vkorg, auart, augru FROM tvau_auart_vko WHERE vkorg = @s_vkorg-low INTO TABLE @gt_augru_assign.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CHECK_DISPLAY_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Validate all uploaded rows</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000016"></div>
+FORM check_display_data .
+
+  DATA:
+    lv_line  TYPE i,
+    lv_error TYPE abap_bool,
+    lv_text  TYPE string.
+
+  LOOP AT gt_disp ASSIGNING FIELD-SYMBOL(&ltls_disp&gt).
+
+    IF &ltls_disp&gt-msgty = gc_e.
+      CONTINUE.
+    ENDIF.
+
+    CLEAR:
+      lv_error,
+      lv_text.
+
+    PERFORM <a href="#000000000017">check_row_data</a>
+      USING    &ltls_disp&gt
+      CHANGING lv_error
+               lv_text.
+
+    IF lv_error = abap_true.
+
+      lv_line = &ltls_disp&gt-excel_row.
+
+      PERFORM <a href="#000000000014">set_upload_error</a>
+        USING    lv_line
+                 lv_text
+        CHANGING &ltls_disp&gt.
+
+    ENDIF.
+
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CHECK_ROW_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Row-level master validation</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000017"></div>
+FORM check_row_data
+  USING    ps_disp  TYPE gty_disp
+  CHANGING pv_error TYPE abap_bool
+           pv_text  TYPE string.
+
+  DATA:
+    ls_price_check TYPE gty_disp.
+
+  CLEAR:
+    pv_error,
+    pv_text.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* REQUIRED / TYPED INPUT BEFORE MASTER VALIDATION</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF ps_disp-prsdt IS INITIAL
+     OR ( ps_disp-edatu IS INITIAL
+          AND ps_disp-auart &lt&gt gc_zcr
+          AND ps_disp-auart &lt&gt gc_zdr ).
+    pv_error = abap_true.
+    pv_text = TEXT-e04.
+    RETURN.
+  ENDIF.
+
+  CALL FUNCTION 'DATE_CHECK_PLAUSIBILITY'
+    EXPORTING
+      date                      = ps_disp-prsdt
+    EXCEPTIONS
+      plausibility_check_failed = 1
+      OTHERS                    = 2.
+
+  IF sy-subrc &lt&gt 0.
+    pv_error = abap_true.
+    pv_text = TEXT-e04.
+    RETURN.
+  ENDIF.
+
+  IF ps_disp-edatu IS NOT INITIAL.
+
+    CALL FUNCTION 'DATE_CHECK_PLAUSIBILITY'
+      EXPORTING
+        date                      = ps_disp-edatu
+      EXCEPTIONS
+        plausibility_check_failed = 1
+        OTHERS                    = 2.
+
+    IF sy-subrc &lt&gt 0.
+      pv_error = abap_true.
+      pv_text = TEXT-e04.
+      RETURN.
+    ENDIF.
+
+  ENDIF.
+
+  IF ps_disp-kwmeng &lt= 0.
+    pv_error = abap_true.
+    pv_text = TEXT-e07.
+    RETURN.
+  ENDIF.
+
+  IF ps_disp-meins IS INITIAL.
+    pv_error = abap_true.
+    pv_text = TEXT-e08.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">* Initial unit price uses standard pricing; negative values are invalid.</font>
+  IF ps_disp-netpr &lt 0.
+    pv_error = abap_true.
+    pv_text = TEXT-e60.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* USAGE - ZCK REQUIRED / ZDS OPTIONAL, U ONLY WHEN ENTERED</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF ps_disp-auart = gc_zck AND ps_disp-abrvw IS INITIAL.
+    pv_error = abap_true.
+    pv_text  = TEXT-u01.
+    RETURN.
+  ENDIF.
+
+  IF ps_disp-abrvw IS NOT INITIAL.
+
+    IF ps_disp-auart = gc_zds AND ps_disp-abrvw &lt&gt gc_usage_u.
+      pv_error = abap_true.
+      pv_text  = TEXT-u02.
+      RETURN.
+    ENDIF.
+
+    READ TABLE gt_tvlv TRANSPORTING NO FIELDS
+      WITH TABLE KEY abrvw = ps_disp-abrvw.
+
+    IF sy-subrc &lt&gt 0.
+      pv_error = abap_true.
+      pv_text = replace( val = TEXT-u03
+                         sub = '&1'
+                         with = ps_disp-abrvw ).
+      RETURN.
+    ENDIF.
+
+  ENDIF.
+
+<font color ="#8C8C8C">* Initial exchange rate remains optional.</font>
+  IF ps_disp-fixed_changed_rate &lt 0.
+    pv_error = abap_true.
+    pv_text = TEXT-e13.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* 1. SALES ORDER TYPE (TVAK & ZKE/ZKR Check)</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  READ TABLE gt_tvak TRANSPORTING NO FIELDS WITH TABLE KEY auart = ps_disp-auart.
+  IF sy-subrc &lt&gt 0.
+    pv_error = abap_true.
+    pv_text  = replace( val = TEXT-e14 sub = '&1' with = ps_disp-auart ).
+    RETURN.
+  ENDIF.
+
+  IF ps_disp-auart = gc_zke OR ps_disp-auart = gc_zkr.
+    pv_error = abap_true.
+    pv_text  = replace( val = TEXT-e02 sub = '&1' with = |{ ps_disp-excel_row }| ).
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* 2. SALES OFFICE ASSIGNMENT (TVKBZ ## ##)</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  SELECT SINGLE vkbur
+    FROM tvkbz
+   WHERE vkorg = @ps_disp-vkorg
+     AND vtweg = @ps_disp-vtweg
+     AND spart = @gc_spart_00
+     AND vkbur = @ps_disp-vkbur
+    INTO @DATA(lv_vkbur).
+
+  IF sy-subrc &lt&gt 0.
+    pv_error = abap_true.
+    pv_text  = |Sales Office { ps_disp-vkbur } not allowed for Sales Area { ps_disp-vkorg }/{ ps_disp-vtweg }/00|.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* 3. SALES ORDER TYPE ASSIGNMENT (TVAKZ ## ##)</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  SELECT SINGLE auart
+    FROM tvakz
+   WHERE vkorg = @ps_disp-vkorg
+     AND vtweg = @ps_disp-vtweg
+     AND spart = @gc_spart_00
+     AND auart = @ps_disp-auart
+    INTO @DATA(lv_auart_check).
+
+  IF sy-subrc &lt&gt 0.
+    pv_error = abap_true.
+    pv_text  = |Order Type { ps_disp-auart } not allowed for Sales Area { ps_disp-vkorg }/{ ps_disp-vtweg }/00|.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* 4. SALES GROUP ASSIGNMENT (TVBVK ## ##)</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF ps_disp-vkgrp IS NOT INITIAL.
+
+    SELECT SINGLE vkgrp
+      FROM tvbvk
+     WHERE vkbur = @ps_disp-vkbur
+       AND vkgrp = @ps_disp-vkgrp
+      INTO @DATA(lv_vkgrp_check).
+
+    IF sy-subrc &lt&gt 0.
+      pv_error = abap_true.
+      pv_text  = |Sales Group { ps_disp-vkgrp } not assigned to Sales Office { ps_disp-vkbur }|.
+      RETURN.
+    ENDIF.
+
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* 5. PARTNER (KNA1)</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  READ TABLE gt_kna1 TRANSPORTING NO FIELDS WITH TABLE KEY kunnr = ps_disp-kunag.
+  IF sy-subrc &lt&gt 0.
+    pv_error = abap_true.
+    pv_text  = TEXT-e15.
+    RETURN.
+  ENDIF.
+
+  READ TABLE gt_kna1 TRANSPORTING NO FIELDS WITH TABLE KEY kunnr = ps_disp-kunwe.
+  IF sy-subrc &lt&gt 0.
+    pv_error = abap_true.
+    pv_text  = TEXT-e16.
+    RETURN.
+  ENDIF.
+
+  READ TABLE gt_kna1 TRANSPORTING NO FIELDS WITH TABLE KEY kunnr = ps_disp-kunrg.
+  IF sy-subrc &lt&gt 0.
+    pv_error = abap_true.
+    pv_text  = TEXT-e17.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* 6. CUSTOMER SALES AREA (KNVV)</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  SELECT SINGLE kunnr
+    FROM knvv
+   WHERE kunnr = @ps_disp-kunag
+     AND vkorg = @ps_disp-vkorg
+     AND vtweg = @ps_disp-vtweg
+     AND spart = @gc_spart_00
+    INTO @DATA(lv_kunnr).
+
+  IF sy-subrc &lt&gt 0.
+    pv_error = abap_true.
+    pv_text  = TEXT-e18.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* 7. ORDER REASON (TVAU & Assignment)</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF ps_disp-augru IS NOT INITIAL.
+
+    READ TABLE gt_tvau TRANSPORTING NO FIELDS WITH TABLE KEY augru = ps_disp-augru.
+    IF sy-subrc &lt&gt 0.
+      pv_error = abap_true.
+      pv_text  = TEXT-e19.
+      RETURN.
+    ENDIF.
+
+    IF ps_disp-auart = gc_zcr OR ps_disp-auart = gc_zdr.
+
+      READ TABLE gt_augru_assign
+        TRANSPORTING NO FIELDS
+        WITH TABLE KEY
+          vkorg = ps_disp-vkorg
+          auart = ps_disp-auart
+          augru = ps_disp-augru.
+
+      IF sy-subrc &lt&gt 0.
+        pv_error = abap_true.
+        pv_text  = replace( val = replace( val = TEXT-e20 sub = '&1' with = ps_disp-vkorg ) sub = '&2' with = ps_disp-auart ).
+        RETURN.
+      ENDIF.
+
+    ENDIF.
+
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* 8. MATERIAL (MARA)</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  READ TABLE gt_mara TRANSPORTING NO FIELDS WITH TABLE KEY matnr = ps_disp-matnr.
+  IF sy-subrc &lt&gt 0.
+    pv_error = abap_true.
+    pv_text  = TEXT-e06.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* 9. PLANT & MATERIAL/PLANT (T001W & MARC)</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  READ TABLE gt_t001w TRANSPORTING NO FIELDS WITH TABLE KEY werks = ps_disp-werks.
+  IF sy-subrc &lt&gt 0.
+    pv_error = abap_true.
+    pv_text  = TEXT-e21.
+    RETURN.
+  ENDIF.
+
+  READ TABLE gt_marc TRANSPORTING NO FIELDS WITH TABLE KEY matnr = ps_disp-matnr werks = ps_disp-werks.
+  IF sy-subrc &lt&gt 0.
+    pv_error = abap_true.
+    pv_text  = TEXT-e22.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* 10. SHIPPING POINT (TVST)</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  " ## ## ##### ## ##### ## ### ## ##!
+  IF ps_disp-vstel IS NOT INITIAL.
+    READ TABLE gt_tvst TRANSPORTING NO FIELDS WITH TABLE KEY vstel = ps_disp-vstel.
+    IF sy-subrc &lt&gt 0.
+      pv_error = abap_true.
+      pv_text  = TEXT-e64. " #### ## #######.
+      RETURN.
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* 10. CURRENCY (TCURC)</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  " ##(NETPR)# ### #### ##(WAERK) ## ##
+  IF ps_disp-netpr IS NOT INITIAL AND ps_disp-waerk IS INITIAL.
+    pv_error = abap_true.
+    pv_text  = TEXT-e11.
+    RETURN.
+  ENDIF.
+  " ### ### #### TCURC ### ## ## ##
+  IF ps_disp-waerk IS NOT INITIAL.
+    READ TABLE gt_tcurc TRANSPORTING NO FIELDS WITH TABLE KEY waers = ps_disp-waerk.
+    IF sy-subrc &lt&gt 0.
+      pv_error = abap_true.
+      pv_text  = TEXT-e23.
+      RETURN.
+    ENDIF.
+  ENDIF.
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* 11. PRICE / AMOUNT</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  ls_price_check = ps_disp.
+
+  PERFORM <a href="#000000000022">price_calculate_amount</a>
+    CHANGING ls_price_check
+             pv_error
+             pv_text.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form GET_DISPLAY_TEXT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Set ALV description fields</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000018"></div>
+FORM get_display_text.
+
+  CHECK gt_disp IS NOT INITIAL.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* CREATED SALES ORDER USAGE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  SELECT vbeln, abrvw
+    FROM vbak
+    FOR ALL ENTRIES IN @gt_disp
+    WHERE vbeln = @gt_disp-vbeln
+      AND vbeln &lt&gt @space
+    INTO TABLE @DATA(lt_usage_header).
+
+  SORT lt_usage_header BY vbeln.
+
+  LOOP AT gt_disp ASSIGNING FIELD-SYMBOL(&ltls_usage_row&gt)
+    WHERE vbeln &lt&gt space.
+    READ TABLE lt_usage_header INTO DATA(ls_usage_header)
+      WITH KEY vbeln = &ltls_usage_row&gt-vbeln BINARY SEARCH.
+    IF sy-subrc = 0.
+      &ltls_usage_row&gt-abrvw = ls_usage_header-abrvw.
+    ENDIF.
+  ENDLOOP.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* USAGE DESCRIPTION - LOGON LANGUAGE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  SELECT abrvw, bezei
+    FROM tvlvt
+    FOR ALL ENTRIES IN @gt_disp
+    WHERE spras = @sy-langu
+      AND abrvw = @gt_disp-abrvw
+    INTO TABLE @DATA(lt_usage_text).
+
+  SORT lt_usage_text BY abrvw.
+
+  SELECT vkorg, vtext
+    FROM tvkot
+    FOR ALL ENTRIES IN @gt_disp
+    WHERE spras = @sy-langu
+      AND vkorg = @gt_disp-vkorg
+    INTO TABLE @DATA(lt_tvkot).
+
+  SORT lt_tvkot BY vkorg.
+
+  SELECT vkbur, bezei
+    FROM tvkbt
+    FOR ALL ENTRIES IN @gt_disp
+    WHERE spras = @sy-langu
+      AND vkbur = @gt_disp-vkbur
+    INTO TABLE @DATA(lt_tvkbt).
+
+  SORT lt_tvkbt BY vkbur.
+
+  SELECT vkgrp, bezei
+    FROM tvgrt
+    FOR ALL ENTRIES IN @gt_disp
+    WHERE spras = @sy-langu
+      AND vkgrp = @gt_disp-vkgrp
+    INTO TABLE @DATA(lt_tvgrt).
+
+  SORT lt_tvgrt BY vkgrp.
+
+  SELECT vtweg, vtext
+    FROM tvtwt
+    FOR ALL ENTRIES IN @gt_disp
+    WHERE spras = @sy-langu
+      AND vtweg = @gt_disp-vtweg
+    INTO TABLE @DATA(lt_tvtwt).
+
+  SORT lt_tvtwt BY vtweg.
+
+  SELECT auart, bezei
+    FROM tvakt
+    FOR ALL ENTRIES IN @gt_disp
+    WHERE spras = @sy-langu
+      AND auart = @gt_disp-auart
+    INTO TABLE @DATA(lt_tvakt).
+
+  SORT lt_tvakt BY auart.
+
+  SELECT augru, bezei
+    FROM tvaut
+    FOR ALL ENTRIES IN @gt_disp
+    WHERE spras = @sy-langu
+      AND augru = @gt_disp-augru
+    INTO TABLE @DATA(lt_tvaut).
+
+  SORT lt_tvaut BY augru.
+
+  LOOP AT gt_disp ASSIGNING FIELD-SYMBOL(&ltls_disp&gt).
+
+    CLEAR:
+      &ltls_disp&gt-vkorg_txt,
+      &ltls_disp&gt-vkbur_txt,
+      &ltls_disp&gt-vkgrp_txt,
+      &ltls_disp&gt-vtweg_txt,
+      &ltls_disp&gt-auart_txt,
+      &ltls_disp&gt-augru_txt,
+      &ltls_disp&gt-kunag_txt,
+      &ltls_disp&gt-kunwe_txt,
+      &ltls_disp&gt-kunrg_txt,
+      &ltls_disp&gt-maktx,
+      &ltls_disp&gt-werks_txt,
+      &ltls_disp&gt-abrvw_txt.
+
+    IF &ltls_disp&gt-abrvw IS NOT INITIAL.
+      READ TABLE lt_usage_text INTO DATA(ls_usage_text)
+        WITH KEY abrvw = &ltls_disp&gt-abrvw BINARY SEARCH.
+      IF sy-subrc = 0.
+        &ltls_disp&gt-abrvw_txt = ls_usage_text-bezei.
+      ENDIF.
+    ENDIF.
+
+    READ TABLE lt_tvkot INTO DATA(ls_tvkot)
+      WITH KEY vkorg = &ltls_disp&gt-vkorg BINARY SEARCH.
+
+    IF sy-subrc = 0.
+      &ltls_disp&gt-vkorg_txt = ls_tvkot-vtext.
+    ENDIF.
+
+    READ TABLE lt_tvkbt INTO DATA(ls_tvkbt)
+      WITH KEY vkbur = &ltls_disp&gt-vkbur BINARY SEARCH.
+
+    IF sy-subrc = 0.
+      &ltls_disp&gt-vkbur_txt = ls_tvkbt-bezei.
+    ENDIF.
+
+    READ TABLE lt_tvgrt INTO DATA(ls_tvgrt)
+      WITH KEY vkgrp = &ltls_disp&gt-vkgrp BINARY SEARCH.
+
+    IF sy-subrc = 0.
+      &ltls_disp&gt-vkgrp_txt = ls_tvgrt-bezei.
+    ENDIF.
+
+    READ TABLE lt_tvtwt INTO DATA(ls_tvtwt)
+      WITH KEY vtweg = &ltls_disp&gt-vtweg BINARY SEARCH.
+
+    IF sy-subrc = 0.
+      &ltls_disp&gt-vtweg_txt = ls_tvtwt-vtext.
+    ENDIF.
+
+    READ TABLE lt_tvakt INTO DATA(ls_tvakt)
+      WITH KEY auart = &ltls_disp&gt-auart BINARY SEARCH.
+
+    IF sy-subrc = 0.
+      &ltls_disp&gt-auart_txt = ls_tvakt-bezei.
+    ENDIF.
+
+    READ TABLE lt_tvaut INTO DATA(ls_tvaut)
+      WITH KEY augru = &ltls_disp&gt-augru BINARY SEARCH.
+
+    IF sy-subrc = 0.
+      &ltls_disp&gt-augru_txt = ls_tvaut-bezei.
+    ENDIF.
+
+    READ TABLE gt_kna1 INTO DATA(ls_kna1) WITH TABLE KEY kunnr = &ltls_disp&gt-kunag.
+    IF sy-subrc = 0.
+      &ltls_disp&gt-kunag_txt = ls_kna1-name1.
+    ENDIF.
+
+    READ TABLE gt_kna1 INTO ls_kna1 WITH TABLE KEY kunnr = &ltls_disp&gt-kunwe.
+    IF sy-subrc = 0.
+      &ltls_disp&gt-kunwe_txt = ls_kna1-name1.
+    ENDIF.
+
+    READ TABLE gt_kna1 INTO ls_kna1 WITH TABLE KEY kunnr = &ltls_disp&gt-kunrg.
+    IF sy-subrc = 0.
+      &ltls_disp&gt-kunrg_txt = ls_kna1-name1.
+    ENDIF.
+
+    READ TABLE gt_makt INTO DATA(ls_makt) WITH TABLE KEY matnr = &ltls_disp&gt-matnr.
+    IF sy-subrc = 0.
+      &ltls_disp&gt-maktx = ls_makt-maktx.
+    ENDIF.
+
+    READ TABLE gt_t001w INTO DATA(ls_t001w) WITH TABLE KEY werks = &ltls_disp&gt-werks.
+    IF sy-subrc = 0.
+      &ltls_disp&gt-werks_txt = ls_t001w-name1.
+    ENDIF.
+
+  ENDLOOP.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SET_TEXT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Set selection screen description texts</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000019"></div>
+FORM set_text .
+
+  CLEAR:
+    c_vkorg,
+    c_vkbur,
+    c_vkgrp,
+    c_vtweg.
+
+  IF s_vkorg-low IS NOT INITIAL.
+    SELECT SINGLE vtext FROM tvkot WHERE spras = @sy-langu AND vkorg = @s_vkorg-low INTO @c_vkorg.
+  ENDIF.
+
+  IF s_vkbur-low IS NOT INITIAL.
+    SELECT SINGLE bezei FROM tvkbt WHERE spras = @sy-langu AND vkbur = @s_vkbur-low INTO @c_vkbur.
+  ENDIF.
+
+  IF s_vkgrp-low IS NOT INITIAL.
+    SELECT SINGLE bezei FROM tvgrt WHERE spras = @sy-langu AND vkgrp = @s_vkgrp-low INTO @c_vkgrp.
+  ENDIF.
+
+  IF s_vtweg-low IS NOT INITIAL.
+    SELECT SINGLE vtext FROM tvtwt WHERE spras = @sy-langu AND vtweg = @s_vtweg-low INTO @c_vtweg.
+  ENDIF.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form PRICE_GET_DECIMALS</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Get currency decimal places</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000020"></div>
+FORM price_get_decimals
+  USING    pv_waerk    TYPE waers
+  CHANGING pv_decimals TYPE i
+           pv_error    TYPE abap_bool
+           pv_text     TYPE string.
+
+  CLEAR:
+    pv_decimals,
+    pv_error,
+    pv_text.
+
+  IF pv_waerk IS INITIAL.
+    pv_error = abap_true.
+    pv_text  = TEXT-e11.
+    RETURN.
+  ENDIF.
+
+  pv_decimals = 2.
+
+  SELECT SINGLE currdec
+    FROM tcurx
+   WHERE currkey = @pv_waerk
+    INTO @pv_decimals.
+
+  IF sy-subrc &lt&gt 0.
+    pv_decimals = 2.
+  ENDIF.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form PRICE_SET_EXTERNAL</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Convert external unit price into display/internal values</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000021"></div>
+FORM price_set_external
+  USING    pv_value TYPE string
+  CHANGING ps_disp  TYPE gty_disp
+           pv_error TYPE abap_bool
+           pv_text  TYPE string.
+
+  DATA:
+    lv_value     TYPE string,
+    lv_integer   TYPE string,
+    lv_fraction  TYPE string,
+    lv_decimals  TYPE i,
+    lv_base      TYPE decfloat34,
+    lv_scaled    TYPE decfloat34,
+    lv_scale     TYPE decfloat34,
+    lv_unit      TYPE vbap-kpein,
+    lv_display   TYPE bapicurr_d,
+    lv_netpr_int TYPE vbap-netpr,
+    lv_bapi      TYPE bapicurr_d,
+    lv_internal  TYPE bapicurr_d,
+    ls_return    TYPE bapireturn.
+
+  CLEAR:
+    pv_error,
+    pv_text.
+
+  lv_value = zcl_cm_util=&gtregex_replace( i_data  = pv_value
+                                         i_space = abap_true ).
+
+  REPLACE ALL OCCURRENCES OF ',' IN lv_value WITH ``.
+
+<font color ="#8C8C8C">* No manual unit price: clear derived amounts and use standard pricing.</font>
+  IF lv_value IS INITIAL.
+    CLEAR:
+      ps_disp-netpr,
+      ps_disp-netpr_int,
+      ps_disp-netwr,
+      ps_disp-price_dec.
+    ps_disp-kpein       = 1.
+    ps_disp-price_scale = 1.
+    ps_disp-price_unit  = ps_disp-meins.
+    RETURN.
+  ENDIF.
+
+  PERFORM <a href="#000000000020">price_get_decimals</a>
+    USING    ps_disp-waerk
+    CHANGING lv_decimals
+             pv_error
+             pv_text.
+
+  IF pv_error = abap_true.
+    RETURN.
+  ENDIF.
+
+  FIND REGEX '^[+]?[0-9]+([.][0-9]+)?$' IN lv_value.
+  IF sy-subrc &lt&gt 0.
+    pv_error = abap_true.
+    pv_text  = TEXT-e25.
+    RETURN.
+  ENDIF.
+
+  SPLIT lv_value AT '.' INTO lv_integer lv_fraction.
+  SHIFT lv_fraction RIGHT DELETING TRAILING '0'.
+  CONDENSE lv_fraction NO-GAPS.
+
+  IF strlen( lv_fraction ) &gt 4.
+    pv_error = abap_true.
+    pv_text  = TEXT-e26.
+    RETURN.
+  ENDIF.
+
+  TRY.
+      lv_base = CONV decfloat34( lv_value ).
+
+      IF lv_base &lt= 0.
+        pv_error = abap_true.
+        pv_text  = TEXT-e60.
+        RETURN.
+      ENDIF.
+
+      IF lv_decimals = 0 AND frac( lv_base ) &lt&gt 0.
+        pv_error = abap_true.
+        pv_text  = TEXT-e27.
+        RETURN.
+      ENDIF.
+
+      lv_display = EXACT #( lv_base ).
+
+      lv_scale = 100.
+      IF lv_decimals = 0.
+        lv_scale = 1.
+      ELSEIF lv_decimals = 1.
+        lv_scale = 10.
+      ENDIF.
+
+      lv_unit   = 1.
+      lv_scaled = lv_base.
+
+      WHILE frac( lv_scaled * lv_scale ) &lt&gt 0.
+        IF lv_unit &gt= 10000.
+          pv_error = abap_true.
+          pv_text  = TEXT-e28.
+          RETURN.
+        ENDIF.
+        lv_unit   = lv_unit * 10.
+        lv_scaled = lv_base * lv_unit.
+      ENDWHILE.
+
+      lv_bapi = EXACT #( lv_scaled ).
+
+      CALL FUNCTION 'BAPI_CURRENCY_CONV_TO_INTERNAL'
+        EXPORTING
+          currency             = ps_disp-waerk
+          amount_external      = lv_bapi
+          max_number_of_digits = 23
+        IMPORTING
+          amount_internal      = lv_internal
+          return               = ls_return.
+
+      IF ls_return-type CA 'AEX' AND ls_return-type IS NOT INITIAL.
+        pv_error = abap_true.
+        pv_text  = TEXT-e29.
+        RETURN.
+      ENDIF.
+
+      lv_netpr_int = EXACT #( lv_internal ).
+
+    CATCH cx_sy_conversion_error cx_sy_arithmetic_error.
+      pv_error = abap_true.
+      pv_text  = TEXT-e29.
+      RETURN.
+  ENDTRY.
+
+  ps_disp-netpr       = lv_display.
+  ps_disp-netpr_int   = lv_netpr_int.
+  ps_disp-kpein       = 1.
+  ps_disp-price_scale = lv_unit.
+  ps_disp-price_unit  = ps_disp-meins.
+  ps_disp-price_dec   = COND #( WHEN lv_decimals = 0 THEN '0' ELSE '4' ).
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form PRICE_CALCULATE_AMOUNT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Calculate amount using external price / pricing unit</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000022"></div>
+FORM price_calculate_amount
+  CHANGING ps_disp  TYPE gty_disp
+           pv_error TYPE abap_bool
+           pv_text  TYPE string.
+
+  DATA:
+    lv_decimals   TYPE i,
+    lv_amount     TYPE decfloat34,
+    lv_quantity   TYPE decfloat34,
+    lv_bapi       TYPE bapicurr_d,
+    lv_internal   TYPE bapicurr_d,
+    ls_return     TYPE bapireturn,
+    lv_price_unit TYPE meins.
+
+  CLEAR:
+    pv_error,
+    pv_text,
+    ps_disp-netwr.
+
+<font color ="#8C8C8C">* Standard price is determined during document creation.</font>
+  IF ps_disp-netpr IS INITIAL.
+    RETURN.
+  ENDIF.
+
+  IF ps_disp-kpein &lt= 0.
+    pv_error = abap_true.
+    pv_text  = TEXT-e30.
+    RETURN.
+  ENDIF.
+
+  PERFORM <a href="#000000000020">price_get_decimals</a>
+    USING    ps_disp-waerk
+    CHANGING lv_decimals
+             pv_error
+             pv_text.
+
+  CHECK pv_error = abap_false.
+
+  lv_quantity = ps_disp-kwmeng.
+  lv_price_unit = COND #( WHEN ps_disp-price_unit IS INITIAL THEN ps_disp-meins ELSE ps_disp-price_unit ).
+
+  IF lv_price_unit &lt&gt ps_disp-meins.
+    PERFORM <a href="#000000000024">convert_quantity</a>
+      USING    ps_disp-matnr
+               ps_disp-meins
+               lv_price_unit
+      CHANGING lv_quantity
+               pv_error
+               pv_text.
+    CHECK pv_error = abap_false.
+  ENDIF.
+
+  TRY.
+      lv_amount =
+          ( CONV decfloat34( ps_disp-netpr )
+            / CONV decfloat34( ps_disp-kpein ) )
+        * lv_quantity.
+
+      lv_amount = round( val = lv_amount dec = lv_decimals ).
+      lv_bapi   = EXACT #( lv_amount ).
+
+      CALL FUNCTION 'BAPI_CURRENCY_CONV_TO_INTERNAL'
+        EXPORTING
+          currency             = ps_disp-waerk
+          amount_external      = lv_bapi
+          max_number_of_digits = 23
+        IMPORTING
+          amount_internal      = lv_internal
+          return               = ls_return.
+
+      IF ls_return-type CA 'AEX' AND ls_return-type IS NOT INITIAL.
+        pv_error = abap_true.
+        pv_text  = TEXT-e31.
+        RETURN.
+      ENDIF.
+
+      ps_disp-netwr = EXACT #( lv_internal ).
+
+    CATCH cx_sy_arithmetic_error cx_sy_conversion_error.
+      pv_error = abap_true.
+      pv_text  = TEXT-e32.
+  ENDTRY.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form PREPARE_CONDITION_PRICE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Convert display price/unit into BAPI condition values</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000023"></div>
+FORM prepare_condition_price
+  USING    ps_row     TYPE gty_disp
+  CHANGING pv_value   TYPE bapicond-cond_value
+           pv_unit    TYPE bapicond-cond_p_unt
+           pv_error   TYPE abap_bool
+           pv_message TYPE string.
+
+  DATA:
+    lv_decimals  TYPE i,
+    lv_factor    TYPE decfloat34,
+    lv_scale     TYPE decfloat34,
+    lv_amount    TYPE decfloat34,
+    lv_unit_calc TYPE decfloat34.
+
+  CLEAR:
+    pv_value,
+    pv_unit,
+    pv_error,
+    pv_message.
+
+  IF ps_row-kpein &lt= 0.
+    pv_error   = abap_true.
+    pv_message = TEXT-e30.
+    RETURN.
+  ENDIF.
+
+  PERFORM <a href="#000000000020">price_get_decimals</a>
+    USING    ps_row-waerk
+    CHANGING lv_decimals
+             pv_error
+             pv_message.
+
+  CHECK pv_error = abap_false.
+
+  TRY.
+      lv_factor = 10 ** lv_decimals.
+      lv_scale  = 1.
+      lv_amount = ps_row-netpr.
+
+      WHILE frac( lv_amount * lv_factor ) &lt&gt 0.
+        lv_scale = lv_scale * 10.
+        IF lv_scale &gt 10000.
+          pv_error   = abap_true.
+          pv_message = TEXT-e28.
+          RETURN.
+        ENDIF.
+        lv_amount = ps_row-netpr * lv_scale.
+      ENDWHILE.
+
+      pv_value     = lv_amount.
+      lv_unit_calc = CONV decfloat34( ps_row-kpein ) * lv_scale.
+      pv_unit      = lv_unit_calc.
+
+    CATCH cx_sy_conversion_error cx_sy_arithmetic_error.
+      pv_error   = abap_true.
+      pv_message = TEXT-e33.
+  ENDTRY.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CONVERT_QUANTITY</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Convert quantity between material units</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000024"></div>
+FORM convert_quantity
+  USING    pv_matnr    TYPE matnr
+           pv_from     TYPE meins
+           pv_to       TYPE meins
+  CHANGING pv_quantity TYPE decfloat34
+           pv_error    TYPE abap_bool
+           pv_text     TYPE string.
+
+  DATA:
+    lv_base     TYPE mara-meins,
+    lv_from_num TYPE marm-umrez VALUE 1,
+    lv_from_den TYPE marm-umren VALUE 1,
+    lv_to_num   TYPE marm-umrez VALUE 1,
+    lv_to_den   TYPE marm-umren VALUE 1.
+
+  CLEAR:
+    pv_error,
+    pv_text.
+
+  CHECK pv_from &lt&gt pv_to.
+
+  SELECT SINGLE meins FROM mara WHERE matnr = @pv_matnr INTO @lv_base.
+  IF sy-subrc &lt&gt 0.
+    pv_error = abap_true.
+    pv_text  = TEXT-e34.
+    RETURN.
+  ENDIF.
+
+  IF pv_from &lt&gt lv_base.
+    SELECT SINGLE umrez, umren FROM marm WHERE matnr = @pv_matnr AND meinh = @pv_from INTO ( @lv_from_num, @lv_from_den ).
+    IF sy-subrc &lt&gt 0.
+      pv_error = abap_true.
+      pv_text  = TEXT-e35.
+      RETURN.
+    ENDIF.
+  ENDIF.
+
+  IF pv_to &lt&gt lv_base.
+    SELECT SINGLE umrez, umren FROM marm WHERE matnr = @pv_matnr AND meinh = @pv_to INTO ( @lv_to_num, @lv_to_den ).
+    IF sy-subrc &lt&gt 0.
+      pv_error = abap_true.
+      pv_text  = TEXT-e36.
+      RETURN.
+    ENDIF.
+  ENDIF.
+
+  TRY.
+      pv_quantity =
+        pv_quantity
+        * CONV decfloat34( lv_from_num )
+        / CONV decfloat34( lv_from_den )
+        * CONV decfloat34( lv_to_den )
+        / CONV decfloat34( lv_to_num ).
+    CATCH cx_sy_arithmetic_error cx_sy_conversion_error.
+      pv_error = abap_true.
+      pv_text  = TEXT-e37.
+  ENDTRY.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SET_ALV_GRID</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Create ALV Grid</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000025"></div>
+FORM set_alv_grid .
+
+  go_grid =
+    NEW cl_gui_alv_grid(
+      i_parent = cl_gui_container=&gtscreen0 ).
+
+  gt_fcat =
+    zcl_cm_util=&gttable_to_fieldcatalog(
+      it_tab = gt_disp ).
+
+  PERFORM <a href="#000000000026">set_fcat</a>
+    USING gt_fcat.
+
+  PERFORM <a href="#000000000027">set_event</a>.
+
+  go_grid-&gtset_table_for_first_display(
+    EXPORTING
+      i_save               = 'A'
+      is_variant           = VALUE #( report   = sy-cprog
+                                      username = sy-uname )
+      is_layout            = VALUE #( cwidth_opt = gc_x
+                                      no_rowins  = gc_x
+                                      stylefname = gc_style
+                                      sel_mode   = 'D' )
+      it_toolbar_excluding = VALUE #( ( cl_gui_alv_grid=&gtmc_fg_edit ) )
+    CHANGING
+      it_outtab            = gt_disp
+      it_fieldcatalog      = gt_fcat
+      it_sort               = gt_sort ).
+
+  go_grid-&gtset_ready_for_input(
+    i_ready_for_input = 1 ).
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SET_FCAT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& ALV field catalog setup</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000026"></div>
+FORM set_fcat
+  USING pt_fcat TYPE lvc_t_fcat.
+
+  DATA:
+    lv_col_pos TYPE lvc_colpos,
+    lv_text    TYPE lvc_txtcol.
+
+  CLEAR lv_col_pos.
+
+  LOOP AT pt_fcat ASSIGNING FIELD-SYMBOL(&ltls_fcat&gt).
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* DEFAULT</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+    CLEAR:
+      lv_text,
+      &ltls_fcat&gt-col_pos,
+      &ltls_fcat&gt-coltext,
+      &ltls_fcat&gt-seltext,
+      &ltls_fcat&gt-scrtext_l,
+      &ltls_fcat&gt-scrtext_m,
+      &ltls_fcat&gt-scrtext_s,
+      &ltls_fcat&gt-tooltip,
+      &ltls_fcat&gt-ref_table,
+      &ltls_fcat&gt-ref_field,
+      &ltls_fcat&gt-qfieldname,
+      &ltls_fcat&gt-cfieldname,
+      &ltls_fcat&gt-emphasize,
+      &ltls_fcat&gt-icon,
+      &ltls_fcat&gt-edit,
+      &ltls_fcat&gt-hotspot,
+      &ltls_fcat&gt-checkbox,
+      &ltls_fcat&gt-f4availabl,
+      &ltls_fcat&gt-do_sum,
+      &ltls_fcat&gt-tech.
+
+    &ltls_fcat&gt-no_out = abap_true.
+
+    CASE &ltls_fcat&gt-fieldname.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* STATUS</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'STATUS'.
+
+        &ltls_fcat&gt-no_out = abap_false.
+        &ltls_fcat&gt-icon   = abap_true.
+
+        lv_text = TEXT-f05.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SALES ORDER - DOUBLE CLICK</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'VBELN'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-ref_table = 'VBAK'.
+        &ltls_fcat&gt-ref_field = 'VBELN'.
+
+        lv_text = TEXT-f07.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* PRICING DATE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'PRSDT'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-edit      = abap_true.
+        &ltls_fcat&gt-ref_table = 'VBKD'.
+        &ltls_fcat&gt-ref_field = 'PRSDT'.
+
+        lv_text = TEXT-f37.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SALES ORDER ITEM</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'POSNR'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-ref_table = 'VBAP'.
+        &ltls_fcat&gt-ref_field = 'POSNR'.
+
+        lv_text = TEXT-f08.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SALES ORDER TYPE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'AUART'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-edit      = abap_true.
+        &ltls_fcat&gt-ref_table = 'TVAK'.
+        &ltls_fcat&gt-ref_field = 'AUART'.
+        &ltls_fcat&gt-f4availabl = abap_true.
+        lv_text = TEXT-f11.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* HEADER CUSTOMER PO</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'BSTKH'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-edit      = abap_true.
+        &ltls_fcat&gt-ref_table = 'VBKD'.
+        &ltls_fcat&gt-ref_field = 'BSTKD'.
+
+        lv_text = TEXT-f13.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* ORDER REASON</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'AUGRU'.
+
+        &ltls_fcat&gt-no_out     = abap_false.
+        &ltls_fcat&gt-edit       = abap_true.
+        &ltls_fcat&gt-f4availabl = abap_true.
+        &ltls_fcat&gt-ref_table  = 'VBAK'.
+        &ltls_fcat&gt-ref_field  = 'AUGRU'.
+
+        lv_text = TEXT-f14.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SOLD-TO PARTY</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'KUNAG'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-edit      = abap_true.
+        &ltls_fcat&gt-ref_table = 'VBAK'.
+        &ltls_fcat&gt-ref_field = 'KUNNR'.
+
+        lv_text = TEXT-f16.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SOLD-TO PARTY NAME</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'KUNAG_TXT'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-ref_table = 'KNA1'.
+        &ltls_fcat&gt-ref_field = 'NAME1'.
+
+        lv_text = TEXT-f17.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SHIP-TO PARTY</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'KUNWE'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-edit      = abap_true.
+        &ltls_fcat&gt-ref_table = 'KNA1'.
+        &ltls_fcat&gt-ref_field = 'KUNNR'.
+
+        lv_text = TEXT-f18.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SHIP-TO PARTY NAME</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'KUNWE_TXT'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-ref_table = 'KNA1'.
+        &ltls_fcat&gt-ref_field = 'NAME1'.
+
+        lv_text = TEXT-f19.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* PAYER</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'KUNRG'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-edit      = abap_true.
+        &ltls_fcat&gt-ref_table = 'KNA1'.
+        &ltls_fcat&gt-ref_field = 'KUNNR'.
+
+        lv_text = TEXT-f20.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* PAYER NAME</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'KUNRG_TXT'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-ref_table = 'KNA1'.
+        &ltls_fcat&gt-ref_field = 'NAME1'.
+
+        lv_text = TEXT-f21.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* ITEM CUSTOMER PO</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'BSTKD_E'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-edit      = abap_true.
+        &ltls_fcat&gt-ref_table = 'VBKD'.
+        &ltls_fcat&gt-ref_field = 'BSTKD_E'.
+
+        lv_text = TEXT-f22.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* CLOSING DATE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'EDATU'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-edit      = abap_true.
+        &ltls_fcat&gt-ref_table = 'VBEP'.
+        &ltls_fcat&gt-ref_field = 'EDATU'.
+
+        lv_text = TEXT-f23.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* MATERIAL</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'MATNR'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-edit      = abap_true.
+        &ltls_fcat&gt-ref_table = 'VBAP'.
+        &ltls_fcat&gt-ref_field = 'MATNR'.
+
+        lv_text = TEXT-f24.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* MATERIAL DESCRIPTION</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'MAKTX'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-ref_table = 'MAKT'.
+        &ltls_fcat&gt-ref_field = 'MAKTX'.
+
+        lv_text = TEXT-f25.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SALES QUANTITY</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'KWMENG'.
+
+        &ltls_fcat&gt-no_out     = abap_false.
+        &ltls_fcat&gt-edit       = abap_true.
+        &ltls_fcat&gt-ref_table  = 'VBAP'.
+        &ltls_fcat&gt-ref_field  = 'KWMENG'.
+        &ltls_fcat&gt-qfieldname = 'MEINS'.
+        &ltls_fcat&gt-do_sum     = abap_true.
+
+        lv_text = TEXT-f26.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SALES UNIT</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'MEINS'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-edit      = abap_true.
+        &ltls_fcat&gt-ref_table = 'VBAP'.
+        &ltls_fcat&gt-ref_field = 'VRKME'.
+
+        lv_text = TEXT-f27.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* PLANT</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'WERKS'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-edit      = abap_true.
+        &ltls_fcat&gt-ref_table = 'VBAP'.
+        &ltls_fcat&gt-ref_field = 'WERKS'.
+
+        lv_text = TEXT-f28.
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* PLANT</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'VSTEL'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-edit      = abap_true.
+        &ltls_fcat&gt-f4availabl      = abap_true.
+        &ltls_fcat&gt-ref_table = 'VBAP'.
+        &ltls_fcat&gt-ref_field = 'VSTEL'.
+
+        lv_text = TEXT-f38.
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* UNIT PRICE - EXTERNAL VALUE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'NETPR'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-edit      = abap_true.
+        &ltls_fcat&gt-outputlen = 20.
+        &ltls_fcat&gt-just      = 'R'.
+
+        CLEAR:
+          &ltls_fcat&gt-ref_table,
+          &ltls_fcat&gt-ref_field,
+          &ltls_fcat&gt-cfieldname,
+          &ltls_fcat&gt-currency,
+          &ltls_fcat&gt-decimals_o.
+
+        &ltls_fcat&gt-decmlfield = 'PRICE_DEC'.
+
+        lv_text = TEXT-f30.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* PRICE UNIT OF MEASURE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'PRICE_UNIT'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-ref_table = 'VBAP'.
+        &ltls_fcat&gt-ref_field = 'KMEIN'.
+
+        lv_text = TEXT-f32.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* CURRENCY</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'WAERK'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-edit      = abap_true.
+        &ltls_fcat&gt-ref_table = 'VBAK'.
+        &ltls_fcat&gt-ref_field = 'WAERK'.
+
+        lv_text = TEXT-f33.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* AMOUNT</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'NETWR'.
+
+        &ltls_fcat&gt-no_out     = abap_false.
+        &ltls_fcat&gt-ref_table  = 'VBAP'.
+        &ltls_fcat&gt-ref_field  = 'NETWR'.
+        &ltls_fcat&gt-cfieldname = 'WAERK'.
+        &ltls_fcat&gt-do_sum     = abap_true.
+
+        CLEAR:
+          &ltls_fcat&gt-currency,
+          &ltls_fcat&gt-decmlfield,
+          &ltls_fcat&gt-decimals_o.
+
+        lv_text = TEXT-f34.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* FIXED EXCHANGE RATE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'FIXED_CHANGED_RATE'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-edit      = abap_true.
+        &ltls_fcat&gt-ref_table = 'BAPISDHD1'.
+        &ltls_fcat&gt-ref_field = 'EXRATE_FI'.
+
+        lv_text = TEXT-f35.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* USAGE / DESCRIPTION</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'ABRVW'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-edit      = abap_true.
+        &ltls_fcat&gt-ref_table = 'VBAK'.
+        &ltls_fcat&gt-ref_field = 'ABRVW'.
+        &ltls_fcat&gt-outputlen = 8.
+
+        lv_text = TEXT-f70.
+
+      WHEN 'ABRVW_TXT'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-ref_table = 'TVLVT'.
+        &ltls_fcat&gt-ref_field = 'BEZEI'.
+        &ltls_fcat&gt-outputlen = 20.
+
+        lv_text = TEXT-f71.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* MESSAGE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'MESSAGE'.
+
+        &ltls_fcat&gt-no_out    = abap_false.
+        &ltls_fcat&gt-ref_table = 'BAPIRET2'.
+        &ltls_fcat&gt-ref_field = 'MESSAGE'.
+        &ltls_fcat&gt-outputlen = 28.
+
+        lv_text = TEXT-f36.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* INTERNAL / TECHNICAL FIELDS</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN 'EXCEL_ROW'
+        OR 'STATUS_TXT'
+        OR 'AUART_TXT'
+        OR 'AUGRU_TXT'
+        OR 'WERKS_TXT'
+        OR 'VKORG'
+        OR 'VKORG_TXT'
+        OR 'VKBUR'
+        OR 'VKBUR_TXT'
+        OR 'VKGRP'
+        OR 'VKGRP_TXT'
+        OR 'VTWEG'
+        OR 'VTWEG_TXT'
+        OR 'NETPR_INT'
+        OR 'KPEIN'
+        OR 'PRICE_DEC'
+        OR 'PRICE_SCALE'
+        OR 'EBELN'
+        OR 'EBELP'
+        OR 'ZZEBELN'
+        OR 'ZZEBELP'
+        OR 'MSGTY'
+        OR 'NEW'
+        OR 'CHANGED'
+        OR 'ROW_KIND'
+        OR 'STYLE'.
+
+        &ltls_fcat&gt-tech   = abap_true.
+        &ltls_fcat&gt-no_out = abap_true.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* UNDEFINED FIELDS</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      WHEN OTHERS.
+
+        &ltls_fcat&gt-tech   = abap_true.
+        &ltls_fcat&gt-no_out = abap_true.
+
+    ENDCASE.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* VISIBLE COLUMN POSITION / TEXT</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+    IF &ltls_fcat&gt-no_out = abap_false
+       AND &ltls_fcat&gt-tech = abap_false.
+
+      lv_col_pos = lv_col_pos + 1.
+      &ltls_fcat&gt-col_pos = lv_col_pos.
+
+      IF lv_text IS NOT INITIAL.
+
+        &ltls_fcat&gt-coltext   = lv_text.
+        &ltls_fcat&gt-seltext   = lv_text.
+        &ltls_fcat&gt-scrtext_l = lv_text.
+        &ltls_fcat&gt-scrtext_m = lv_text.
+        &ltls_fcat&gt-scrtext_s = lv_text.
+        &ltls_fcat&gt-tooltip   = lv_text.
+
+      ENDIF.
+
+    ENDIF.
+
+  ENDLOOP.
+
+ENDFORM.
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SET_EVENT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& ALV Event registration</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000027"></div>
+FORM set_event .
+
+  SET HANDLER:
+    lcl_event=&gthandle_toolbar               FOR go_grid,
+    lcl_event=&gthandle_user_command          FOR go_grid,
+    lcl_event=&gthandle_data_changed          FOR go_grid,
+    lcl_event=&gthandle_on_f4                 FOR go_grid,
+    lcl_event=&gthandle_double_click          FOR go_grid,
+    lcl_event=&gthandle_data_changed_finished FOR go_grid.
+
+  go_grid-&gtregister_edit_event(
+    i_event_id = cl_gui_alv_grid=&gtmc_evt_modified ).
+
+  go_grid-&gtregister_edit_event(
+    i_event_id = cl_gui_alv_grid=&gtmc_evt_enter ).
+
+  DATA: lt_f4 TYPE lvc_t_f4.
+  lt_f4 = VALUE #(
+    ( fieldname  = 'AUART'
+      register   = abap_true
+      getbefore  = abap_true
+      chngeafter = abap_true )
+
+    ( fieldname  = 'AUGRU'
+      register   = abap_true
+      getbefore  = abap_true
+      chngeafter = abap_true )
+
+      ( fieldname  = 'VSTEL'
+      register   = abap_true
+      getbefore  = abap_true
+      chngeafter = abap_true )
+
+
+
+  ).
+  go_grid-&gtregister_f4_for_fields( it_f4 = lt_f4 ).
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SET_EDIT_STYLE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Lock rows after Sales Order creation</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000028"></div>
+FORM set_edit_style .
+
+  DATA:
+    lt_edit_fields TYPE STANDARD TABLE OF lvc_fname
+                   WITH EMPTY KEY.
+
+  lt_edit_fields = VALUE #(
+    ( 'AUART' )
+    ( 'PRSDT' )
+    ( 'BSTKH' )
+    ( 'AUGRU' )
+    ( 'KUNAG' )
+    ( 'KUNWE' )
+    ( 'KUNRG' )
+    ( 'BSTKD_E' )
+    ( 'EDATU' )
+    ( 'MATNR' )
+    ( 'KWMENG' )
+    ( 'MEINS' )
+    ( 'WERKS' )
+    ( 'NETPR' )
+    ( 'WAERK' )
+    ( 'VSTEL' )
+    ( 'FIXED_CHANGED_RATE' )
+    ( 'ABRVW' )
+  ).
+
+  LOOP AT gt_disp ASSIGNING FIELD-SYMBOL(&ltls_disp&gt).
+
+    CLEAR &ltls_disp&gt-style.
+
+    LOOP AT lt_edit_fields INTO DATA(lv_field).
+
+      INSERT VALUE #(
+        fieldname = lv_field
+        style     = COND #(
+                      WHEN &ltls_disp&gt-vbeln IS INITIAL
+                      THEN cl_gui_alv_grid=&gtmc_style_enabled
+                      ELSE cl_gui_alv_grid=&gtmc_style_disabled )
+      ) INTO TABLE &ltls_disp&gt-style.
+
+    ENDLOOP.
+
+  ENDLOOP.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SET_DISPLAY_STATUS</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Set row status icon/text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000029"></div>
+FORM set_display_status .
+
+  LOOP AT gt_disp ASSIGNING FIELD-SYMBOL(&ltls_disp&gt).
+
+    CLEAR:
+      &ltls_disp&gt-status,
+      &ltls_disp&gt-status_txt.
+
+    IF &ltls_disp&gt-msgty CA 'AEX' AND &ltls_disp&gt-msgty IS NOT INITIAL.
+
+      &ltls_disp&gt-status     = icon_red_light.
+      &ltls_disp&gt-status_txt = TEXT-e38.
+      &ltls_disp&gt-row_kind   = gc_row_error.
+
+    ELSEIF &ltls_disp&gt-vbeln IS NOT INITIAL.
+
+      &ltls_disp&gt-status     = icon_green_light.
+      &ltls_disp&gt-status_txt = TEXT-s03.
+      &ltls_disp&gt-row_kind   = gc_row_so.
+
+    ELSE.
+
+      &ltls_disp&gt-status     = icon_light_out.
+      &ltls_disp&gt-status_txt = TEXT-m01.
+      &ltls_disp&gt-row_kind   = gc_row_ready.
+
+    ENDIF.
+
+  ENDLOOP.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form REFRESH_GRID</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Refresh ALV</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000030"></div>
+FORM refresh_grid USING po_grid TYPE REF TO cl_gui_alv_grid.
+
+  CHECK po_grid IS BOUND.
+
+  PERFORM <a href="#000000000031">optimize_message_column</a>
+    USING po_grid.
+
+  po_grid-&gtrefresh_table_display(
+    EXPORTING
+      is_stable = VALUE #( row = gc_x col = gc_x ) ).
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form OPTIMIZE_MESSAGE_COLUMN</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Fit message column to current content without excessive ALV width</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000031"></div>
+FORM optimize_message_column
+  USING po_grid TYPE REF TO cl_gui_alv_grid.
+
+  DATA:
+    lt_fcat     TYPE lvc_t_fcat,
+    lv_max_len  TYPE i VALUE 28,
+    lv_curr_len TYPE i.
+
+  CHECK po_grid IS BOUND.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* MESSAGE COLUMN WIDTH: 28 ~ 100 CHARACTERS</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  LOOP AT gt_disp INTO DATA(ls_disp).
+
+    lv_curr_len = strlen( ls_disp-message ).
+
+    IF lv_curr_len &gt lv_max_len.
+      lv_max_len = lv_curr_len.
+    ENDIF.
+
+  ENDLOOP.
+
+  IF lv_max_len &gt 100.
+    lv_max_len = 100.
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* APPLY ONLY TO MESSAGE COLUMN</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  po_grid-&gtget_frontend_fieldcatalog(
+    IMPORTING
+      et_fieldcatalog = lt_fcat ).
+
+  READ TABLE lt_fcat ASSIGNING FIELD-SYMBOL(&ltls_fcat&gt)
+    WITH KEY fieldname = 'MESSAGE'.
+
+  CHECK sy-subrc = 0.
+  CHECK &ltls_fcat&gt-outputlen &lt&gt lv_max_len.
+
+  &ltls_fcat&gt-outputlen = lv_max_len.
+
+  po_grid-&gtset_frontend_fieldcatalog(
+    EXPORTING
+      it_fieldcatalog = lt_fcat ).
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form HANDLE_TOOLBAR</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& ALV Toolbar buttons</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000032"></div>
+FORM handle_toolbar
+  USING po_obj TYPE REF TO cl_alv_event_toolbar_set
+        po_snd TYPE REF TO cl_gui_alv_grid.
+
+  DATA:
+    ls_button TYPE stb_button.
+
+  CHECK po_snd = go_grid.
+
+  CLEAR ls_button.
+  ls_button-butn_type = 3.
+  APPEND ls_button TO po_obj-&gtmt_toolbar.
+
+  CLEAR ls_button.
+  ls_button-function  = 'CRSO'.
+  ls_button-text      = TEXT-b01.
+  ls_button-quickinfo = TEXT-b01.
+  ls_button-icon      = icon_create.
+  APPEND ls_button TO po_obj-&gtmt_toolbar.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* DELETE SO</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  CLEAR ls_button.
+  ls_button-function  = 'DLSO'.
+  ls_button-text      = TEXT-b06.
+  ls_button-quickinfo = TEXT-b06.
+  ls_button-icon      = icon_delete.
+  APPEND ls_button TO po_obj-&gtmt_toolbar.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form HANDLE_USER_COMMAND</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& ALV User Command</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000033"></div>
+FORM handle_user_command
+  USING pv_ucomm TYPE sy-ucomm
+        po_snd   TYPE REF TO cl_gui_alv_grid.
+
+  DATA:
+    lv_valid TYPE abap_bool.
+
+  CHECK po_snd IS BOUND.
+  CHECK po_snd = go_grid.
+
+  CHECK pv_ucomm = 'CRSO'
+     OR pv_ucomm = 'DLSO'
+     OR pv_ucomm = 'CRPO'.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* ACCEPT VALID FRONTEND INPUT BEFORE BUSINESS PROCESSING</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  po_snd-&gtcheck_changed_data(
+    IMPORTING
+      e_valid = lv_valid ).
+
+  CHECK lv_valid = abap_true.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* USER COMMAND</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  CASE pv_ucomm.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* CREATE SALES ORDER</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+    WHEN 'CRSO'.
+
+      PERFORM <a href="#000000000037">popup_to_confirm</a>
+        USING    'CRSO'
+                 TEXT-m02
+        CHANGING gv_answer.
+
+      CHECK gv_answer = gc_1.
+
+      PERFORM <a href="#000000000040">create_sales_order</a>.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* DELETE SALES ORDER</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+    WHEN 'DLSO'.
+
+      PERFORM <a href="#000000000037">popup_to_confirm</a>
+        USING    'DLSO'
+                 TEXT-m05
+        CHANGING gv_answer.
+
+      CHECK gv_answer = gc_1.
+
+      PERFORM <a href="#000000000043">delete_sales_order</a>.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* CREATE PURCHASE ORDER</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+    WHEN 'CRPO'.
+
+      PERFORM <a href="#000000000037">popup_to_confirm</a>
+        USING    'CRPO'
+                 TEXT-m03
+        CHANGING gv_answer.
+
+      CHECK gv_answer = gc_1.
+
+      PERFORM <a href="#000000000050">create_purchase_order</a>.
+
+  ENDCASE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form HANDLE_DATA_CHANGED</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Handle ALV grid data changes</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000034"></div>
+FORM handle_data_changed
+  USING er_data_changed TYPE REF TO cl_alv_changed_data_protocol
+        e_onf4          TYPE char01
+        e_onf4_after    TYPE char01
+        e_onf4_before   TYPE char01
+        sender          TYPE REF TO cl_gui_alv_grid.
+
+  DATA:
+    lt_cells    TYPE lvc_t_modi,
+    lt_rows     TYPE SORTED TABLE OF i WITH UNIQUE KEY table_line,
+    lt_errors   TYPE SORTED TABLE OF i WITH UNIQUE KEY table_line,
+    ls_work     TYPE gty_disp,
+    lv_value    TYPE string,
+    lv_error    TYPE abap_bool,
+    lv_text     TYPE string,
+    lv_protocol TYPE abap_bool.
+
+  CHECK sender IS BOUND.
+  CHECK sender = go_grid.
+  CHECK er_data_changed IS BOUND.
+
+<font color ="#8C8C8C">* Process ordinary field changes before NETPR so a pasted currency/unit</font>
+<font color ="#8C8C8C">* is applied before validating a price from the same frontend event.</font>
+  LOOP AT er_data_changed-&gtmt_mod_cells INTO DATA(ls_cell)
+    WHERE fieldname &lt&gt 'NETPR'.
+    APPEND ls_cell TO lt_cells.
+  ENDLOOP.
+
+  LOOP AT er_data_changed-&gtmt_mod_cells INTO ls_cell
+    WHERE fieldname = 'NETPR'.
+    APPEND ls_cell TO lt_cells.
+  ENDLOOP.
+
+  LOOP AT lt_cells INTO ls_cell.
+
+    CASE ls_cell-fieldname.
+      WHEN 'AUART' OR 'PRSDT' OR 'BSTKH' OR 'AUGRU'
+        OR 'KUNAG' OR 'KUNWE' OR 'KUNRG' OR 'BSTKD_E'
+        OR 'EDATU' OR 'MATNR' OR 'KWMENG' OR 'MEINS'
+        OR 'WERKS' OR 'NETPR' OR 'WAERK'
+        OR 'FIXED_CHANGED_RATE' OR 'ABRVW'.
+      WHEN OTHERS.
+        CONTINUE.
+    ENDCASE.
+
+    CHECK ls_cell-row_id &gt 0.
+
+    READ TABLE gt_disp ASSIGNING FIELD-SYMBOL(&ltls_disp&gt)
+      INDEX ls_cell-row_id.
+    CHECK sy-subrc = 0.
+    CHECK &ltls_disp&gt-vbeln IS INITIAL.
+
+    INSERT ls_cell-row_id INTO TABLE lt_rows.
+    &ltls_disp&gt-changed = abap_true.
+    ls_work = &ltls_disp&gt.
+    lv_value = ls_cell-value.
+
+    PERFORM <a href="#000000000013">check_field_value</a>
+      USING    ls_cell-fieldname
+               lv_value
+      CHANGING ls_work
+               lv_error
+               lv_text.
+
+    IF lv_error = abap_true.
+
+      INSERT ls_cell-row_id INTO TABLE lt_errors.
+      IF sy-subrc = 0.
+        &ltls_disp&gt-msgty = gc_e.
+        &ltls_disp&gt-message = lv_text.
+      ENDIF.
+
+      PERFORM <a href="#000000000057">add_changed_protocol</a>
+        USING er_data_changed
+              ls_cell-row_id
+              ls_cell-tabix
+              ls_cell-fieldname
+              lv_text.
+
+      lv_protocol = abap_true.
+      CONTINUE.
+
+    ENDIF.
+
+    &ltls_disp&gt = ls_work.
+
+<font color ="#8C8C8C">* Synchronize normalized values (ALPHA, dates, units) with ALV.</font>
+    ASSIGN COMPONENT ls_cell-fieldname OF STRUCTURE &ltls_disp&gt
+      TO FIELD-SYMBOL(&ltlv_value&gt).
+
+    IF sy-subrc = 0.
+      PERFORM <a href="#000000000058">modify_changed_cell</a>
+        USING er_data_changed
+              ls_cell-row_id
+              ls_cell-fieldname
+              &ltlv_value&gt.
+    ENDIF.
+
+  ENDLOOP.
+
+  CHECK lt_rows IS NOT INITIAL.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* RELOAD MASTERS ONCE FOR THIS CHANGE EVENT</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  PERFORM <a href="#000000000015">get_check_master_data</a>.
+  PERFORM <a href="#000000000018">get_display_text</a>.
+
+  LOOP AT lt_rows INTO DATA(lv_row_id).
+
+    READ TABLE gt_disp ASSIGNING &ltls_disp&gt INDEX lv_row_id.
+    CHECK sy-subrc = 0.
+
+    IF NOT line_exists( lt_errors[ table_line = lv_row_id ] ).
+
+      CLEAR:
+        &ltls_disp&gt-msgty,
+        &ltls_disp&gt-message.
+
+      ls_work = &ltls_disp&gt.
+      lv_value = COND #( WHEN ls_work-netpr IS INITIAL
+                         THEN ``
+                         ELSE |{ ls_work-netpr NUMBER = RAW }| ).
+
+<font color ="#8C8C8C">* Preserve the external price; derive internal price and precision again.</font>
+      PERFORM <a href="#000000000021">price_set_external</a>
+        USING    lv_value
+        CHANGING ls_work
+                 lv_error
+                 lv_text.
+
+      IF lv_error = abap_false.
+        PERFORM <a href="#000000000022">price_calculate_amount</a>
+          CHANGING ls_work
+                   lv_error
+                   lv_text.
+      ENDIF.
+
+      IF lv_error = abap_false.
+        &ltls_disp&gt = ls_work.
+        PERFORM <a href="#000000000017">check_row_data</a>
+          USING    &ltls_disp&gt
+          CHANGING lv_error
+                   lv_text.
+      ENDIF.
+
+      IF lv_error = abap_true.
+        &ltls_disp&gt-msgty = gc_e.
+        &ltls_disp&gt-message = lv_text.
+      ENDIF.
+
+    ENDIF.
+
+  ENDLOOP.
+
+  PERFORM <a href="#000000000029">set_display_status</a>.
+  PERFORM <a href="#000000000060">set_changed_flag</a>.
+
+  LOOP AT lt_rows INTO lv_row_id.
+    READ TABLE gt_disp INTO ls_work INDEX lv_row_id.
+    CHECK sy-subrc = 0.
+
+    PERFORM <a href="#000000000059">sync_changed_row</a>
+      USING er_data_changed
+            lv_row_id
+            ls_work.
+  ENDLOOP.
+
+  IF lv_protocol = abap_true.
+    er_data_changed-&gtdisplay_protocol( ).
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form HANDLE_DATA_CHANGED_FIN</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Data changed finished</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000035"></div>
+FORM handle_data_changed_fin
+  USING pv_modified   TYPE abap_bool
+        pt_good_cells TYPE lvc_t_modi
+        po_snd        TYPE REF TO cl_gui_alv_grid.
+
+  CHECK po_snd IS BOUND.
+  CHECK po_snd = go_grid.
+  CHECK pv_modified = abap_true.
+
+  PERFORM <a href="#000000000060">set_changed_flag</a>.
+  PERFORM <a href="#000000000030">refresh_grid</a> USING po_snd.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form HANDLE_DOUBLE_CLICK</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Drill down to VA03 / ME23N</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000036"></div>
+FORM handle_double_click
+  USING ps_row    TYPE lvc_s_row
+        ps_column TYPE lvc_s_col
+        ps_row_no TYPE lvc_s_roid
+        po_sender TYPE REF TO cl_gui_alv_grid.
+
+  DATA:
+    lv_row_id TYPE i.
+
+  CHECK po_sender IS BOUND.
+  CHECK po_sender = go_grid.
+
+  lv_row_id = ps_row_no-row_id.
+  IF lv_row_id IS INITIAL.
+    lv_row_id = ps_row-index.
+  ENDIF.
+
+  CHECK lv_row_id &gt 0.
+
+  READ TABLE gt_disp ASSIGNING FIELD-SYMBOL(&ltls_disp&gt) INDEX lv_row_id.
+  CHECK sy-subrc = 0.
+
+  CASE ps_column-fieldname.
+
+    WHEN 'VBELN'.
+      CHECK &ltls_disp&gt-vbeln IS NOT INITIAL.
+      SET PARAMETER ID 'AUN' FIELD &ltls_disp&gt-vbeln.
+      CALL TRANSACTION 'VA03' AND SKIP FIRST SCREEN.
+
+    WHEN 'EBELN'.
+      CHECK &ltls_disp&gt-ebeln IS NOT INITIAL.
+      SET PARAMETER ID 'BES' FIELD &ltls_disp&gt-ebeln.
+      CALL TRANSACTION 'ME23N' AND SKIP FIRST SCREEN.
+
+  ENDCASE.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form POPUP_TO_CONFIRM</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Confirmation Popup</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000037"></div>
+FORM popup_to_confirm
+  USING    pv_func   TYPE any
+           pv_quest  TYPE clike
+  CHANGING pv_answer TYPE char1.
+
+  DATA:
+    lv_title    TYPE char100,
+    lv_question TYPE char100.
+
+  CLEAR pv_answer.
+
+  CASE pv_func.
+    WHEN 'EXITC'. lv_title = TEXT-b03.
+    WHEN 'CRSO'.  lv_title = TEXT-b01.
+    WHEN 'CRPO'.  lv_title = TEXT-b02.
+    WHEN 'DLSO'.  lv_title = TEXT-b06.
+    WHEN OTHERS.  lv_title = sy-title.
+  ENDCASE.
+
+  lv_question = pv_quest.
+  IF lv_question IS INITIAL.
+    lv_question = TEXT-m04.
+  ENDIF.
+
+  CALL FUNCTION 'POPUP_TO_CONFIRM'
+    EXPORTING
+      titlebar              = lv_title
+      text_question         = lv_question
+      text_button_1         = TEXT-b04
+      text_button_2         = TEXT-b05
+      default_button        = '2'
+      display_cancel_button = space
+    IMPORTING
+      answer                = pv_answer
+    EXCEPTIONS
+      text_not_found        = 1
+      OTHERS                = 2.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form GET_SELECTED_SO_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Collect selected rows for Sales Order creation</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000038"></div>
+FORM get_selected_so_data
+  CHANGING pt_so    TYPE gty_t_so_work
+           pv_error TYPE abap_bool.
+
+  DATA:
+    lt_rows TYPE lvc_t_roid.
+
+  CLEAR:
+    pt_so,
+    pv_error.
+
+  CHECK go_grid IS BOUND.
+
+  go_grid-&gtget_selected_rows( IMPORTING et_row_no = lt_rows ).
+  DELETE lt_rows WHERE row_id &lt= 0.
+
+  IF lt_rows IS INITIAL.
+    pv_error = abap_true.
+    MESSAGE s006 DISPLAY LIKE gc_e.
+    RETURN.
+  ENDIF.
+
+  LOOP AT lt_rows INTO DATA(ls_row).
+
+    READ TABLE gt_disp INTO DATA(ls_disp) INDEX ls_row-row_id.
+    CHECK sy-subrc = 0.
+
+    IF ls_disp-vbeln IS NOT INITIAL.
+      pv_error = abap_true.
+      MESSAGE s000 WITH TEXT-e39 DISPLAY LIKE gc_e.
+      RETURN.
+    ENDIF.
+
+    APPEND VALUE #( row_id = ls_row-row_id data = ls_disp ) TO pt_so.
+
+  ENDLOOP.
+
+  IF pt_so IS INITIAL.
+    pv_error = abap_true.
+    MESSAGE s006 DISPLAY LIKE gc_e.
+  ENDIF.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CHECK_CREATE_SO_GROUP</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Group-level validation</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000039"></div>
+FORM check_create_so_group
+  USING    pt_group TYPE gty_t_so_work
+  CHANGING pv_error TYPE abap_bool
+           pv_text  TYPE string.
+
+  DATA:
+    lv_augru TYPE vbak-augru,
+    lv_zterm TYPE knvv-zterm.
+
+  CLEAR:
+    pv_error,
+    pv_text.
+
+  CHECK pt_group IS NOT INITIAL.
+
+  READ TABLE pt_group INTO DATA(ls_first) INDEX 1.
+  CHECK sy-subrc = 0.
+
+  lv_augru = ls_first-data-augru.
+
+  LOOP AT pt_group INTO DATA(ls_group).
+    IF ls_group-data-augru &lt&gt lv_augru.
+      pv_error = abap_true.
+      pv_text  = TEXT-e41.
+      RETURN.
+    ENDIF.
+  ENDLOOP.
+
+  SELECT SINGLE zterm
+    FROM knvv
+   WHERE kunnr = @ls_first-data-kunag
+     AND vkorg = @ls_first-data-vkorg
+     AND vtweg = @ls_first-data-vtweg
+     AND spart = @gc_spart_00
+    INTO @lv_zterm.
+
+  IF sy-subrc &lt&gt 0.
+    pv_error = abap_true.
+    pv_text  = TEXT-e18.
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CREATE_SALES_ORDER</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Create Sales Orders by header grouping key</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000040"></div>
+FORM create_sales_order .
+
+  DATA:
+    lt_so        TYPE gty_t_so_work,
+    lt_group     TYPE gty_t_so_work,
+    lv_error     TYPE abap_bool,
+    lv_group_err TYPE abap_bool,
+    lv_vbeln     TYPE vbak-vbeln,
+    lv_message   TYPE string,
+    lv_success   TYPE i,
+    lv_failed    TYPE i.
+
+  CLEAR:
+    lv_success,
+    lv_failed.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SELECTED DATA</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  PERFORM <a href="#000000000038">get_selected_so_data</a>
+    CHANGING lt_so
+             lv_error.
+
+  IF lv_error = abap_true.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* REVALIDATE SELECTED ROWS</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  PERFORM <a href="#000000000061">check_create_so_data</a>
+    CHANGING lt_so
+             lv_error.
+
+  IF lv_error = abap_true.
+
+    PERFORM <a href="#000000000029">set_display_status</a>.
+    PERFORM <a href="#000000000028">set_edit_style</a>.
+    PERFORM <a href="#000000000030">refresh_grid</a> USING go_grid.
+
+    RETURN.
+
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* PROCESS BY SALES ORDER HEADER GROUP</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  LOOP AT lt_so
+    INTO DATA(ls_so)
+    GROUP BY (
+      vkorg              = ls_so-data-vkorg
+      vkbur              = ls_so-data-vkbur
+      vkgrp              = ls_so-data-vkgrp
+      vtweg              = ls_so-data-vtweg
+      auart              = ls_so-data-auart
+      prsdt              = ls_so-data-prsdt
+      kunag              = ls_so-data-kunag
+      kunwe              = ls_so-data-kunwe
+      kunrg              = ls_so-data-kunrg
+      abrvw              = ls_so-data-abrvw
+      bstkh              = ls_so-data-bstkh
+      fixed_changed_rate = ls_so-data-fixed_changed_rate
+    )
+    ASSIGNING FIELD-SYMBOL(&ltls_group_key&gt).
+
+    CLEAR:
+      lt_group,
+      lv_error,
+      lv_group_err,
+      lv_vbeln,
+      lv_message.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* GROUP DATA</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+    LOOP AT GROUP &ltls_group_key&gt
+      INTO DATA(ls_group_row).
+
+      APPEND ls_group_row
+        TO lt_group.
+
+    ENDLOOP.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* GROUP VALIDATION</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+    PERFORM <a href="#000000000039">check_create_so_group</a>
+      USING    lt_group
+      CHANGING lv_group_err
+               lv_message.
+
+    IF lv_group_err = abap_true.
+
+      lv_failed = lv_failed + 1.
+
+      PERFORM <a href="#000000000042">update_sales_order_result</a>
+        USING lt_group
+              space
+              abap_true
+              lv_message.
+
+      CONTINUE.
+
+    ENDIF.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* CREATE SALES ORDER</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+    PERFORM <a href="#000000000041">create_sales_order_group</a>
+      CHANGING lt_group
+               lv_vbeln
+               lv_error
+               lv_message.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* BAPI ERROR</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+    IF lv_error = abap_true.
+
+      CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
+
+      lv_failed = lv_failed + 1.
+
+      PERFORM <a href="#000000000042">update_sales_order_result</a>
+        USING lt_group
+              space
+              abap_true
+              lv_message.
+
+      CONTINUE.
+
+    ENDIF.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* COMMIT</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+    PERFORM <a href="#000000000062">commit_standard</a>
+      CHANGING lv_error
+               lv_message.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* COMMIT ERROR</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+    IF lv_error = abap_true.
+
+      lv_failed = lv_failed + 1.
+
+      PERFORM <a href="#000000000042">update_sales_order_result</a>
+        USING lt_group
+              lv_vbeln
+              abap_true
+              lv_message.
+
+      CONTINUE.
+
+    ENDIF.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SUCCESS</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+    lv_success = lv_success + 1.
+
+    PERFORM <a href="#000000000042">update_sales_order_result</a>
+      USING lt_group
+            lv_vbeln
+            abap_false
+            lv_message.
+
+  ENDLOOP.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* REFRESH</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  PERFORM <a href="#000000000018">get_display_text</a>.
+  PERFORM <a href="#000000000060">set_changed_flag</a>.
+  PERFORM <a href="#000000000029">set_display_status</a>.
+  PERFORM <a href="#000000000028">set_edit_style</a>.
+  PERFORM <a href="#000000000030">refresh_grid</a> USING go_grid.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* PROCESS RESULT</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  PERFORM <a href="#000000000066">show_process_result</a>
+    USING lv_success
+          lv_failed.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CREATE_SALES_ORDER_GROUP</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Create one Sales Order</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000041"></div>
+FORM create_sales_order_group
+  CHANGING pt_group   TYPE gty_t_so_work
+           pv_vbeln   TYPE vbak-vbeln
+           pv_error   TYPE abap_bool
+           pv_message TYPE string.
+
+  DATA:
+    ls_header     TYPE bapisdhd1,
+    ls_headerx    TYPE bapisdhd1x,
+    lt_item       TYPE TABLE OF bapisditm,
+    lt_itemx      TYPE TABLE OF bapisditmx,
+    lt_partner    TYPE TABLE OF bapiparnr,
+    lt_schedule   TYPE TABLE OF bapischdl,
+    lt_schedulex  TYPE TABLE OF bapischdlx,
+    lt_cond       TYPE TABLE OF bapicond,
+    lt_condx      TYPE TABLE OF bapicondx,
+    lt_return     TYPE TABLE OF bapiret2,
+    lv_item_no    TYPE i,
+    lv_posnr      TYPE posnr_va,
+    lv_zterm      TYPE knvv-zterm,
+    lv_cond_value TYPE bapicond-cond_value,
+    lv_cond_p_unt TYPE bapicond-cond_p_unt,
+    lv_bapi_vbeln TYPE bapivbeln-vbeln,
+    lv_object     TYPE bapiusw01-objtype,
+    lv_crdr       TYPE abap_bool.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* INITIALIZE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  CLEAR:
+    pv_vbeln,
+    pv_error,
+    pv_message,
+    lv_object,
+    lv_crdr.
+
+  CHECK pt_group IS NOT INITIAL.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* FIRST ROW</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  READ TABLE pt_group
+    ASSIGNING FIELD-SYMBOL(&ltls_first&gt)
+    INDEX 1.
+
+  CHECK sy-subrc = 0.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* PAYMENT TERMS</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  SELECT SINGLE zterm
+    FROM knvv
+   WHERE kunnr = @&ltls_first&gt-data-kunag
+     AND vkorg = @&ltls_first&gt-data-vkorg
+     AND vtweg = @&ltls_first&gt-data-vtweg
+     AND spart = @gc_spart_00
+    INTO @lv_zterm.
+
+  IF sy-subrc &lt&gt 0.
+
+    pv_error   = abap_true.
+    pv_message = TEXT-e42.
+
+    RETURN.
+
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SALES ORDER HEADER</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  ls_header-doc_type   = &ltls_first&gt-data-auart.
+  ls_header-sales_org  = &ltls_first&gt-data-vkorg.
+  ls_header-price_date = &ltls_first&gt-data-prsdt.
+  ls_header-distr_chan = &ltls_first&gt-data-vtweg.
+  ls_header-division   = gc_spart_00.
+  ls_header-req_date_h = &ltls_first&gt-data-edatu.
+  ls_header-doc_date   = sy-datum.
+  ls_header-pmnttrms   = lv_zterm.
+  ls_header-sales_off  = &ltls_first&gt-data-vkbur.
+  ls_header-sales_grp  = &ltls_first&gt-data-vkgrp.
+  ls_header-ord_reason = &ltls_first&gt-data-augru.
+  ls_header-purch_no_c = &ltls_first&gt-data-bstkh.
+  ls_header-dlvschduse = &ltls_first&gt-data-abrvw.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* FI EXCHANGE RATE</font>
+<font color ="#8C8C8C">* - FIXED_CHANGED_RATE -&gt BAPISDHD1-EXRATE_FI</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF &ltls_first&gt-data-fixed_changed_rate IS NOT INITIAL.
+
+    ls_header-exrate_fi =
+      &ltls_first&gt-data-fixed_changed_rate.
+
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SALES ORDER HEADER X</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  ls_headerx-updateflag = gc_i.
+  ls_headerx-doc_type   = gc_x.
+  ls_headerx-sales_org  = gc_x.
+  ls_headerx-price_date = gc_x.
+  ls_headerx-distr_chan = gc_x.
+  ls_headerx-division   = gc_x.
+  IF &ltls_first&gt-data-edatu IS NOT INITIAL.
+    ls_headerx-req_date_h = gc_x.
+  ENDIF.
+  ls_headerx-doc_date   = gc_x.
+  ls_headerx-pmnttrms   = gc_x.
+  ls_headerx-sales_off  = gc_x.
+  ls_headerx-sales_grp  = gc_x.
+  ls_headerx-ord_reason = gc_x.
+  ls_headerx-purch_no_c = gc_x.
+
+  IF &ltls_first&gt-data-abrvw IS NOT INITIAL.
+    ls_headerx-dlvschduse = gc_x.
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* FI EXCHANGE RATE X</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF &ltls_first&gt-data-fixed_changed_rate IS NOT INITIAL.
+
+    ls_headerx-exrate_fi = gc_x.
+
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* PARTNERS</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  APPEND VALUE #(
+    partn_role = gc_ag
+    partn_numb = &ltls_first&gt-data-kunag
+  ) TO lt_partner.
+
+  APPEND VALUE #(
+    partn_role = gc_we
+    partn_numb = &ltls_first&gt-data-kunwe
+  ) TO lt_partner.
+
+  APPEND VALUE #(
+    partn_role = gc_rg
+    partn_numb = &ltls_first&gt-data-kunrg
+  ) TO lt_partner.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* CREDIT / DEBIT REQUEST</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF &ltls_first&gt-data-auart = gc_zcr
+     OR &ltls_first&gt-data-auart = gc_zdr.
+
+    lv_crdr = abap_true.
+
+    SELECT SINGLE vbtyp
+      FROM tvak
+     WHERE auart = @&ltls_first&gt-data-auart
+      INTO @ls_header-sd_doc_cat.
+
+    IF sy-subrc &lt&gt 0.
+
+      pv_error   = abap_true.
+      pv_message = TEXT-e43.
+
+      RETURN.
+
+    ENDIF.
+
+    CASE ls_header-sd_doc_cat.
+
+      WHEN 'K'.
+        lv_object = 'BUS2094'.
+
+      WHEN 'L'.
+        lv_object = 'BUS2096'.
+
+      WHEN OTHERS.
+
+        pv_error   = abap_true.
+        pv_message = TEXT-e44.
+
+        RETURN.
+
+    ENDCASE.
+
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SALES ORDER ITEMS</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  LOOP AT pt_group
+    ASSIGNING FIELD-SYMBOL(&ltls_group&gt).
+
+    lv_item_no = lv_item_no + 10.
+    lv_posnr   = lv_item_no.
+
+    &ltls_group&gt-data-posnr = lv_posnr.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* CREDIT / DEBIT REQUEST ITEM</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+    IF lv_crdr = abap_true.
+
+      APPEND VALUE #(
+        itm_number = lv_posnr
+        material   = &ltls_group&gt-data-matnr
+        purch_no_s = &ltls_group&gt-data-bstkd_e
+        target_qty = &ltls_group&gt-data-kwmeng
+        target_qu  = &ltls_group&gt-data-meins
+      ) TO lt_item.
+
+      APPEND VALUE #(
+        itm_number = lv_posnr
+        updateflag = gc_i
+        material   = gc_x
+        purch_no_s = gc_x
+        target_qty = gc_x
+        target_qu  = gc_x
+      ) TO lt_itemx.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* NORMAL SALES ORDER ITEM</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+    ELSE.
+
+      APPEND VALUE #(
+        itm_number = lv_posnr
+        material   = &ltls_group&gt-data-matnr
+        purch_no_s = &ltls_group&gt-data-bstkd_e
+        plant      = &ltls_group&gt-data-werks
+        ship_point      = &ltls_group&gt-data-vstel
+      ) TO lt_item.
+
+      APPEND VALUE #(
+        itm_number = lv_posnr
+        updateflag = gc_i
+        material   = gc_x
+        purch_no_s = gc_x
+        plant      = gc_x
+        ship_point  = gc_x
+      ) TO lt_itemx.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SCHEDULE LINE</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+      APPEND VALUE #(
+        itm_number = lv_posnr
+        sched_line = '0001'
+        req_date   = &ltls_group&gt-data-edatu
+        req_qty    = &ltls_group&gt-data-kwmeng
+      ) TO lt_schedule.
+
+      APPEND VALUE #(
+        itm_number = lv_posnr
+        sched_line = '0001'
+        updateflag = gc_i
+        req_date   = gc_x
+        req_qty    = gc_x
+      ) TO lt_schedulex.
+
+    ENDIF.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* CONDITION PRICE</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Send ZSR3 only when a manual unit price was supplied.</font>
+<font color ="#8C8C8C">* With no condition row, document creation uses standard pricing.</font>
+    IF &ltls_group&gt-data-netpr IS NOT INITIAL.
+
+      CLEAR:
+        lv_cond_value,
+        lv_cond_p_unt.
+
+      PERFORM <a href="#000000000023">prepare_condition_price</a>
+        USING    &ltls_group&gt-data
+        CHANGING lv_cond_value
+                 lv_cond_p_unt
+                 pv_error
+                 pv_message.
+
+      IF pv_error = abap_true.
+        RETURN.
+      ENDIF.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* CONDITION</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+      APPEND VALUE #(
+        itm_number = lv_posnr
+        cond_type  = gc_zsr3
+        cond_value = lv_cond_value
+        currency   = &ltls_group&gt-data-waerk
+        cond_unit  = COND #(
+                       WHEN &ltls_group&gt-data-price_unit IS INITIAL
+                       THEN &ltls_group&gt-data-meins
+                       ELSE &ltls_group&gt-data-price_unit )
+        cond_p_unt = lv_cond_p_unt
+      ) TO lt_cond.
+
+      APPEND VALUE #(
+        itm_number = lv_posnr
+        updateflag = gc_i
+        cond_type  = gc_zsr3
+        cond_value = gc_x
+        currency   = gc_x
+        cond_unit  = gc_x
+        cond_p_unt = gc_x
+      ) TO lt_condx.
+
+    ENDIF.
+
+  ENDLOOP.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* CREDIT / DEBIT REQUEST CREATE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF lv_crdr = abap_true.
+
+    CALL FUNCTION 'SD_SALESDOCUMENT_CREATE'
+      EXPORTING
+        sales_header_in      = ls_header
+        sales_header_inx     = ls_headerx
+        business_object      = lv_object
+      IMPORTING
+        salesdocument_ex     = lv_bapi_vbeln
+      TABLES
+        return               = lt_return
+        sales_items_in       = lt_item
+        sales_items_inx      = lt_itemx
+        sales_partners       = lt_partner
+        sales_conditions_in  = lt_cond
+        sales_conditions_inx = lt_condx.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* NORMAL SALES ORDER CREATE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  ELSE.
+
+    CALL FUNCTION 'BAPI_SALESORDER_CREATEFROMDAT2'
+      EXPORTING
+        order_header_in      = ls_header
+        order_header_inx     = ls_headerx
+      IMPORTING
+        salesdocument        = lv_bapi_vbeln
+      TABLES
+        return               = lt_return
+        order_items_in       = lt_item
+        order_items_inx      = lt_itemx
+        order_partners       = lt_partner
+        order_schedules_in   = lt_schedule
+        order_schedules_inx  = lt_schedulex
+        order_conditions_in  = lt_cond
+        order_conditions_inx = lt_condx.
+
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* BAPI ERROR</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  LOOP AT lt_return
+    INTO DATA(ls_return)
+    WHERE type CA 'AEX'.
+
+    pv_error   = abap_true.
+    pv_message = ls_return-message.
+
+    EXIT.
+
+  ENDLOOP.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SALES ORDER NUMBER CHECK</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF lv_bapi_vbeln IS INITIAL.
+
+    pv_error = abap_true.
+
+    IF pv_message IS INITIAL.
+
+      READ TABLE lt_return
+        INTO ls_return
+        INDEX 1.
+
+      IF sy-subrc = 0.
+        pv_message = ls_return-message.
+      ELSE.
+        pv_message = TEXT-e45.
+      ENDIF.
+
+    ENDIF.
+
+    RETURN.
+
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* ERROR</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF pv_error = abap_true.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SUCCESS</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  pv_vbeln = lv_bapi_vbeln.
+
+  pv_message =
+    replace(
+      val  = TEXT-s01
+      sub  = '&1'
+      with = pv_vbeln ).
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form UPDATE_SALES_ORDER_RESULT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Update SO result to ALV</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000042"></div>
+FORM update_sales_order_result
+  USING pt_group   TYPE gty_t_so_work
+        pv_vbeln   TYPE vbak-vbeln
+        pv_error   TYPE abap_bool
+        pv_message TYPE string.
+
+  LOOP AT pt_group INTO DATA(ls_group).
+
+    READ TABLE gt_disp ASSIGNING FIELD-SYMBOL(&ltls_disp&gt) INDEX ls_group-row_id.
+    CHECK sy-subrc = 0.
+
+    IF pv_error = abap_true.
+      &ltls_disp&gt-msgty   = gc_e.
+      &ltls_disp&gt-message = pv_message.
+    ELSE.
+      &ltls_disp&gt-vbeln   = pv_vbeln.
+      &ltls_disp&gt-posnr   = ls_group-data-posnr.
+      &ltls_disp&gt-msgty   = gc_s.
+      &ltls_disp&gt-message = pv_message.
+      &ltls_disp&gt-changed = abap_false.
+      &ltls_disp&gt-new     = abap_false.
+    ENDIF.
+
+  ENDLOOP.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form DELETE_SALES_ORDER</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Delete selected Sales Order(s)</font>
+<font color ="#8C8C8C">*& - One BAPI call per Sales Order</font>
+<font color ="#8C8C8C">*& - Keep ALV upload rows after successful deletion</font>
+<font color ="#8C8C8C">*& - Reset Sales Order linkage for reprocessing</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000043"></div>
+FORM delete_sales_order .
+
+  TYPES:
+    BEGIN OF lty_vbeln,
+      vbeln TYPE vbak-vbeln,
+    END OF lty_vbeln.
+
+  DATA:
+    lt_rows      TYPE lvc_t_roid,
+    lt_vbeln     TYPE SORTED TABLE OF lty_vbeln
+                 WITH UNIQUE KEY vbeln,
+    lv_error     TYPE abap_bool,
+    lv_message   TYPE string,
+    lv_vbeln_chk TYPE vbak-vbeln,
+    lv_success   TYPE i,
+    lv_failed    TYPE i.
+
+  CLEAR:
+    lv_success,
+    lv_failed.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SELECTED ROWS</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  go_grid-&gtget_selected_rows(
+    IMPORTING
+      et_row_no = lt_rows ).
+
+  DELETE lt_rows
+    WHERE row_id &lt= 0.
+
+  IF lt_rows IS INITIAL.
+
+    MESSAGE s006
+      DISPLAY LIKE gc_e.
+
+    RETURN.
+
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* COLLECT UNIQUE SALES ORDERS</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  LOOP AT lt_rows INTO DATA(ls_row).
+
+    READ TABLE gt_disp
+      INTO DATA(ls_disp)
+      INDEX ls_row-row_id.
+
+    CHECK sy-subrc = 0.
+
+    IF ls_disp-vbeln IS INITIAL.
+
+      MESSAGE s000
+        WITH TEXT-e61
+        DISPLAY LIKE gc_e.
+
+      RETURN.
+
+    ENDIF.
+
+    IF ls_disp-ebeln IS NOT INITIAL.
+
+      lv_message =
+        replace(
+          val  = TEXT-e62
+          sub  = '&1'
+          with = ls_disp-vbeln ).
+
+      MESSAGE lv_message
+        TYPE gc_s
+        DISPLAY LIKE gc_e.
+
+      RETURN.
+
+    ENDIF.
+
+    INSERT VALUE #(
+      vbeln = ls_disp-vbeln
+    ) INTO TABLE lt_vbeln.
+
+  ENDLOOP.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* DELETE SALES ORDER</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  LOOP AT lt_vbeln INTO DATA(ls_vbeln).
+
+    CLEAR:
+      lv_error,
+      lv_message,
+      lv_vbeln_chk.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* DELETE</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+    PERFORM <a href="#000000000044">delete_so_group</a>
+      USING    ls_vbeln-vbeln
+      CHANGING lv_error
+               lv_message.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* BAPI ERROR</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+    IF lv_error = abap_true.
+
+      CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
+
+      lv_failed = lv_failed + 1.
+
+      PERFORM <a href="#000000000045">update_delete_so_result</a>
+        USING ls_vbeln-vbeln
+              abap_true
+              lv_message.
+
+      CONTINUE.
+
+    ENDIF.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* COMMIT</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+    PERFORM <a href="#000000000062">commit_standard</a>
+      CHANGING lv_error
+               lv_message.
+
+    IF lv_error = abap_true.
+
+      lv_failed = lv_failed + 1.
+
+      PERFORM <a href="#000000000045">update_delete_so_result</a>
+        USING ls_vbeln-vbeln
+              abap_true
+              lv_message.
+
+      CONTINUE.
+
+    ENDIF.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* VERIFY DELETE</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+    SELECT SINGLE vbeln
+      FROM vbak
+     WHERE vbeln = @ls_vbeln-vbeln
+      INTO @lv_vbeln_chk.
+
+    IF sy-subrc = 0.
+
+      lv_failed = lv_failed + 1.
+
+      lv_message =
+        replace(
+          val  = TEXT-e63
+          sub  = '&1'
+          with = ls_vbeln-vbeln ).
+
+      PERFORM <a href="#000000000045">update_delete_so_result</a>
+        USING ls_vbeln-vbeln
+              abap_true
+              lv_message.
+
+      CONTINUE.
+
+    ENDIF.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SUCCESS</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+    lv_success = lv_success + 1.
+
+    PERFORM <a href="#000000000045">update_delete_so_result</a>
+      USING ls_vbeln-vbeln
+            abap_false
+            lv_message.
+
+  ENDLOOP.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* REFRESH</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  PERFORM <a href="#000000000060">set_changed_flag</a>.
+  PERFORM <a href="#000000000029">set_display_status</a>.
+  PERFORM <a href="#000000000028">set_edit_style</a>.
+  PERFORM <a href="#000000000030">refresh_grid</a> USING go_grid.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* PROCESS RESULT</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  PERFORM <a href="#000000000066">show_process_result</a>
+    USING lv_success
+          lv_failed.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form DELETE_SO_GROUP</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Delete sales order via BAPI (no COMMIT inside this routine)</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000044"></div>
+FORM delete_so_group
+  USING    pv_vbeln   TYPE vbak-vbeln
+  CHANGING pv_error   TYPE abap_bool
+           pv_message TYPE string.
+
+  CONSTANTS:
+    lc_delete TYPE c LENGTH 1 VALUE 'D'.
+
+  DATA:
+    ls_headerx TYPE bapisdh1x,
+    lt_return  TYPE TABLE OF bapiret2.
+
+  CLEAR:
+    pv_error,
+    pv_message.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SALES ORDER CHECK</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF pv_vbeln IS INITIAL.
+    pv_error   = abap_true.
+    pv_message = TEXT-e45.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* HEADER DELETE INDICATOR</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  ls_headerx-updateflag = lc_delete.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* DELETE SALES ORDER</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  CALL FUNCTION 'BAPI_SALESORDER_CHANGE'
+    EXPORTING
+      salesdocument    = pv_vbeln
+      order_header_inx = ls_headerx
+    TABLES
+      return           = lt_return.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* BAPI ERROR</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  LOOP AT lt_return INTO DATA(ls_return)
+    WHERE type CA 'AEX'.
+
+    pv_error   = abap_true.
+    pv_message = ls_return-message.
+    EXIT.
+
+  ENDLOOP.
+
+  IF pv_error = abap_true.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SUCCESS MESSAGE (FINAL CONFIRMATION IS PERFORMED AFTER COMMIT)</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  LOOP AT lt_return INTO ls_return
+    WHERE type = gc_s.
+
+    pv_message = ls_return-message.
+    EXIT.
+
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form UPDATE_DELETE_SO_RESULT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Update Sales Order delete result to ALV</font>
+<font color ="#8C8C8C">*& - Success : Keep row / clear SO linkage / enable reprocessing</font>
+<font color ="#8C8C8C">*& - Error   : Keep SO linkage / keep row locked</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000045"></div>
+FORM update_delete_so_result
+  USING pv_vbeln   TYPE vbak-vbeln
+        pv_error   TYPE abap_bool
+        pv_message TYPE string.
+
+  LOOP AT gt_disp ASSIGNING FIELD-SYMBOL(&ltls_disp&gt)
+    WHERE vbeln = pv_vbeln.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* DELETE ERROR</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+    IF pv_error = abap_true.
+
+<font color ="#8C8C8C">*     Keep VBELN / POSNR.</font>
+<font color ="#8C8C8C">*     The row remains linked to the existing Sales Order.</font>
+      &ltls_disp&gt-msgty   = gc_e.
+      &ltls_disp&gt-message = pv_message.
+
+      CONTINUE.
+
+    ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* DELETE SUCCESS</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Keep all uploaded/business input fields.</font>
+<font color ="#8C8C8C">* Clear only generated Sales Order linkage.</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+    CLEAR:
+      &ltls_disp&gt-vbeln,
+      &ltls_disp&gt-posnr.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SUCCESS MESSAGE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+    &ltls_disp&gt-msgty   = gc_s.
+    &ltls_disp&gt-message = pv_message.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* RESET PROCESS FLAGS</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+    &ltls_disp&gt-new     = abap_true.
+    &ltls_disp&gt-changed = abap_false.
+
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form GET_SELECTED_PO_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Collect complete Sales Order(s) for PO creation</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000046"></div>
+FORM get_selected_po_data
+  CHANGING pt_po    TYPE gty_t_po_work
+           pv_error TYPE abap_bool.
+
+  TYPES:
+    BEGIN OF lty_vbeln,
+      vbeln TYPE vbak-vbeln,
+    END OF lty_vbeln.
+
+  DATA:
+    lt_rows  TYPE lvc_t_row,
+    lt_vbeln TYPE SORTED TABLE OF lty_vbeln WITH UNIQUE KEY vbeln.
+
+  CLEAR:
+    pt_po,
+    pv_error.
+
+  go_grid-&gtget_selected_rows( IMPORTING et_index_rows = lt_rows ).
+
+  IF lt_rows IS INITIAL.
+    pv_error = abap_true.
+    MESSAGE s006 DISPLAY LIKE gc_e.
+    RETURN.
+  ENDIF.
+
+  LOOP AT lt_rows INTO DATA(ls_row).
+
+    READ TABLE gt_disp INTO DATA(ls_disp) INDEX ls_row-index.
+    CHECK sy-subrc = 0.
+
+    IF ls_disp-vbeln IS INITIAL.
+      pv_error = abap_true.
+      MESSAGE s000 WITH TEXT-e46 DISPLAY LIKE gc_e.
+      RETURN.
+    ENDIF.
+
+    INSERT VALUE #( vbeln = ls_disp-vbeln ) INTO TABLE lt_vbeln.
+
+  ENDLOOP.
+
+  LOOP AT lt_vbeln INTO DATA(ls_vbeln).
+
+    LOOP AT gt_disp INTO ls_disp WHERE vbeln = ls_vbeln-vbeln.
+
+      IF ls_disp-ebeln IS NOT INITIAL.
+        pv_error = abap_true.
+        MESSAGE s000 WITH replace( val = TEXT-e47 sub = '&1' with = ls_vbeln-vbeln ) DISPLAY LIKE gc_e.
+        RETURN.
+      ENDIF.
+
+      APPEND VALUE #( row_id = sy-tabix data = ls_disp ) TO pt_po.
+
+    ENDLOOP.
+
+  ENDLOOP.
+
+  IF pt_po IS INITIAL.
+    pv_error = abap_true.
+    MESSAGE s006 DISPLAY LIKE gc_e.
+  ENDIF.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CHECK_DUPLICATE_PO</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Check existing PO linked by CI_EKPODB-ZZVBELN/ZZPOSNR</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000047"></div>
+FORM check_duplicate_po
+  USING    pt_group TYPE gty_t_po_work
+  CHANGING pv_error TYPE abap_bool
+           pv_text  TYPE string.
+
+  CLEAR:
+    pv_error,
+    pv_text.
+
+  LOOP AT pt_group INTO DATA(ls_group).
+
+    SELECT SINGLE ebeln, ebelp
+      FROM ekpo
+     WHERE zzvbeln = @ls_group-data-vbeln
+       AND zzposnr = @ls_group-data-posnr
+       AND loekz   = @space
+      INTO @DATA(ls_po).
+
+    IF sy-subrc = 0.
+      pv_error = abap_true.
+      pv_text  = replace( val = replace( val = TEXT-e48 sub = '&1' with = ls_po-ebeln ) sub = '&2' with = ls_group-data-vbeln ).
+      RETURN.
+    ENDIF.
+
+  ENDLOOP.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form GET_PO_MASTER</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Read Purchasing Info Record / PB00</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000048"></div>
+FORM get_po_master
+  USING    ps_row      TYPE gty_disp
+  CHANGING pv_vendor   TYPE lifnr
+           pv_currency TYPE waers
+           pv_tax_code TYPE mwskz
+           pv_price    TYPE bapicurext
+           pv_error    TYPE abap_bool
+           pv_text     TYPE string.
+
+  DATA:
+    lv_infnr      TYPE infnr,
+    lv_knumh      TYPE knumh,
+    lv_kbetr      TYPE konp-kbetr,
+    lv_kpein      TYPE konp-kpein,
+    lv_konwa      TYPE konp-konwa,
+    lv_kbetr_calc TYPE decfloat34,
+    lv_kpein_calc TYPE decfloat34.
+
+  CLEAR:
+    pv_vendor,
+    pv_currency,
+    pv_tax_code,
+    pv_price,
+    pv_error,
+    pv_text.
+
+  SELECT SINGLE b~lifnr, a~waers, a~mwskz, a~infnr
+    FROM eine AS a
+    INNER JOIN eina AS b ON b~infnr = a~infnr
+   WHERE a~ekorg = @gc_po_ekorg
+     AND a~esokz = @gc_po_esokz
+     AND a~loekz = @space
+     AND b~matnr = @ps_row-matnr
+     AND b~loekz = @space
+    INTO ( @pv_vendor, @pv_currency, @pv_tax_code, @lv_infnr ).
+
+  IF sy-subrc &lt&gt 0.
+    pv_error = abap_true.
+    pv_text  = replace( val = TEXT-e49 sub = '&1' with = ps_row-matnr ).
+    RETURN.
+  ENDIF.
+
+  SELECT knumh
+    FROM a018
+   WHERE kappl = 'M'
+     AND kschl = @gc_po_kschl
+     AND lifnr = @pv_vendor
+     AND matnr = @ps_row-matnr
+     AND ekorg = @gc_po_ekorg
+     AND esokz = @gc_po_esokz
+     AND datab &lt= @sy-datum
+     AND datbi &gt= @sy-datum
+   ORDER BY datab DESCENDING
+    INTO @lv_knumh
+    UP TO 1 ROWS.
+  ENDSELECT.
+
+  IF lv_knumh IS INITIAL.
+    pv_error = abap_true.
+    pv_text  = replace( val = TEXT-e50 sub = '&1' with = ps_row-matnr ).
+    RETURN.
+  ENDIF.
+
+  SELECT SINGLE kbetr, konwa, kpein
+    FROM konp
+   WHERE knumh = @lv_knumh
+     AND kappl = 'M'
+     AND kschl = @gc_po_kschl
+    INTO ( @lv_kbetr, @lv_konwa, @lv_kpein ).
+
+  IF sy-subrc &lt&gt 0 OR lv_kpein &lt= 0.
+    pv_error = abap_true.
+    pv_text  = replace( val = TEXT-e51 sub = '&1' with = ps_row-matnr ).
+    RETURN.
+  ENDIF.
+
+  IF lv_konwa IS NOT INITIAL.
+    pv_currency = lv_konwa.
+  ENDIF.
+
+  TRY.
+      lv_kbetr_calc = lv_kbetr.
+      lv_kpein_calc = lv_kpein.
+      pv_price      = EXACT #( lv_kbetr_calc / lv_kpein_calc ).
+    CATCH cx_sy_arithmetic_error cx_sy_conversion_error.
+      pv_error = abap_true.
+      pv_text  = replace( val = TEXT-e52 sub = '&1' with = ps_row-matnr ).
+  ENDTRY.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SET_PO_EXTENSION</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Set CI_EKPODB-ZZVBELN / ZZPOSNR through BAPI extension</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000049"></div>
+FORM set_po_extension
+  USING    pv_ebelp TYPE ebelp
+           pv_vbeln TYPE vbak-vbeln
+           pv_posnr TYPE vbap-posnr
+  CHANGING pt_ext   TYPE gty_t_bapiparex
+           pv_error TYPE abap_bool
+           pv_text  TYPE string.
+
+  DATA:
+    ls_ext      TYPE bapiparex,
+    ls_te_item  TYPE bapi_te_mepoitem,
+    ls_te_itemx TYPE bapi_te_mepoitemx.
+
+  FIELD-SYMBOLS:
+    &ltlv_vbeln&gt  TYPE any,
+    &ltlv_posnr&gt  TYPE any,
+    &ltlv_vbelnx&gt TYPE any,
+    &ltlv_posnrx&gt TYPE any.
+
+  CLEAR:
+    pv_error,
+    pv_text.
+
+  ls_te_item-po_item  = pv_ebelp.
+  ls_te_itemx-po_item = pv_ebelp.
+
+  ASSIGN COMPONENT 'ZZVBELN' OF STRUCTURE ls_te_item TO &ltlv_vbeln&gt.
+  ASSIGN COMPONENT 'ZZVBELN' OF STRUCTURE ls_te_itemx TO &ltlv_vbelnx&gt.
+  ASSIGN COMPONENT 'ZZPOSNR' OF STRUCTURE ls_te_item TO &ltlv_posnr&gt.
+  ASSIGN COMPONENT 'ZZPOSNR' OF STRUCTURE ls_te_itemx TO &ltlv_posnrx&gt.
+
+  IF &ltlv_vbeln&gt IS NOT ASSIGNED OR &ltlv_posnr&gt IS NOT ASSIGNED OR &ltlv_vbelnx&gt IS NOT ASSIGNED OR &ltlv_posnrx&gt IS NOT ASSIGNED.
+    pv_error = abap_true.
+    pv_text  = TEXT-e53.
+    RETURN.
+  ENDIF.
+
+  &ltlv_vbeln&gt  = pv_vbeln.
+  &ltlv_posnr&gt  = pv_posnr.
+  &ltlv_vbelnx&gt = gc_x.
+  &ltlv_posnrx&gt = gc_x.
+
+  CLEAR ls_ext.
+  ls_ext-structure  = 'BAPI_TE_MEPOITEM'.
+  MOVE ls_te_item   TO ls_ext-valuepart1.
+  APPEND ls_ext TO pt_ext.
+
+  CLEAR ls_ext.
+  ls_ext-structure  = 'BAPI_TE_MEPOITEMX'.
+  MOVE ls_te_itemx  TO ls_ext-valuepart1.
+  APPEND ls_ext TO pt_ext.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CREATE_PURCHASE_ORDER</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Create Purchase Order after Sales Order creation</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000050"></div>
+FORM create_purchase_order .
+
+  DATA:
+    lt_po      TYPE gty_t_po_work,
+    lt_group   TYPE gty_t_po_work,
+    lv_error   TYPE abap_bool,
+    lv_ebeln   TYPE ekko-ebeln,
+    lv_message TYPE string.
+
+  PERFORM <a href="#000000000046">get_selected_po_data</a> CHANGING lt_po lv_error.
+  IF lv_error = abap_true.
+    RETURN.
+  ENDIF.
+
+  LOOP AT lt_po INTO DATA(ls_po_check).
+    IF ls_po_check-data-vtweg &lt&gt gc_po_vtweg.
+      MESSAGE s000 WITH TEXT-e54 DISPLAY LIKE gc_e.
+      RETURN.
+    ENDIF.
+  ENDLOOP.
+
+  LOOP AT lt_po
+    INTO DATA(ls_po)
+    GROUP BY ( vbeln = ls_po-data-vbeln )
+    ASSIGNING FIELD-SYMBOL(&ltls_po_group_key&gt).
+
+    CLEAR:
+      lt_group,
+      lv_error,
+      lv_ebeln,
+      lv_message.
+
+    LOOP AT GROUP &ltls_po_group_key&gt INTO DATA(ls_group_row).
+      APPEND ls_group_row TO lt_group.
+    ENDLOOP.
+
+    PERFORM <a href="#000000000047">check_duplicate_po</a>
+      USING    lt_group
+      CHANGING lv_error
+               lv_message.
+
+    IF lv_error = abap_true.
+      PERFORM <a href="#000000000052">update_purchase_order_result</a> USING lt_group space abap_true lv_message.
+      CONTINUE.
+    ENDIF.
+
+    PERFORM <a href="#000000000051">create_purchase_order_group</a>
+      CHANGING lt_group
+               lv_ebeln
+               lv_error
+               lv_message.
+
+    IF lv_error = abap_true.
+      CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
+      PERFORM <a href="#000000000052">update_purchase_order_result</a> USING lt_group space abap_true lv_message.
+      CONTINUE.
+    ENDIF.
+
+    CALL FUNCTION 'BAPI_TRANSACTION_COMMIT' EXPORTING wait = gc_x.
+    PERFORM <a href="#000000000052">update_purchase_order_result</a> USING lt_group lv_ebeln abap_false lv_message.
+
+  ENDLOOP.
+
+  PERFORM <a href="#000000000029">set_display_status</a>.
+  PERFORM <a href="#000000000028">set_edit_style</a>.
+  PERFORM <a href="#000000000030">refresh_grid</a> USING go_grid.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CREATE_PURCHASE_ORDER_GROUP</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Create one PO for one Sales Order</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000051"></div>
+FORM create_purchase_order_group
+  CHANGING pt_group   TYPE gty_t_po_work
+           pv_ebeln   TYPE ekko-ebeln
+           pv_error   TYPE abap_bool
+           pv_message TYPE string.
+
+  DATA:
+    ls_header     TYPE bapimepoheader,
+    ls_headerx    TYPE bapimepoheaderx,
+    lt_item       TYPE TABLE OF bapimepoitem,
+    lt_itemx      TYPE TABLE OF bapimepoitemx,
+    lt_schedule   TYPE TABLE OF bapimeposchedule,
+    lt_schedulex  TYPE TABLE OF bapimeposchedulx,
+    lt_ext        TYPE gty_t_bapiparex,
+    lt_return     TYPE TABLE OF bapiret2,
+    lv_po_item    TYPE i,
+    lv_ebelp      TYPE ebelp,
+    lv_vendor     TYPE lifnr,
+    lv_currency   TYPE waers,
+    lv_tax_code   TYPE mwskz,
+    lv_price      TYPE bapicurext,
+    lv_vendor_h   TYPE lifnr,
+    lv_currency_h TYPE waers,
+    lv_text       TYPE string.
+
+  CLEAR:
+    pv_ebeln,
+    pv_error,
+    pv_message.
+
+  CHECK pt_group IS NOT INITIAL.
+
+  LOOP AT pt_group ASSIGNING FIELD-SYMBOL(&ltls_group&gt).
+
+    CLEAR:
+      lv_vendor,
+      lv_currency,
+      lv_tax_code,
+      lv_price,
+      lv_text.
+
+    PERFORM <a href="#000000000048">get_po_master</a>
+      USING    &ltls_group&gt-data
+      CHANGING lv_vendor
+               lv_currency
+               lv_tax_code
+               lv_price
+               pv_error
+               lv_text.
+
+    IF pv_error = abap_true.
+      pv_message = lv_text.
+      RETURN.
+    ENDIF.
+
+    IF lv_vendor_h IS INITIAL.
+      lv_vendor_h   = lv_vendor.
+      lv_currency_h = lv_currency.
+    ELSEIF lv_vendor_h &lt&gt lv_vendor.
+      pv_error   = abap_true.
+      pv_message = replace( val = TEXT-e55 sub = '&1' with = &ltls_group&gt-data-vbeln ).
+      RETURN.
+    ELSEIF lv_currency_h &lt&gt lv_currency.
+      pv_error   = abap_true.
+      pv_message = replace( val = TEXT-e56 sub = '&1' with = &ltls_group&gt-data-vbeln ).
+      RETURN.
+    ENDIF.
+
+    lv_po_item = lv_po_item + 10.
+    lv_ebelp   = lv_po_item.
+    &ltls_group&gt-data-ebelp = lv_ebelp.
+
+    APPEND VALUE #(
+      po_item   = lv_ebelp
+      material  = &ltls_group&gt-data-matnr
+      plant     = &ltls_group&gt-data-werks
+      quantity  = &ltls_group&gt-data-kwmeng
+      po_unit   = &ltls_group&gt-data-meins
+      net_price = lv_price
+      stge_loc  = gc_po_lgort
+      tax_code  = lv_tax_code
+    ) TO lt_item.
+
+    APPEND VALUE #(
+      po_item   = lv_ebelp
+      po_itemx  = gc_x
+      material  = gc_x
+      plant     = gc_x
+      quantity  = gc_x
+      po_unit   = gc_x
+      net_price = gc_x
+      stge_loc  = gc_x
+      tax_code  = gc_x
+    ) TO lt_itemx.
+
+    APPEND VALUE #(
+      po_item       = lv_ebelp
+      sched_line    = '0001'
+      delivery_date = &ltls_group&gt-data-edatu
+      quantity      = &ltls_group&gt-data-kwmeng
+    ) TO lt_schedule.
+
+    APPEND VALUE #(
+      po_item       = lv_ebelp
+      sched_line    = '0001'
+      po_itemx      = gc_x
+      sched_linex   = gc_x
+      delivery_date = gc_x
+      quantity      = gc_x
+    ) TO lt_schedulex.
+
+    PERFORM <a href="#000000000049">set_po_extension</a>
+      USING    lv_ebelp
+               &ltls_group&gt-data-vbeln
+               &ltls_group&gt-data-posnr
+      CHANGING lt_ext
+               pv_error
+               lv_text.
+
+    IF pv_error = abap_true.
+      pv_message = lv_text.
+      RETURN.
+    ENDIF.
+
+  ENDLOOP.
+
+  ls_header-comp_code = gc_po_bukrs.
+  ls_header-doc_type  = gc_po_bsart.
+  ls_header-vendor    = lv_vendor_h.
+  ls_header-purch_org = gc_po_ekorg.
+  ls_header-pur_group = gc_po_ekgrp.
+  ls_header-doc_date  = sy-datum.
+  ls_header-currency  = lv_currency_h.
+
+  ls_headerx-comp_code = gc_x.
+  ls_headerx-doc_type  = gc_x.
+  ls_headerx-vendor    = gc_x.
+  ls_headerx-purch_org = gc_x.
+  ls_headerx-pur_group = gc_x.
+  ls_headerx-doc_date  = gc_x.
+  ls_headerx-currency  = gc_x.
+
+  CALL FUNCTION 'BAPI_PO_CREATE1'
+    EXPORTING
+      poheader         = ls_header
+      poheaderx        = ls_headerx
+    IMPORTING
+      exppurchaseorder = pv_ebeln
+    TABLES
+      return           = lt_return
+      poitem           = lt_item
+      poitemx          = lt_itemx
+      poschedule       = lt_schedule
+      poschedulex      = lt_schedulex
+      extensionin      = lt_ext.
+
+  LOOP AT lt_return INTO DATA(ls_return) WHERE type CA 'AEX'.
+    pv_error   = abap_true.
+    pv_message = ls_return-message.
+    EXIT.
+  ENDLOOP.
+
+  IF pv_ebeln IS INITIAL.
+    pv_error = abap_true.
+    IF pv_message IS INITIAL.
+      READ TABLE lt_return INTO ls_return INDEX 1.
+      IF sy-subrc = 0.
+        pv_message = ls_return-message.
+      ELSE.
+        pv_message = TEXT-e57.
+      ENDIF.
+    ENDIF.
+    RETURN.
+  ENDIF.
+
+  IF pv_error = abap_true.
+    RETURN.
+  ENDIF.
+
+  pv_message = replace( val = TEXT-s02 sub = '&1' with = pv_ebeln ).
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form UPDATE_PURCHASE_ORDER_RESULT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Update PO result to ALV</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000052"></div>
+FORM update_purchase_order_result
+  USING pt_group   TYPE gty_t_po_work
+        pv_ebeln   TYPE ekko-ebeln
+        pv_error   TYPE abap_bool
+        pv_message TYPE string.
+
+  LOOP AT pt_group INTO DATA(ls_group).
+
+    READ TABLE gt_disp ASSIGNING FIELD-SYMBOL(&ltls_disp&gt) INDEX ls_group-row_id.
+    CHECK sy-subrc = 0.
+
+    IF pv_error = abap_true.
+      &ltls_disp&gt-msgty   = gc_e.
+      &ltls_disp&gt-message = pv_message.
+    ELSE.
+      &ltls_disp&gt-ebeln   = pv_ebeln.
+      &ltls_disp&gt-ebelp   = ls_group-data-ebelp.
+      &ltls_disp&gt-msgty   = gc_s.
+      &ltls_disp&gt-message = pv_message.
+    ENDIF.
+
+  ENDLOOP.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SHOW_ERROR_POPUP</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Display errors via Common Error Popup</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000053"></div>
+FORM show_error_popup .
+
+  DATA:
+    lt_return TYPE bapiret2_t,
+    ls_return TYPE bapiret2.
+
+  LOOP AT gt_disp INTO DATA(ls_disp) WHERE msgty = gc_e.
+    CLEAR ls_return.
+    ls_return-type    = ls_disp-msgty.
+    ls_return-message = ls_disp-message.
+    ls_return-row     = ls_disp-excel_row.
+    APPEND ls_return TO lt_return.
+  ENDLOOP.
+
+  IF lt_return IS NOT INITIAL.
+    zcl_cm_util=&gterr_popup_show(
+      iv_title = TEXT-t03
+      it_msg   = lt_return
+    ).
+  ENDIF.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CHECK_UPLOAD_ERROR</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Check if any upload error exists</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000054"></div>
+FORM check_upload_error CHANGING pv_error TYPE abap_bool.
+
+  pv_error = abap_false.
+
+  READ TABLE gt_disp TRANSPORTING NO FIELDS WITH KEY msgty = gc_e.
+  IF sy-subrc = 0.
+    pv_error = abap_true.
+  ENDIF.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CHECK_LENGTH</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& ### ## ## ### ##</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000055"></div>
+FORM check_length
+  USING    pv_value TYPE string
+           pv_max   TYPE i
+           pv_label TYPE any
+  CHANGING pv_error TYPE abap_bool
+           pv_text  TYPE string.
+
+  DATA:
+    lv_label_str TYPE string,
+    lv_max_str   TYPE string.
+
+  CHECK strlen( pv_value ) &gt pv_max.
+
+  pv_error = abap_true.
+
+  lv_label_str = pv_label.
+  lv_max_str   = pv_max.
+
+  pv_text = replace( val  = replace( val  = TEXT-e59
+                                         sub  = '&1'
+                                         with = lv_label_str )
+                     sub  = '&2'
+                     with = lv_max_str ).
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CONVERT_DATE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& ## / ALV ## ## ## ##(YYYYMMDD) ##</font>
+<font color ="#8C8C8C">*&   1) YYYYMMDD (8## ##)</font>
+<font color ="#8C8C8C">*&   2) ## ### ## (#: 45678 -&gt ## ##)</font>
+<font color ="#8C8C8C">*&   3) ### ## (YYYY.MM.DD / YYYY-MM-DD / YYYY/MM/DD)</font>
+<font color ="#8C8C8C">*&   4) ### ## ## (DD.MM.YYYY #)</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000056"></div>
+FORM convert_date
+  USING    pv_value TYPE string
+  CHANGING pv_date  TYPE sy-datum
+           pv_error TYPE abap_bool.
+
+  CONSTANTS:
+    lc_digits          TYPE c LENGTH 10 VALUE '0123456789',
+    lc_excel_date_base TYPE d VALUE '18991230'.
+
+  DATA:
+    lv_value    TYPE string,
+    lv_year     TYPE string,
+    lv_month    TYPE string,
+    lv_day      TYPE string,
+    lv_m2       TYPE n LENGTH 2,
+    lv_d2       TYPE n LENGTH 2,
+    lv_serial   TYPE i,
+    lv_external TYPE c LENGTH 10,
+    lv_date     TYPE sy-datum.
+
+  CLEAR:
+    pv_date,
+    pv_error.
+
+  lv_value = zcl_cm_util=&gtregex_replace( i_data  = pv_value
+                                         i_space = abap_true ).
+
+  IF lv_value IS INITIAL.
+    pv_error = abap_true.
+    RETURN.
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* 1. ### ## ## : YYYYMMDD ## ## ####</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF lv_value CO lc_digits.
+
+    CASE strlen( lv_value ).
+
+      WHEN 8.
+        lv_date = lv_value.
+
+      WHEN 1 OR 2 OR 3 OR 4 OR 5.
+        lv_serial = lv_value.
+        lv_date   = lc_excel_date_base + lv_serial.
+
+      WHEN OTHERS.
+        pv_error = abap_true.
+        RETURN.
+
+    ENDCASE.
+
+  ELSE.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* 2. ### ## (YYYY.M.D / YYYY-MM-DD / YYYY/MM/DD)</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+    FIND FIRST OCCURRENCE OF
+      REGEX '^([0-9]{4})[./-]([0-9]{1,2})[./-]([0-9]{1,2})$'
+      IN lv_value
+      SUBMATCHES lv_year
+                 lv_month
+                 lv_day.
+
+    IF sy-subrc = 0.
+
+      lv_m2 = lv_month.
+      lv_d2 = lv_day.
+      lv_date = |{ lv_year }{ lv_m2 }{ lv_d2 }|.
+
+    ELSE.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* 3. ### ## ## (DD.MM.YYYY #)</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+      IF strlen( lv_value ) &gt 10.
+        pv_error = abap_true.
+        RETURN.
+      ENDIF.
+
+      lv_external = lv_value.
+
+      CALL FUNCTION 'CONVERT_DATE_TO_INTERNAL'
+        EXPORTING
+          date_external            = lv_external
+        IMPORTING
+          date_internal            = lv_date
+        EXCEPTIONS
+          date_external_is_invalid = 1
+          OTHERS                   = 2.
+
+      IF sy-subrc &lt&gt 0.
+        pv_error = abap_true.
+        RETURN.
+      ENDIF.
+
+    ENDIF.
+
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* 4. ## ### ## (##, 31# ## #)</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  CALL FUNCTION 'DATE_CHECK_PLAUSIBILITY'
+    EXPORTING
+      date                      = lv_date
+    EXCEPTIONS
+      plausibility_check_failed = 1
+      OTHERS                    = 2.
+
+  IF sy-subrc &lt&gt 0.
+    pv_error = abap_true.
+    RETURN.
+  ENDIF.
+
+  pv_date = lv_date.
+
+ENDFORM.
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form ADD_CHANGED_PROTOCOL</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000057"></div>
+FORM add_changed_protocol
+  USING po_chg       TYPE REF TO cl_alv_changed_data_protocol
+        pv_row_id    TYPE i
+        pv_tabix     TYPE i
+        pv_fieldname TYPE lvc_fname
+        pv_text      TYPE string.
+
+  CHECK po_chg IS BOUND.
+
+  po_chg-&gtadd_protocol_entry(
+    EXPORTING
+      i_msgid     = gc_msgid
+      i_msgno     = '000'
+      i_msgty     = gc_e
+      i_msgv1     = CONV #( pv_text )
+      i_fieldname = pv_fieldname
+      i_row_id    = pv_row_id
+      i_tabix     = pv_tabix ).
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form MODIFY_CHANGED_CELL</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000058"></div>
+FORM modify_changed_cell
+  USING po_chg       TYPE REF TO cl_alv_changed_data_protocol
+        pv_row_id    TYPE i
+        pv_fieldname TYPE lvc_fname
+        pv_value     TYPE any.
+
+  CHECK po_chg IS BOUND.
+
+  po_chg-&gtmodify_cell(
+    EXPORTING
+      i_row_id    = pv_row_id
+      i_fieldname = pv_fieldname
+      i_value     = pv_value ).
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SYNC_CHANGED_ROW</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Only derived fields are written; invalid user input stays in protocol</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000059"></div>
+FORM sync_changed_row
+  USING po_chg    TYPE REF TO cl_alv_changed_data_protocol
+        pv_row_id TYPE i
+        ps_disp   TYPE gty_disp.
+
+  DATA:
+    lt_fields TYPE STANDARD TABLE OF lvc_fname WITH EMPTY KEY.
+
+  lt_fields = VALUE #(
+    ( 'KUNAG_TXT' ) ( 'KUNWE_TXT' ) ( 'KUNRG_TXT' )
+    ( 'AUART_TXT' ) ( 'AUGRU_TXT' ) ( 'MAKTX' ) ( 'WERKS_TXT' )
+    ( 'ABRVW_TXT' )
+    ( 'KPEIN' ) ( 'NETPR_INT' ) ( 'PRICE_DEC' ) ( 'PRICE_SCALE' )
+    ( 'PRICE_UNIT' ) ( 'NETWR' )
+    ( 'STATUS' ) ( 'STATUS_TXT' ) ( 'MSGTY' ) ( 'MESSAGE' )
+  ).
+
+  LOOP AT lt_fields INTO DATA(lv_field).
+    ASSIGN COMPONENT lv_field OF STRUCTURE ps_disp
+      TO FIELD-SYMBOL(&ltlv_value&gt).
+    CHECK sy-subrc = 0.
+
+    PERFORM <a href="#000000000058">modify_changed_cell</a>
+      USING po_chg
+            pv_row_id
+            lv_field
+            &ltlv_value&gt.
+  ENDLOOP.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SET_CHANGED_FLAG</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000060"></div>
+FORM set_changed_flag.
+
+  CLEAR gv_changed.
+
+  LOOP AT gt_disp TRANSPORTING NO FIELDS
+    WHERE changed = abap_true
+      AND vbeln = space.
+    gv_changed = abap_true.
+    EXIT.
+  ENDLOOP.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CHECK_CREATE_SO_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Revalidate selected rows; old BAPI errors must not block correction</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000061"></div>
+FORM check_create_so_data
+  CHANGING pt_so    TYPE gty_t_so_work
+           pv_error TYPE abap_bool.
+
+  DATA:
+    ls_work  TYPE gty_disp,
+    lv_value TYPE string,
+    lv_error TYPE abap_bool,
+    lv_text  TYPE string.
+
+  CLEAR pv_error.
+
+  PERFORM <a href="#000000000015">get_check_master_data</a>.
+  PERFORM <a href="#000000000018">get_display_text</a>.
+
+  LOOP AT pt_so ASSIGNING FIELD-SYMBOL(&ltls_so&gt).
+
+    READ TABLE gt_disp ASSIGNING FIELD-SYMBOL(&ltls_disp&gt)
+      INDEX &ltls_so&gt-row_id.
+
+    IF sy-subrc &lt&gt 0.
+      pv_error = abap_true.
+      CONTINUE.
+    ENDIF.
+
+    IF &ltls_disp&gt-vbeln IS NOT INITIAL.
+      pv_error = abap_true.
+      CONTINUE.
+    ENDIF.
+
+    CLEAR:
+      &ltls_disp&gt-msgty,
+      &ltls_disp&gt-message.
+
+    ls_work = &ltls_disp&gt.
+    lv_value = COND #( WHEN ls_work-netpr IS INITIAL
+                         THEN ``
+                         ELSE |{ ls_work-netpr NUMBER = RAW }| ).
+
+    PERFORM <a href="#000000000021">price_set_external</a>
+      USING    lv_value
+      CHANGING ls_work
+               lv_error
+               lv_text.
+
+    IF lv_error = abap_false.
+      PERFORM <a href="#000000000022">price_calculate_amount</a>
+        CHANGING ls_work
+                 lv_error
+                 lv_text.
+    ENDIF.
+
+    IF lv_error = abap_false.
+      PERFORM <a href="#000000000017">check_row_data</a>
+        USING    ls_work
+        CHANGING lv_error
+                 lv_text.
+    ENDIF.
+
+    IF lv_error = abap_true.
+      pv_error = abap_true.
+      &ltls_disp&gt-msgty = gc_e.
+      &ltls_disp&gt-message = lv_text.
+    ELSE.
+      &ltls_disp&gt = ls_work.
+    ENDIF.
+
+    &ltls_so&gt-data = &ltls_disp&gt.
+
+  ENDLOOP.
+
+ENDFORM.
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form COMMIT_STANDARD</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Preserve the generated SO key if persistence cannot be confirmed</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000062"></div>
+FORM commit_standard
+  CHANGING pv_error   TYPE abap_bool
+           pv_message TYPE string.
+
+  DATA:
+    ls_return TYPE bapiret2.
+
+  CLEAR pv_error.
+
+  CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+    EXPORTING
+      wait   = abap_true
+    IMPORTING
+      return = ls_return.
+
+  IF ls_return-type CA 'AEX'
+     AND ls_return-type IS NOT INITIAL.
+    pv_error = abap_true.
+    pv_message = |{ TEXT-n01 } { ls_return-message }|.
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SET_DISPLAY_AMOUNT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Calculate amounts before the first ALV display</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000063"></div>
+FORM set_display_amount.
+
+  DATA:
+    lv_error TYPE abap_bool,
+    lv_text  TYPE string.
+
+  LOOP AT gt_disp ASSIGNING FIELD-SYMBOL(&ltls_disp&gt)
+    WHERE vbeln = space.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* KEEP EXISTING UPLOAD ERRORS</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+    IF &ltls_disp&gt-msgty CA 'AEX'
+       AND &ltls_disp&gt-msgty IS NOT INITIAL.
+      CONTINUE.
+    ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* CALCULATE DISPLAY AMOUNT</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+    PERFORM <a href="#000000000022">price_calculate_amount</a>
+      CHANGING &ltls_disp&gt
+               lv_error
+               lv_text.
+
+    IF lv_error = abap_true.
+
+      PERFORM <a href="#000000000014">set_upload_error</a>
+        USING    &ltls_disp&gt-excel_row
+                 lv_text
+        CHANGING &ltls_disp&gt.
+
+    ENDIF.
+
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* HANDLE_ON_F4</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000064"></div>
+FORM handle_on_f4
+  USING pv_fieldname  TYPE lvc_fname
+        pv_fieldvalue TYPE lvc_value
+        pv_row_id     TYPE i
+        po_event      TYPE REF TO cl_alv_event_data
+        po_snd        TYPE REF TO cl_gui_alv_grid.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* ALV / EVENT CHECK</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  CHECK po_snd IS BOUND.
+  CHECK po_snd = go_grid.
+  CHECK po_event IS BOUND.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* FIELD F4</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  CASE pv_fieldname.
+
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SALES ORDER TYPE</font>
+<font color ="#8C8C8C">*-------------------------------------------------------------------*</font>
+    WHEN 'AUART'.
+
+      PERFORM <a href="#000000000067">handle_f4_auart</a>
+        USING pv_fieldname
+              pv_row_id
+              po_event.
+
+    WHEN 'AUGRU'.
+
+      PERFORM <a href="#000000000065">handle_f4_augru</a>
+        USING pv_fieldname
+              pv_row_id
+              po_event.
+
+    WHEN 'VSTEL'.
+
+      PERFORM handle_f4_VSTEL
+        USING pv_fieldname
+              pv_row_id
+              po_event.
+
+
+
+    WHEN OTHERS.
+
+      RETURN.
+
+  ENDCASE.
+
+ENDFORM.
+
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* HANDLE_F4_AUGRU</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000065"></div>
+FORM handle_f4_augru
+  USING pv_fieldname TYPE lvc_fname
+        pv_row_id    TYPE i
+        po_event     TYPE REF TO cl_alv_event_data.
+
+  TYPES:
+    BEGIN OF lty_f4_augru,
+      augru TYPE tvau_auart_vko-augru,
+      bezei TYPE tvaut-bezei,
+    END OF lty_f4_augru.
+
+  DATA:
+    lt_f4_augru TYPE STANDARD TABLE OF lty_f4_augru
+                WITH EMPTY KEY,
+    lt_return   TYPE STANDARD TABLE OF ddshretval
+                WITH EMPTY KEY,
+    ls_row      TYPE gty_disp,
+    lv_display  TYPE abap_bool,
+    lv_message  TYPE string,
+    lv_subrc    TYPE sy-subrc.
+
+  FIELD-SYMBOLS:
+    &ltlt_modi&gt TYPE lvc_t_modi.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* DISABLE STANDARD F4</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  po_event-&gtm_event_handled = abap_true.
+
+  CHECK pv_row_id &gt 0.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* CURRENT ROW</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  READ TABLE gt_disp
+    INTO ls_row
+    INDEX pv_row_id.
+
+  CHECK sy-subrc = 0.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* CREATED SALES ORDER - NO CHANGE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  CHECK ls_row-vbeln IS INITIAL.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* ASSIGNED ORDER REASONS - SELECTABLE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  SELECT DISTINCT
+         a~augru,
+         b~bezei
+    FROM tvau_auart_vko AS a
+    LEFT OUTER JOIN tvaut AS b
+      ON  b~augru = a~augru
+      AND b~spras = @sy-langu
+   WHERE a~vkorg = @ls_row-vkorg
+     AND a~auart = @ls_row-auart
+    INTO TABLE @lt_f4_augru.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* NO ASSIGNMENT</font>
+<font color ="#8C8C8C">* - Show error</font>
+<font color ="#8C8C8C">* - Display all mapped order reasons as reference only</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF lt_f4_augru IS INITIAL.
+
+    lv_display = abap_true.
+
+    lv_message = TEXT-e20.
+
+    REPLACE ALL OCCURRENCES OF '&1'
+      IN lv_message WITH ls_row-vkorg.
+
+    REPLACE ALL OCCURRENCES OF '&2'
+      IN lv_message WITH ls_row-auart.
+
+    MESSAGE lv_message
+      TYPE gc_s
+      DISPLAY LIKE gc_e.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* ALL MAPPED ORDER REASONS - DISPLAY ONLY</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+    SELECT DISTINCT
+           a~augru,
+           b~bezei
+      FROM tvau_auart_vko AS a
+      LEFT OUTER JOIN tvaut AS b
+        ON  b~augru = a~augru
+        AND b~spras = @sy-langu
+      INTO TABLE @lt_f4_augru.
+
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* NO DATA</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF lt_f4_augru IS INITIAL.
+
+    IF lv_message IS NOT INITIAL.
+
+      MESSAGE lv_message
+        TYPE gc_s
+        DISPLAY LIKE gc_e.
+
+    ELSE.
+
+      MESSAGE s022
+        DISPLAY LIKE gc_e.
+
+    ENDIF.
+
+    RETURN.
+
+  ENDIF.
+
+  SORT lt_f4_augru BY augru.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* F4 POPUP</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = 'AUGRU'
+      window_title    = TEXT-f14
+      value_org       = gc_s
+      display         = lv_display
+    TABLES
+      value_tab       = lt_f4_augru
+      return_tab      = lt_return
+    EXCEPTIONS
+      parameter_error = 1
+      no_values_found = 2
+      OTHERS          = 3.
+
+  lv_subrc = sy-subrc.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* DISPLAY ONLY</font>
+<font color ="#8C8C8C">* - No ALV update</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF lv_display = abap_true.
+
+    MESSAGE lv_message
+      TYPE gc_s
+      DISPLAY LIKE gc_e.
+
+    RETURN.
+
+  ENDIF.
+
+  CHECK lv_subrc = 0.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SELECTED VALUE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  READ TABLE lt_return
+    INTO DATA(ls_retval)
+    INDEX 1.
+
+  CHECK sy-subrc = 0.
+  CHECK ls_retval-fieldval IS NOT INITIAL.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* UPDATE ALV CHANGE BUFFER</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  CHECK po_event-&gtm_data IS BOUND.
+
+  ASSIGN po_event-&gtm_data-&gt*
+    TO &ltlt_modi&gt.
+
+  CHECK sy-subrc = 0.
+  CHECK &ltlt_modi&gt IS ASSIGNED.
+
+  APPEND VALUE #(
+    row_id    = pv_row_id
+    fieldname = pv_fieldname
+    value     = ls_retval-fieldval
+  ) TO &ltlt_modi&gt.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SHOW_PROCESS_RESULT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Common processing result message</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000066"></div>
+FORM show_process_result
+  USING pv_success TYPE i
+        pv_failed  TYPE i.
+
+  DATA:
+    lv_result       TYPE string,
+    lv_success_text TYPE string,
+    lv_failed_text  TYPE string.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* RESULT MESSAGE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  lv_result       = TEXT-m06.
+  lv_success_text = pv_success.
+  lv_failed_text  = pv_failed.
+
+  REPLACE '&1'
+    IN lv_result
+    WITH lv_success_text.
+
+  REPLACE '&2'
+    IN lv_result
+    WITH lv_failed_text.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* DISPLAY RESULT</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  MESSAGE lv_result
+    TYPE gc_s.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form handle_f4_auart</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt PV_FIELDNAME</font>
+<font color ="#8C8C8C">*&      --&gt PV_ROW_ID</font>
+<font color ="#8C8C8C">*&      --&gt PO_EVENT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* HANDLE_F4_AUART</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Sales Order Type F4</font>
+<font color ="#8C8C8C">*& - Only Z order types</font>
+<font color ="#8C8C8C">*& - Exclude ZKE / ZKR</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* HANDLE_F4_AUART</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Sales Order Type F4</font>
+<font color ="#8C8C8C">*& - Sales Area assignment based on TVAKZ</font>
+<font color ="#8C8C8C">*& - Custom Order Type only (Z*)</font>
+<font color ="#8C8C8C">*& - Exclude ZKE / ZKR</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000067"></div>
+FORM handle_f4_auart
+  USING pv_fieldname TYPE lvc_fname
+        pv_row_id    TYPE i
+        po_event     TYPE REF TO cl_alv_event_data.
+
+  TYPES:
+    BEGIN OF lty_f4_auart,
+      auart TYPE tvakz-auart,
+      bezei TYPE tvakt-bezei,
+    END OF lty_f4_auart.
+
+  DATA:
+    lt_f4_auart TYPE STANDARD TABLE OF lty_f4_auart
+                WITH EMPTY KEY,
+    lt_return   TYPE STANDARD TABLE OF ddshretval
+                WITH EMPTY KEY,
+    ls_row      TYPE gty_disp,
+    lv_subrc    TYPE sy-subrc.
+
+  FIELD-SYMBOLS:
+    &ltlt_modi&gt TYPE lvc_t_modi.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* DISABLE STANDARD F4</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  po_event-&gtm_event_handled = abap_true.
+
+  CHECK pv_row_id &gt 0.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* CURRENT ROW</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  READ TABLE gt_disp
+    INTO ls_row
+    INDEX pv_row_id.
+
+  CHECK sy-subrc = 0.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* CREATED SALES ORDER - NO CHANGE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  CHECK ls_row-vbeln IS INITIAL.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SALES AREA CHECK</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF ls_row-vkorg IS INITIAL
+     OR ls_row-vtweg IS INITIAL.
+
+    MESSAGE s022
+      DISPLAY LIKE gc_e.
+
+    RETURN.
+
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* ALLOWED SALES ORDER TYPES</font>
+<font color ="#8C8C8C">* - TVAKZ : Sales Area / Order Type Assignment</font>
+<font color ="#8C8C8C">* - Only Z*</font>
+<font color ="#8C8C8C">* - Exclude ZKE / ZKR</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  SELECT DISTINCT
+         a~auart,
+         b~bezei
+    FROM tvakz AS a
+    LEFT OUTER JOIN tvakt AS b
+      ON  b~auart = a~auart
+      AND b~spras = @sy-langu
+   WHERE a~vkorg = @ls_row-vkorg
+     AND a~vtweg = @ls_row-vtweg
+     AND a~spart = @gc_spart_00
+     AND a~auart LIKE 'Z%'
+     AND a~auart &lt&gt @gc_zke
+     AND a~auart &lt&gt @gc_zkr
+    INTO TABLE @lt_f4_auart.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* NO ASSIGNED ORDER TYPE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF lt_f4_auart IS INITIAL.
+
+    MESSAGE s022
+      DISPLAY LIKE gc_e.
+
+    RETURN.
+
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SORT</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  SORT lt_f4_auart
+    BY auart.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* F4 POPUP</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = 'AUART'
+      window_title    = TEXT-f11
+      value_org       = gc_s
+    TABLES
+      value_tab       = lt_f4_auart
+      return_tab      = lt_return
+    EXCEPTIONS
+      parameter_error = 1
+      no_values_found = 2
+      OTHERS          = 3.
+
+  lv_subrc = sy-subrc.
+
+  CHECK lv_subrc = 0.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SELECTED VALUE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  READ TABLE lt_return
+    INTO DATA(ls_retval)
+    INDEX 1.
+
+  CHECK sy-subrc = 0.
+  CHECK ls_retval-fieldval IS NOT INITIAL.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* UPDATE ALV CHANGE BUFFER</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  CHECK po_event-&gtm_data IS BOUND.
+
+  ASSIGN po_event-&gtm_data-&gt*
+    TO &ltlt_modi&gt.
+
+  CHECK sy-subrc = 0.
+  CHECK &ltlt_modi&gt IS ASSIGNED.
+
+  APPEND VALUE #(
+    row_id    = pv_row_id
+    fieldname = pv_fieldname
+    value     = ls_retval-fieldval
+  ) TO &ltlt_modi&gt.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form handle_f4_VSTEL</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt PV_FIELDNAME</font>
+<font color ="#8C8C8C">*&      --&gt PV_ROW_ID</font>
+<font color ="#8C8C8C">*&      --&gt PO_EVENT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000068"></div>
+FORM handle_f4_vstel USING pv_fieldname TYPE lvc_fname
+                           pv_row_id    TYPE i
+                           po_event     TYPE REF TO cl_alv_event_data.
+
+  TYPES:
+    BEGIN OF lty_f4_vstel,
+      vstel TYPE tvstz-vstel, " ###
+      vtext TYPE tvstt-vtext, " ####
+    END OF lty_f4_vstel.
+
+  DATA:
+    lt_f4_vstel TYPE STANDARD TABLE OF lty_f4_vstel
+                WITH EMPTY KEY,
+    lt_return   TYPE STANDARD TABLE OF ddshretval
+                WITH EMPTY KEY,
+    ls_row      TYPE gty_disp, " ### ### ##### ## ### ##
+    lv_display  TYPE abap_bool,
+    lv_message  TYPE string,
+    lv_subrc    TYPE sy-subrc.
+
+  FIELD-SYMBOLS:
+    &ltlt_modi&gt TYPE lvc_t_modi.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* DISABLE STANDARD F4</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  po_event-&gtm_event_handled = abap_true.
+
+  CHECK pv_row_id &gt 0.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* CURRENT ROW</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  READ TABLE gt_disp
+    INTO ls_row
+    INDEX pv_row_id.
+
+  CHECK sy-subrc = 0.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* CREATED DOCUMENT - NO CHANGE (## ### ### ## ## ## ##)</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  " ## # ###/#### ### ## #### ## ##
+  CHECK ls_row-vbeln IS INITIAL.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* ASSIGNED SHIPPING POINTS BY PLANT - SELECTABLE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  " ###(WERKS) #### ### ###(VSTEL) ### #####.
+  " (# ## ####(VTWEG)# TVSTZ ## ## ### ##### WHERE ### ## ##)
+  SELECT DISTINCT
+         a~vstel,
+         b~vtext
+    FROM tvstz AS a
+    LEFT OUTER JOIN tvstt AS b
+      ON  b~vstel = a~vstel
+      AND b~spras = @sy-langu
+   WHERE a~werks = @ls_row-werks
+    INTO TABLE @lt_f4_vstel.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* NO ASSIGNMENT</font>
+<font color ="#8C8C8C">* - Show error</font>
+<font color ="#8C8C8C">* - Display all shipping points as reference only</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF lt_f4_vstel IS INITIAL.
+
+    lv_display = abap_true.
+
+    " TEXT-E69: "### &1# ### #### ####."
+    lv_message = TEXT-e69.
+
+    REPLACE ALL OCCURRENCES OF '&1'
+      IN lv_message WITH ls_row-werks.
+
+    MESSAGE lv_message
+      TYPE gc_s
+      DISPLAY LIKE gc_e.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* ALL SHIPPING POINTS - DISPLAY ONLY</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+    " ## #### #### ## ### #### ###(### ##)## #####.
+    SELECT DISTINCT
+           a~vstel,
+           b~vtext
+      FROM tvstz AS a
+      LEFT OUTER JOIN tvstt AS b
+        ON  b~vstel = a~vstel
+        AND b~spras = @sy-langu
+      INTO TABLE @lt_f4_vstel.
+
+  ENDIF.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* NO DATA AT ALL</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF lt_f4_vstel IS INITIAL.
+
+    IF lv_message IS NOT INITIAL.
+      MESSAGE lv_message
+        TYPE gc_s
+        DISPLAY LIKE gc_e.
+    ELSE.
+      " s022: "### #### ####." ### standard tcode ### ##
+      MESSAGE s022 DISPLAY LIKE gc_e.
+    ENDIF.
+    RETURN.
+
+  ENDIF.
+
+  SORT lt_f4_vstel BY vstel.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* F4 POPUP</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+    EXPORTING
+      retfield        = 'VSTEL'
+      window_title    = TEXT-f38 " TEXT-f15: "### ##"
+      value_org       = gc_s
+      display         = lv_display
+    TABLES
+      value_tab       = lt_f4_vstel
+      return_tab      = lt_return
+    EXCEPTIONS
+      parameter_error = 1
+      no_values_found = 2
+      OTHERS          = 3.
+
+  lv_subrc = sy-subrc.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* DISPLAY ONLY - NO ALV UPDATE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  IF lv_display = abap_true.
+
+    MESSAGE lv_message
+      TYPE gc_s
+      DISPLAY LIKE gc_e.
+    RETURN.
+
+  ENDIF.
+
+  CHECK lv_subrc = 0.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* SELECTED VALUE</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  READ TABLE lt_return
+    INTO DATA(ls_retval)
+    INDEX 1.
+
+  CHECK sy-subrc = 0.
+  CHECK ls_retval-fieldval IS NOT INITIAL.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* UPDATE ALV CHANGE BUFFER</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+  CHECK po_event-&gtm_data IS BOUND.
+
+  ASSIGN po_event-&gtm_data-&gt*
+    TO &ltlt_modi&gt.
+
+  CHECK sy-subrc = 0.
+  CHECK &ltlt_modi&gt IS ASSIGNED.
+
+  APPEND VALUE #(
+    row_id    = pv_row_id
+    fieldname = pv_fieldname
+    value     = ls_retval-fieldval
+  ) TO &ltlt_modi&gt.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

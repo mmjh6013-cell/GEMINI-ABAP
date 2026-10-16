@@ -1,0 +1,202 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF52_MOVE_MPPA_TO_MDPS_PL</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF52_MOVE_MPPA_TO_MDPS_PL</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* MDPS aus MPPA fuer Planauftrag erstellen</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000286"></div>
+FORM move_mppa_to_mdps.
+<font color ="#8C8C8C">*--&gt MDPS zuruecksetzen</font>
+  CLEAR mdps.
+<font color ="#8C8C8C">*--&gt Sortierblock setzen</font>
+  MOVE netpla     TO mdps-plaab.
+  MOVE s1plusx    TO mdps-sort1.
+  IF cm61x-plscn IS INITIAL.
+    MOVE s2plauf    TO mdps-sort2.
+  ELSE.
+    MOVE s2saauf    TO mdps-sort2.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Pruefen Bruttoplanung</font>
+  IF  mt61d-miskz EQ miskzb.
+    MOVE brtpla     TO mdps-plaab.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Pruefen Vorplanung ohne Fertigung</font>
+  IF  mppa-vrpla EQ xflag.
+    MOVE vorpla     TO mdps-plaab.
+    MOVE mppa-vrpla TO mdps-vrpla.
+    MOVE mppa-pbdnr TO mdps-planr(10).
+    MOVE mppa-pbdnr TO mdps-pbdnr.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Pruefen Kundeneinzelfertigung</font>
+  IF mppa-sobkz EQ sobkze.
+    MOVE kndpla     TO mdps-plaab.
+    MOVE mppa-kdauf TO plakd-kdauf.
+    MOVE mppa-kdpos TO plakd-kdpos.
+    MOVE plakd      TO mdps-planr.
+  ENDIF.
+
+  "{ Begin ENHO ADSUB_MM61XF52_MOVE_MPPA_TO002 IS-AD-SUC AD_SUB }
+<font color ="#8C8C8C">* DI A&D PCS - Customer stock</font>
+<font color ="#8C8C8C">*--&gt Prüfen Customer Stock</font>
+  IF mppa-sobkz EQ sobkzb.
+    MOVE cstpla     TO mdps-plaab.
+    MOVE mppa-plnum TO mdps-planr.
+  ENDIF.
+  "{ End ENHO ADSUB_MM61XF52_MOVE_MPPA_TO002 IS-AD-SUC AD_SUB }
+
+ENHANCEMENT-POINT move_mppa_to_mdps_01 SPOTS es_sapmm61x.
+<font color ="#8C8C8C">*--&gt Pruefen Projekteinzelfertigung</font>
+  IF mppa-sobkz EQ sobkzq.
+    MOVE propla     TO mdps-plaab.
+    MOVE mppa-pspel TO plapr-pspel.
+    MOVE plapr      TO mdps-planr.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Pruefen Lagerortdisposition</font>
+  IF mdps-plaab EQ netpla
+  OR mdps-plaab EQ brtpla.
+    IF NOT mppa-lgort IS INITIAL.
+      PERFORM check_lgort USING mppa-lgort.
+      IF mard-diskz EQ diskz1.         "Lagerort ausgeschlossen
+        MOVE lgods2     TO mdps-plaab.
+        MOVE mppa-lgort TO plalg-lgort.
+        MOVE plalg      TO mdps-planr.
+      ENDIF.
+      IF mard-diskz EQ diskz2.         "Lagerort seperat disponieren
+        MOVE lgods1     TO mdps-plaab.
+        MOVE mppa-lgort TO plalg-lgort.
+        MOVE plalg      TO mdps-planr.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Pruefen mehrstufige Fertigung</font>
+  IF    mdps-plaab = netpla
+  AND ( mppa-plaab = mstpla OR mppa-plaab = vmspla ).
+    mdps-plaab = mppa-plaab.
+    mdps-planr = mppa-planr.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Pruefen Planauftragsnummer</font>
+  IF mppa-plnum EQ space.
+    IF cm61x-plscn IS INITIAL.
+      PERFORM new_number USING 'PLAF' t460d-numki mppa-plnum.
+    ELSE.
+      PERFORM new_number USING 'PLAF' t399d-nksaf mppa-plnum.
+    ENDIF.
+    PERFORM plaf_sperren USING mppa-plnum.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Daten uebernehmen</font>
+  IF cm61x-plscn IS INITIAL.
+    MOVE plauf      TO mdps-delkz.
+  ELSE.
+    MOVE saauf      TO mdps-delkz.
+  ENDIF.
+  MOVE plusx      TO mdps-plumi.
+  MOVE mppa-plnum TO mdps-delnr.
+  MOVE mppa-paart TO mdps-baart.
+  MOVE mppa-beskz TO mdps-beskz.
+  MOVE mppa-sobes TO mdps-sobes.
+  MOVE mppa-plwrk TO mdps-wrk01.
+  MOVE mppa-pwwrk TO mdps-wrk02.
+<font color ="#8C8C8C">* MOVE mppa-gsmng TO mdps-mng01.</font>
+  mdps-mng01 = mppa-gsmng - mppa-wemng.
+  MOVE mppa-wemng TO mdps-mdmng.
+  MOVE mppa-wamng TO mdps-wamng.
+  MOVE mppa-avmng TO mdps-mng02.
+  MOVE mppa-pedtr TO mdps-dat01.
+  MOVE mppa-psttr TO mdps-dat02.
+  MOVE mppa-pertr TO mdps-dat03.
+  MOVE mppa-webaz TO mdps-webaz.
+  MOVE mppa-lgort TO mdps-lgort.
+  MOVE mppa-auffx TO mdps-fix01.
+  MOVE mppa-stlfx TO mdps-fix02.
+  IF mdps-fix01 EQ space.
+    MOVE space TO mdps-fix02.
+  ENDIF.
+  MOVE mppa-umskz TO mdps-umskz.
+  MOVE mppa-knttp TO mdps-knttp.
+  MOVE mppa-sobkz TO mdps-sobkz.
+  MOVE mppa-kzvbr TO mdps-kzvbr.
+  MOVE mppa-kzbws TO mdps-kzbws.
+  MOVE mppa-kdauf TO mdps-kdauf.
+  MOVE mppa-kdpos TO mdps-kdpos.
+  MOVE mppa-pspel TO mdps-pspel.
+  MOVE mppa-aktal TO mdps-aktal.
+  MOVE mppa-rsnum TO mdps-rsnum.
+  MOVE mppa-sernr TO mdps-sernr.
+  MOVE mppa-techs TO mdps-techs.
+  MOVE mppa-verid TO mdps-verid.
+  MOVE mppa-stlan TO mdps-stlan.
+  MOVE mppa-stalt TO mdps-stalt.
+  MOVE mppa-ststa TO mdps-ststa.
+  MOVE mppa-aufnr TO mdps-aufnr.
+  MOVE mppa-verto TO mdps-verto.
+  MOVE mppa-cuobj TO mdps-cuobj.
+  MOVE mppa-techs TO mdps-techs.
+  MOVE mppa-aennr TO mdps-aennr.
+  MOVE mppa-paltr TO mdps-paltr.
+  MOVE mppa-revlv TO mdps-revlv.
+  MOVE mppa-frthw TO mdps-frthw.
+  MOVE mppa-prnkz TO mdps-prnkz.
+  MOVE mppa-bedid TO mdps-bedid.
+  MOVE mppa-ratid TO mdps-ratid.
+  MOVE mppa-groid TO mdps-groid.
+  MOVE mppa-trmer TO mdps-trmer.
+  MOVE mppa-rater TO mdps-rater.
+  MOVE mppa-groer TO mdps-groer.
+  MOVE mppa-qunum TO mdps-qunum.
+  MOVE mppa-qupos TO mdps-qupos.
+  MOVE mppa-ekorg TO mdps-ekorg.
+  MOVE mppa-flief TO mdps-lifnr.
+  MOVE mppa-ebeln TO mdps-ebeln.
+  MOVE mppa-ebelp TO mdps-ebelp.
+  MOVE mppa-srm_contract_id  TO mdps-srm_contract_id.   "EhP4 CCM
+  MOVE mppa-srm_contract_itm TO mdps-srm_contract_itm.  "EhP4 CCM
+  MOVE mppa-kapfx TO mdps-kapfx.
+  MOVE mppa-aktft TO mdps-aktft.
+  MOVE mppa-aktrt TO mdps-aktrt.
+  MOVE mppa-aktgt TO mdps-aktgt.
+  MOVE mppa-ematn TO mdps-ematn.
+  MOVE mppa-bom_versn TO mdps-bom_versn.
+<font color ="#8C8C8C">*--&gt Setzen Verfügbarkeitskennzeichen</font>
+  MOVE xflag TO mdps-vrfkz.
+<font color ="#8C8C8C">*--&gt Prüfen Planungswerk</font>
+  IF mdps-wrk01 NE mdkp-plwrk.
+    MOVE space TO mdps-vrfkz.
+  ENDIF.
+  IF mdps-sobes EQ sobesu.                                  "note 650227
+    MOVE mppa-pwwrk TO mdps-wrk02.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Daten aus OLD-Dispositionszeile</font>
+  IF am61x-vstat EQ vstatv.
+    MOVE mdpss-vstat TO mdps-vstat.
+    MOVE mdpss-aussl TO mdps-aussl.
+    MOVE mdpss-oldsl TO mdps-oldsl.
+    MOVE mdpss-mng03 TO mdps-mng03.
+    MOVE mdpss-reslo TO mdps-reslo.                               "SSLOC
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Reset Daten in OLD-Workaerea</font>
+  IF am61x-vstat EQ vstatv.
+    CLEAR mdpss-ukz01.
+    CLEAR mdpss-umdat.
+    CLEAR mdpss-mng04.
+    IF mdps-fix01 EQ space.
+      CLEAR mdpss-fix02.
+    ENDIF.
+  ENDIF.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

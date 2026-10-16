@@ -1,0 +1,101 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XC02_CHECK_BUFFER</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XC02_CHECK_BUFFER</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          MM61XC02_CHECK_BUFFER</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+
+<div id="000000000037"></div>
+FORM check_and_delete_buffer TABLES it_cm61dp            STRUCTURE cm61dp     "Input Package MRP parallel
+                                    it_mdmmx             STRUCTURE mdmm       "Input Package MRP sequential
+                                    ct_matnr_werks_berid STRUCTURE pph_matnr_werks_berid_sel  "List of materials for Preread
+                                    ct_cm61dp_app        structure cm61dp     "List of materials to be appended (parallel)
+                             USING  iv_cm61d   TYPE cm61d.
+
+  DATA: ls_cm61dp           TYPE cm61dp,
+        ls_mdmmx            TYPE mdmm,
+        lv_keep_buffer_read TYPE abap_bool.
+
+<font color ="#8C8C8C">* Sequential Planning</font>
+  IF it_mdmmx[] IS NOT INITIAL.
+    CLEAR ls_mdmmx.
+    LOOP AT it_mdmmx INTO ls_mdmmx
+                     WHERE disst = iv_cm61d-disst
+                     AND   matnr = iv_cm61d-matnr
+                     AND   plwrk = iv_cm61d-werks.
+      EXIT.
+    ENDLOOP.
+    IF ls_mdmmx IS INITIAL.
+      "Buffer refresh for material plant
+      CALL METHOD cl_pph_mdpsx_selection=&gtdelete_buffer_by_mat_werks_s4h
+        EXPORTING
+          iv_werks = iv_cm61d-werks
+          iv_matnr = iv_cm61d-matnr.
+    ELSE.
+<font color ="#8C8C8C">*       Non-buffered Logic: Append same MATNR/WERKS with other BERIDs and plan later</font>
+      lv_keep_buffer_read = cl_pph_mdpsx_selection=&gtget_buffer_mode( ).
+      IF lv_keep_buffer_read EQ abap_false.
+<font color ="#8C8C8C">*         Delay planning of this planning object to the end since buffer has to be updated</font>
+        CALL METHOD cl_pph_mdpsx_selection=&gtget_other_matnr_werks_requests
+          EXPORTING
+            is_planning_request_current = iv_cm61d
+          IMPORTING
+            et_matnr_werks_berid        = ct_matnr_werks_berid[]
+          CHANGING
+            ct_planning_request         = it_mdmmx[].
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">* Parallel Planning</font>
+  IF it_cm61dp[] IS NOT INITIAL.
+    CLEAR ls_cm61dp.
+    LOOP AT it_cm61dp  INTO ls_cm61dp
+                       WHERE disst = iv_cm61d-disst
+                       AND   matnr = iv_cm61d-matnr
+                       AND   werks = iv_cm61d-werks.
+      EXIT.
+    ENDLOOP.
+    IF ls_cm61dp IS INITIAL.
+      IF CL_ADPIC_USAGE_CHECK=&gtIS_MATERIAL_MPN( iv_cm61d-matnr ) IS INITIAL. "not deleting buffer in case of Interchangeable materials.
+        "Buffer refresh for material plant
+        CALL METHOD cl_pph_mdpsx_selection=&gtdelete_buffer_by_mat_werks_s4h
+          EXPORTING
+            iv_werks = iv_cm61d-werks
+            iv_matnr = iv_cm61d-matnr.
+     ENDIF.
+    ELSE.
+<font color ="#8C8C8C">*       Non-buffered Logic: Append same MATNR/WERKS with other BERIDs and plan later</font>
+      lv_keep_buffer_read = cl_pph_mdpsx_selection=&gtget_buffer_mode( ).
+      IF lv_keep_buffer_read EQ abap_false.
+<font color ="#8C8C8C">*         Delay planning of this planning object to the end since buffer has to be updated</font>
+        CALL METHOD cl_pph_mdpsx_selection=&gtget_other_matnr_werks_requests
+          EXPORTING
+            is_planning_request_current = iv_cm61d
+          IMPORTING
+            et_matnr_werks_berid        = ct_matnr_werks_berid[]
+            et_cm61dp_app               = ct_cm61dp_app[]
+          CHANGING
+            ct_cm61dp_tab               = it_cm61dp[].
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

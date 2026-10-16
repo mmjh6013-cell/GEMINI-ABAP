@@ -1,0 +1,115 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XQUO_CHECK_EQUMX</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XQUO_CHECK_EQUMX</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  CHECK_EQUMX</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       Prüfen ob EQUMX bis zum Datum aufgebaut werden muß,</font>
+<font color ="#8C8C8C">*       oder ob eine vorherige EQUMX aufgebaut werden muß.</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Bei Wochen- und Monatslosgröße ist es möglich, daß die Intervalle</font>
+<font color ="#8C8C8C">* sich nach der bisherigen Logik überschneiden.</font>
+<font color ="#8C8C8C">* Deshalb erfolgt hier die Unterscheidung in 3 Fälle:</font>
+<font color ="#8C8C8C">* 1. Für das geforderte Datum existiert bereits ein Intervall.</font>
+<font color ="#8C8C8C">*    Das über quote_intervall_bestimmen ermittelte Intervall</font>
+<font color ="#8C8C8C">*    überschneidet sich aber mit dem existierenden Intervall (EQUMX)</font>
+<font color ="#8C8C8C">*    und wird deshalb durch die READ-Anweisung mit dem Key equmk</font>
+<font color ="#8C8C8C">*    nicht gefunden.</font>
+<font color ="#8C8C8C">* 2. Das geforderte Datum liegt außerhalb von bereits existierenden</font>
+<font color ="#8C8C8C">*    Intervallen.</font>
+<font color ="#8C8C8C">*    Es werden Intervalle (EQUMX-Sätze) vom Ende-Datum (+1) des letzten</font>
+<font color ="#8C8C8C">*    existierenden Intervalls erzeugt, bis das geforderte Datum</font>
+<font color ="#8C8C8C">*    in dem soeben erzeugten Intervall liegt.</font>
+<font color ="#8C8C8C">* 3. Es existiert noch kein Intervall (EQUMX-Satz)</font>
+<font color ="#8C8C8C">*    Es werden Intervalle (EQUMX-Sätze) vom Planungsdatum ab erzeugt,</font>
+<font color ="#8C8C8C">*    bis das geforderte Datum in dem soeben erzeugten Intervall liegt.</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000818"></div>
+FORM check_equmx USING qunum LIKE equmx-qunum
+                       qupos LIKE equmx-qupos
+                       datum LIKE equmx-vdatu
+                       abper LIKE equpx-abper
+                       abanz LIKE equpx-abanz
+                 CHANGING tabix LIKE sy-tabix.
+  DATA: l_datum LIKE equmx-vdatu.
+  CLEAR l_datum.
+<font color ="#8C8C8C">*--&gt (1. Fall) Ist das richtige Intervall bereits vorhanden?</font>
+  READ TABLE equmx WITH KEY qunum = qunum
+                            qupos = qupos BINARY SEARCH.
+  LOOP AT equmx FROM sy-tabix WHERE qunum = qunum
+                              AND   qupos = qupos.
+    IF  datum GE equmx-vdatu
+    AND datum LE equmx-bdatu.
+      MOVE datum TO l_datum.
+      MOVE sy-tabix TO tabix.
+      EXIT.
+    ENDIF.
+  ENDLOOP.
+<font color ="#8C8C8C">*--&gt Richtiges Intverall vorhanden: Rücksprung zum ADD</font>
+  IF NOT l_datum IS INITIAL.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Existiert ein EQUMX für diese Quotenposition</font>
+  READ TABLE equmx WITH KEY qunum = qunum
+                            qupos = qupos BINARY SEARCH.
+<font color ="#8C8C8C">*--&gt (2. Fall) Falls ein EQUMX existiert, letzten Satz für EQUMX lesen</font>
+<font color ="#8C8C8C">*--&gt           es wird das Datum des letzten Intervalls benötigt.</font>
+  IF sy-subrc = 0.
+    tabix = tabix - 1.
+    READ TABLE equmx INDEX tabix.
+    l_datum = equmx-bdatu + 1.
+<font color ="#8C8C8C">*--&gt sy-tabix für INSERT wieder richtig setzen</font>
+    tabix = tabix + 1.
+  ELSE.
+<font color ="#8C8C8C">*--&gt (3. Fall) Falls kein EQUMX existiert: Planungsdatum</font>
+    l_datum = mdkp-dsdat.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Intervall in der Zukunft: Ab gefordertem Datum beginnen</font>
+  IF datum LT l_datum.
+    MOVE datum TO l_datum.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt (2. + 3. Fall) Intervalle erzeugen.</font>
+  DO.
+<font color ="#8C8C8C">*--&gt with note 2950239 and the call of quote_intervall_statics upfront</font>
+<font color ="#8C8C8C">*    the date should already lie inside a fitting interval and call of QUOTE_INTERVALL_BESTIMMEN</font>
+<font color ="#8C8C8C">*    should be prevented in that case</font>
+    IF NOT ( l_datum &gt= mdcal-pranf  AND l_datum &lt= mdcal-prend ).
+<font color ="#8C8C8C">*--&gt Bestimmen von Anfangs- und Endtermin der zugehörigen Periode</font>
+      PERFORM <a href ="javascript:Link('MM61XQUO_QUOTE_INTERVALL_BESTI.html?id=#000000000821');">quote_intervall_bestimmen</a> USING l_datum abper abanz.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt EQUMX-Satz schreiben aber ohne Menge</font>
+<font color ="#8C8C8C">*--&gt Menge wird später über ADD hinzugefügt</font>
+    CLEAR equmx.
+    MOVE mdcal-pranf  TO equmx-vdatu.
+    MOVE mdcal-prend  TO equmx-bdatu.
+    MOVE qunum        TO equmx-qunum.
+    MOVE qupos        TO equmx-qupos.
+    INSERT equmx INDEX tabix.
+<font color ="#8C8C8C">*--&gt Falls richtiges Intervall: Satz nachlesen zum ADD</font>
+    IF  datum GE equmx-vdatu
+    AND datum LE equmx-bdatu.
+      READ TABLE equmx INDEX tabix.
+      EXIT.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Nächstes Intervall aufbauen.</font>
+    l_datum = equmx-bdatu + 1.
+    tabix = tabix + 1.
+  ENDDO.
+ENDFORM.                    " CHECK_EQUMX
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF52_MOVE_MPPA_TO_MDEZ_PL</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF52_MOVE_MPPA_TO_MDEZ_PL</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* MDEZ aus MPPA fuer Planauftrag erstellen</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000284"></div>
+FORM move_mppa_to_mdez_pl.
+<font color ="#8C8C8C">*--&gt MDEZ zuruecksetzen</font>
+  CLEAR mdez.
+<font color ="#8C8C8C">*--&gt Sortierblock ergaenzen</font>
+  MOVE netpla     TO mdez-plaab.
+  MOVE s1plusx    TO mdez-sort1.
+  MOVE s2plauf    TO mdez-sort2.
+<font color ="#8C8C8C">*--&gt Pruefen Bruttoplanung</font>
+  IF  mt61d-miskz EQ miskzb.
+    MOVE brtpla     TO mdez-plaab.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Pruefen Vorplanung ohne Fertigung</font>
+  IF mppa-vrpla EQ xflag.
+    MOVE vorpla     TO mdez-plaab.
+    MOVE mppa-pbdnr TO mdez-planr.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Pruefen Kundeneinzelfertigung</font>
+  IF mppa-sobkz EQ sobkze.
+    MOVE kndpla     TO mdez-plaab.
+    MOVE mppa-kdauf TO plakd-kdauf.
+    MOVE mppa-kdpos TO plakd-kdpos.
+    MOVE plakd      TO mdez-planr.
+  ENDIF.
+
+  "{ Begin ENHO ADSUB_MM61XF52_MOVE_MPPA_TO000 IS-AD-SUC AD_SUB }
+<font color ="#8C8C8C">* DI A&D PCS - Customer stock</font>
+<font color ="#8C8C8C">*--&gt Prüfen Customer Stock</font>
+  IF mppa-sobkz EQ sobkzb.
+    MOVE cstpla     TO mdez-plaab.
+    MOVE mppa-plnum TO mdez-planr.
+  ENDIF.
+  "{ End ENHO ADSUB_MM61XF52_MOVE_MPPA_TO000 IS-AD-SUC AD_SUB }
+
+ENHANCEMENT-POINT move_mppa_to_mdez_pl_01 SPOTS es_sapmm61x.
+<font color ="#8C8C8C">*--&gt Pruefen Projekteinzelfertigung</font>
+  IF mppa-sobkz EQ sobkzq.
+    MOVE propla     TO mdez-plaab.
+    MOVE mppa-pspel TO plapr-pspel.
+    MOVE plapr      TO mdez-planr.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Pruefen Lagerortdisposition</font>
+  IF mdez-plaab EQ netpla
+  OR mdez-plaab EQ brtpla.
+    IF NOT mppa-lgort IS INITIAL.
+      PERFORM check_lgort USING mppa-lgort.
+      IF mard-diskz EQ diskz1.      "Lagerort ausgeschlossen
+        MOVE lgods2     TO mdez-plaab.
+        MOVE mppa-lgort TO plalg-lgort.
+        MOVE plalg      TO mdez-planr.
+      ENDIF.
+      IF mard-diskz EQ diskz2.      "Lagerort seperat disponieren
+        MOVE lgods1     TO mdez-plaab.
+        MOVE mppa-lgort TO plalg-lgort.
+        MOVE plalg      TO mdez-planr.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Pruefen Direktfertigung</font>
+  IF ( mppa-plaab = mstpla OR mppa-plaab = vmspla )
+  AND mdez-plaab = netpla.
+    mdez-plaab = mppa-plaab.
+    mdez-planr = mppa-planr.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Daten uebernehmen</font>
+  MOVE plauf       TO mdez-delkz.
+  MOVE plusx       TO mdez-plumi.
+  MOVE xflag       TO mdez-vrfkz.
+<font color ="#8C8C8C">*--&gt Prüfen Planungswerk</font>
+  IF mppa-plwrk NE mdkp-plwrk.
+    MOVE space TO mdez-vrfkz.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt supplying plant (note 650227)</font>
+  IF mppa-sobes = sobesu.
+    MOVE mppa-pwwrk TO mdez-wrk02.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Prüfen Verarbeitungsstatus</font>
+  IF am61x-vstat EQ vstath.
+    IF mdezs-delb0 EQ space.
+      PERFORM read_t457t USING mdez-delkz.
+      MOVE t457t-delb0 TO mdez-delb0.
+    ELSE.
+      MOVE mdezs-delb0 TO mdez-delb0.
+    ENDIF.
+    IF mdezs-extra EQ space.
+      IF mppa-plnum NE space.
+        MOVE mppa-plnum TO mdez-extra+0(10).
+        MOVE '/'        TO mdez-extra+10(1).
+        MOVE mppa-paart TO mdez-extra+11(4).
+      ENDIF.
+    ELSE.
+      MOVE mdezs-extra TO mdez-extra.
+      PERFORM move_exc_mdezs_to_mdez.
+    ENDIF.
+  ELSE.
+    MOVE mdezs-delb0 TO mdez-delb0.
+    MOVE mdezs-extra TO mdez-extra.
+    PERFORM move_exc_mdezs_to_mdez.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Formatbyte für Anzeige</font>
+  MOVE char2       TO mdez-fbyte.
+<font color ="#8C8C8C">*--&gt Auftragsmenge bestimmen</font>
+  am61x-flp01 = mppa-gsmng - mppa-avmng - mppa-wemng.
+  MOVE am61x-flp01 TO mdez-mng01.
+<font color ="#8C8C8C">*--&gt Liefertermin übernehmen</font>
+  MOVE mppa-pedtr TO mdez-dat01.
+<font color ="#8C8C8C">*--&gt Verfügbarkeitstermin bestimmen</font>
+  PERFORM add_webaz USING mppa-pedtr mppa-webaz mdez-dat00.
+<font color ="#8C8C8C">*--&gt Sortierschluessel ergaenzen</font>
+  IF mdst-vrfwe EQ xflag.
+    MOVE mdez-dat01 TO mdez-sort0.
+  ELSE.
+    MOVE mdez-dat00 TO mdez-sort0.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Daten aus OLD-Workaerea uebernehmen</font>
+  MOVE mppa-avmng TO mdez-mnaus.       "THD
+  MOVE mdezs-mng02 TO mdez-mng02.
+  MOVE mdezs-mng04 TO mdez-mng04.
+  MOVE mdezs-aline TO mdez-aline.
+  MOVE mdezs-selkz TO mdez-selkz.
+  MOVE mdezs-lldly TO mdez-lldly.
+  MOVE mdezs-llmsg TO mdez-llmsg.
+<font color ="#8C8C8C">*</font>
+  MOVE mdezs-dat02 TO mdez-dat02.
+  MOVE mdezs-dat03 TO mdez-dat03.
+  MOVE mdezs-umdat TO mdez-umdat.
+  MOVE mdezs-tramg TO mdez-tramg.
+  MOVE mdezs-mnaus TO mdez-mnaus.
+  MOVE mdezs-verid TO mdez-verid.
+  MOVE mdezs-wrk01 TO mdez-wrk01.
+  MOVE mdezs-lgort TO mdez-lgort.
+  MOVE mdezs-sernr TO mdez-sernr.
+  MOVE mdezs-revlv TO mdez-revlv.
+  MOVE mdezs-kunnr TO mdez-kunnr.
+  MOVE mdezs-md4kd TO mdez-md4kd.
+  MOVE mdezs-lifnr TO mdez-lifnr.
+  MOVE mdezs-md4li TO mdez-md4li.
+  MOVE mdezs-sloc2 TO mdez-sloc2.                                "SSLOC
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

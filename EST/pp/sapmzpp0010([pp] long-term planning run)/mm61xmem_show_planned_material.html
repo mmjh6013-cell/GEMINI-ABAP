@@ -1,0 +1,119 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XMEM_SHOW_PLANNED_MATERIAL</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XMEM_SHOW_PLANNED_MATERIAL</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  SHOW_PLANNED_MATERIALS                                              *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000727"></div>
+FORM show_planned_materials.
+  DATA: ls_cr61t LIKE cr61t,
+        ls_rm61r LIKE rm61r,
+        lv_material LIKE mt61d-matnr,
+        lv_plant    LIKE mt61d-werks,
+        lv_berid    LIKE mdlv-berid,
+        lv_fcode    LIKE rm61m-fcode.
+  DATA: ls_mdke     TYPE mdke,
+        ls_mdkp     TYPE mdkp,
+        lt_mdpsx    TYPE badi_mdpsx.
+
+<font color ="#8C8C8C">*--&gt check whether customer-specific columns have to be filled via</font>
+<font color ="#8C8C8C">*    BAdI MD_ADD_COL_OVERVIEW</font>
+  PERFORM <a href ="javascript:Link('MM61XBAD.html?id=#000000000020');">check_add_columns_active</a> USING    cm61x-plauf
+                                   CHANGING badi_m61r.
+
+<font color ="#8C8C8C">*--&gt call BAdI method for filling of customer-specific columns</font>
+  IF NOT badi_m61r-badon IS INITIAL.
+    LOOP AT mdkex INTO ls_mdke.
+<font color ="#8C8C8C">*--&gt get MDKP and MDPSX from memory</font>
+      CALL FUNCTION 'MD_READ_MRP_DATA_FROM_MEMORY'
+        EXPORTING
+          iv_memid               = id_ph
+          iv_plscn               = cm61x-plscn
+          iv_material            = ls_mdke-matnr
+          iv_plant               = ls_mdke-plwrk
+          iv_berid               = ls_mdke-berid
+        IMPORTING
+          es_mdkp                = ls_mdkp
+          et_mdpsx               = mdpsx[]
+        EXCEPTIONS
+          material_not_in_memory = 1
+          decompression_error    = 2
+          table_not_in_memory    = 3
+          OTHERS                 = 4.
+      IF sy-subrc &lt&gt 0.
+        CONTINUE.
+      ENDIF.
+<font color ="#8C8C8C">*--&gt type conversion MDPSX to badi table</font>
+      IF NOT badi_m61r-mdpsx_required IS INITIAL.
+        lt_mdpsx[] = mdpsx[].
+      ENDIF.
+<font color ="#8C8C8C">*--&gt call badi method</font>
+      PERFORM <a href ="javascript:Link('MM61XBAD.html?id=#000000000021');">fill_add_columns</a> USING    cm61x-plauf
+                                        badi_m61r
+                                        ls_mdkp
+                                        lt_mdpsx
+                               CHANGING ls_mdke.
+<font color ="#8C8C8C">*--&gt adjust MDKEX</font>
+      MODIFY mdkex FROM ls_mdke.
+    ENDLOOP.
+  ENDIF.
+
+  MOVE 'X'     TO ls_cr61t-lsmod.        "Modus für MRP im Hauptspeicher
+  MOVE gc_true TO ls_cr61t-tabau.        "Tabelle neu aufbauen
+  MOVE rm61x-prgkz TO ls_rm61r-prgkz.
+  MOVE-CORRESPONDING rm61x TO ls_rm61r.
+
+  CALL FUNCTION 'MD_MRP_LIST_OVERVIEW'
+       EXPORTING  ecr61t      = ls_cr61t
+                  erm61r      = ls_rm61r
+<font color ="#8C8C8C">*                 ecm61b      = cm61b              "Todo</font>
+                  ebadi_m61r  = badi_m61r
+       IMPORTING  ifcode      = lv_fcode
+                  imatnr      = lv_material
+                  iwerks      = lv_plant
+                  iberid      = lv_berid
+                  icr61t      = ls_cr61t
+       TABLES     mdkex       = mdkex
+       EXCEPTIONS error       = 1.
+  IF sy-subrc &gt 0.
+    MESSAGE ID sy-msgid TYPE 'E' NUMBER sy-msgno
+            WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+<font color ="#8C8C8C">* IF     LV_FCODE = 'AZER'.                           "del SA 46c</font>
+  IF     lv_fcode = 'AZDL'.                                 "del SA 46c
+    PERFORM show_mrp_list_mult USING lv_material lv_plant lv_berid.
+  ELSEIF lv_fcode = 'BACK'.
+    PERFORM dequeue_materials.                              "HW 484521
+    PERFORM leave_to_transaction. EXIT.                     "HW 484521
+  ELSEIF lv_fcode = 'EEOT'.
+    PERFORM dequeue_materials. EXIT.
+  ELSEIF lv_fcode = 'EXIT'.
+    PERFORM dequeue_materials. EXIT.
+  ELSEIF lv_fcode = 'NEER'.
+    PERFORM show_mrp_list_mult USING space space space.
+  ELSEIF lv_fcode = 'SAVE'.
+    PERFORM save_mrp_result. EXIT.
+  ELSEIF lv_fcode = 'TOPM'
+  AND rm61x-prgkz = space.
+    PERFORM show_mrp_list_single
+            USING gv_top_material gv_top_plant gv_top_berid gc_true.
+  ENDIF.
+ENDFORM.                    "SHOW_PLANNED_MATERIALS
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF96_FCODE_AZER</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF96_FCODE_AZER</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Anzeigen Dispositionsergebnis</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000525"></div>
+FORM FCODE_AZER.
+DATA: LV_NEXT_SCREEN LIKE SY-DYNNR.        "note 446873
+<font color ="#8C8C8C">*--&gt Setzen Kennzeichen für Anzeigemodus</font>
+  MOVE CHARA TO CM61X-PLERG.
+<font color ="#8C8C8C">*--&gt Import der Daten</font>
+  CALL FUNCTION 'MD_READ_MRP_DATA_FROM_MEMORY'
+       EXPORTING  IV_MEMID               = ID_PH
+                  IV_PLSCN               = CM61X-PLSCN
+                  IV_MATERIAL            = AM61X-MATNR
+                  IV_PLANT               = AM61X-WERKS
+                  IV_BERID               = AM61X-BERID
+       IMPORTING  ES_MDKP                = MDKP
+                  ES_CM61M               = CM61M
+                  ES_CM61B               = CM61B
+                  ES_MDSTA               = MDSTA
+                  ES_MT61D               = MT61D
+                  ET_MDPSX               = MDPSX[]
+       EXCEPTIONS MATERIAL_NOT_IN_MEMORY = 1
+                  DECOMPRESSION_ERROR    = 2
+                  TABLE_NOT_IN_MEMORY    = 3.
+<font color ="#8C8C8C">*--&gt Liste nicht im Memory vorhanden: Fehler!</font>
+  IF SY-SUBRC NE 0.
+    MOVE SPACE TO AM61X-RCODE.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt get plant data (note 862150)</font>
+  CALL FUNCTION 'MD_READ_PLANT'
+       EXPORTING  EWERKS  = AM61X-WERKS
+                  ECM61X  = CM61X
+       IMPORTING  ICM61W  = CM61W
+       EXCEPTIONS ERROR   = 1.
+  IF SY-SUBRC &gt 0.
+    MESSAGE ID SY-MSGID TYPE 'A' NUMBER SY-MSGNO
+            WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Reset Status</font>
+  CLEAR STATB.
+<font color ="#8C8C8C">*--&gt Suchsteuerung initialisieren</font>
+  CLEAR MDSTA.
+  PERFORM <a href ="javascript:Link('MM61XAUS_INIT_SUCHSTEUERUNG.html?id=#000000000009');">INIT_SUCHSTEUERUNG</a>.
+<font color ="#8C8C8C">*--&gt Daten für Dispos-Kopf</font>
+  MOVE MDKP-MATNR TO RM61X-MATNR.
+  MOVE MDKP-PLWRK TO RM61X-WERKS.
+  MOVE MDKP-DISST TO RM61X-DISST.
+  MOVE CM61B-BERID TO RM61X-BERID.
+<font color ="#8C8C8C">*--&gt abgebrochenes Material                  note 446873</font>
+  IF MDKP-MSGAR EQ CHARA
+  OR MDKP-MSGAR EQ CHARE.
+    PERFORM MDSTA_AUFBAUEN.
+    PERFORM GROKO_DATA_SEND_COMP.
+    PERFORM <a href ="javascript:Link('MM61XDYN_GROKO_DYNP_BUILD.html?id=#000000000153');">GROKO_DYNP_BUILD</a>.
+    MDST-GROKO = GC_TRUE.
+    MDST-ANZEI = ERR_ACTIV.
+    LV_NEXT_SCREEN   = '0720'.         "Rahmendynpro mit grossem Kopf
+    SUBSCREEN_ZEILEN = '0790'.         "Dispoabbruch
+    CALL SCREEN LV_NEXT_SCREEN.
+    EXIT.
+  ELSE.
+<font color ="#8C8C8C">*--&gt Pruefen Anzeigeversion</font>
+    IF  MDST-ANZEI &lt&gt PSI_ACTIV          "Periodensummen
+    AND MDST-ANZEI &lt&gt PSSI_ACTIV         "Periodensummen/Auftrag
+    AND MDST-ANZEI &lt&gt PSEZSI_ACTIV       "Periodensummen/Einzelzeilen
+    AND MDST-ANZEI &lt&gt EZI_ACTIV          "Einzelzeilen
+    AND MDST-ANZEI &lt&gt EZSI_ACTIV.        "Einzelzeilen/Auftrag
+      MDST-ANZEI = EZI_ACTIV.
+    ENDIF.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Anzeige aufrufen</font>
+  PERFORM <a href ="javascript:Link('MM61XF30_SHOW_MDEZX.html?id=#000000000195');">SHOW_MDEZX</a> USING CHARC.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

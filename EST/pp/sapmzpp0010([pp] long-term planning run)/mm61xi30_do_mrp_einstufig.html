@@ -1,0 +1,83 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XI30_DO_MRP_EINSTUFIG</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XI30_DO_MRP_EINSTUFIG</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* MRP-Planung -einstufig-                                              *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000619"></div>
+MODULE DO_MRP_EINSTUFIG INPUT.
+
+
+"{ Begin ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+<font color ="#8C8C8C">*--&gt PIC : Processing SUS-Chain / MPN MRP SET                      "46a</font>
+  IF NOT gt_pic_parts[] IS INITIAL.
+    PERFORM PIC_DO_MRP_EINSTUFIG .
+    EXIT.
+  ENDIF.
+"{ End ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+
+
+
+ENHANCEMENT-POINT MM61XI30_DO_MRP_EINSTUFIG_01 SPOTS ES_SAPMM61X.
+<font color ="#8C8C8C">*--&gt Material für Einzelplanung sperren</font>
+  PERFORM <a href ="javascript:Link('MM61XF34_SPERREN_MRP_EP.html?id=#000000000224');">SPERREN_MRP_EP</a> USING RM61X-WERKS RM61X-BERID RM61X-MATNR.
+<font color ="#8C8C8C">*--&gt Kommunikationsaerea fuer Transaktion erstellen</font>
+  PERFORM ERSTELLEN_CM61X.
+<font color ="#8C8C8C">*--&gt ATP initialisieren bzw. Puffer deaktivieren, falls CM61X-ATPDA = X</font>
+  PERFORM ATP_INITIALIZE.
+<font color ="#8C8C8C">*--&gt Pruefen RESET-KZ</font>
+  PERFORM <a href ="javascript:Link('MM61XF31_CHECK_RESET_KZ_EP.html?id=#000000000199');">CHECK_RESET_KZ_EP</a>.
+
+  DATA: lt_matnr_werks_berid TYPE pph_matnr_werks_berid_sel_tab,
+        ls_matnr_werks_berid TYPE pph_matnr_werks_berid_sel.
+
+<font color ="#8C8C8C">* HANA-activation</font>
+  IF cl_pph_mdpsx_selection=&gtget_hana_active( ) = abap_true.
+<font color ="#8C8C8C">*     For creating mrp lists use non-aggregated views</font>
+
+<font color ="#8C8C8C">* HANA access with single material, a little slower...</font>
+    ls_matnr_werks_berid-matnr = rm61x-matnr.
+    ls_matnr_werks_berid-werks = rm61x-werks.
+    ls_matnr_werks_berid-berid = rm61x-berid.
+
+    APPEND ls_matnr_werks_berid TO lt_matnr_werks_berid.
+<font color ="#8C8C8C">* if result of MRP run shall be displayed use non-aggregated buffered mode</font>
+    IF rm61x-anzdl = abap_true.
+      CALL METHOD cl_pph_mdpsx_selection=&gtcontrol_hana_switches
+        EXPORTING
+          iv_agg_sel_finished     = abap_true
+          iv_read_nonagg_buffered = abap_true.
+      CALL METHOD cl_pph_mdpsx_selection=&gtsel_matnr_werks_berid_noag_s4h
+        EXPORTING
+          it_matnr_werks_berid = lt_matnr_werks_berid.
+    ELSE.
+      CALL METHOD cl_pph_mdpsx_selection=&gtsel_matnr_werks_berid_agg_s4h
+        EXPORTING
+          it_matnr_werks_berid = lt_matnr_werks_berid.
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Material disponieren</font>
+ENHANCEMENT-SECTION MM61XI30_DO_MRP_EINSTUFIG_02 SPOTS ES_SAPMM61X .
+  PERFORM GRPG_SET_BUFFER IN PROGRAM SAPLGRPG."{ ENHO AD_GPD_SAPMM61X IS-AD-GPD AD_GPD }
+  PERFORM <a href ="javascript:Link('MM61XFOL_DISPONIEREN_MATERIAL_.html?id=#000000000564');">DISPONIEREN_MATERIAL_OL</a>.
+  PERFORM GRPG_CLEAR_BUFFER IN PROGRAM SAPLGRPG."{ ENHO AD_GPD_SAPMM61X IS-AD-GPD AD_GPD }
+END-ENHANCEMENT-SECTION.
+ENDMODULE.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

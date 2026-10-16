@@ -1,0 +1,356 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XMDV_MDMMX_FILL</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XMDV_MDMMX_FILL</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       FORM FILL_MDMMX                                               *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       Auswahl der Materialvormerkungen und Füllen von MDMMX         *</font>
+<font color ="#8C8C8C">*       für die unterschiedlichen Planungsläufe                       *</font>
+<font color ="#8C8C8C">*       auf Basis der MDVM bzw. DBVM                                  *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000698"></div>
+FORM mdmmx_fill.
+
+<font color ="#8C8C8C">* HANA Access</font>
+  DATA: lt_matnr_werks_berid TYPE pph_matnr_werks_berid_sel_tab,
+        ls_matnr_werks_berid TYPE pph_matnr_werks_berid_sel,
+        lv_buffer_result     TYPE char1,
+        lo_mat_buffer        TYPE REF TO cl_pph_hana_access_material,
+        lt_mdmmx             TYPE mrp_mdmmtab,
+        ls_mdmm              TYPE mdmm,
+        ls_mdmmx             LIKE LINE OF lt_mdmmx,
+        lt_dummy_tab         TYPE STANDARD TABLE OF cm61dp,
+        lv_disst             TYPE disst.
+  FIELD-SYMBOLS: &ltls_mdmm&gt   TYPE mdmm.
+
+<font color ="#8C8C8C">* Initialisierung MDMMX-Portion</font>
+  CLEAR mdmmx. REFRESH mdmmx.
+
+  PERFORM <a href ="javascript:Link('MM61XDBR_READ_T000MD.html?id=#000000000138');">read_t000md</a>.
+<font color ="#8C8C8C">*  IF T000MD-UDBVM IS INITIAL.</font>
+<font color ="#8C8C8C">**--&gt Auswahl der Materialvormerkungen über MDVM</font>
+<font color ="#8C8C8C">*    PERFORM FILL_MDMMX_FROM_MDVM_MDVL.</font>
+<font color ="#8C8C8C">*  ELSE.</font>
+<font color ="#8C8C8C">*--&gt Auswahl der Materialvormerkungen über DBVM</font>
+  PERFORM fill_mdmmx_from_dbvm_dbvl.
+<font color ="#8C8C8C">* ENDIF.</font>
+
+<font color ="#8C8C8C">*@001-Anfang</font>
+<font color ="#8C8C8C">* NUR für Handelsbetriebe Listungsprüfung durchführen, dabei wird</font>
+<font color ="#8C8C8C">* jeder einzelne Satz in der Tabelle MDMMX geprüft. Nicht gelistete</font>
+<font color ="#8C8C8C">* Artikel (da es Retail ist) wird aus der Tabelle entfernt.</font>
+  IF NOT t001w-vlfkz IS INITIAL.
+    PERFORM check_listung_en_block.
+  ENDIF.
+<font color ="#8C8C8C">*@001-Ende</font>
+
+<font color ="#8C8C8C">*  &gt Preread via HANA</font>
+  IF NOT mdmmx[] IS INITIAL.
+<font color ="#8C8C8C">* Preread for parallel planning on application server side</font>
+<font color ="#8C8C8C">* (not for LTP)</font>
+    IF  cm61x-plobj NE mdobjl
+    AND cm61x-paral IS INITIAL.
+      IF cl_pph_mdpsx_selection=&gtget_hana_active( ) = abap_true.
+        CLEAR lt_matnr_werks_berid.
+
+
+"{ Begin ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+        TYPES: BEGIN OF ty_pic,
+                  matnr TYPE matnr,
+                  picnum TYPE pic_picnum,
+                  piccat TYPE pic_piccat ,
+                  werks TYPE werka,
+                  berid TYPE berid,
+               END OF ty_pic.
+
+        DATA: lt_pic TYPE TABLE OF ty_pic,
+              lt_mpn  TYPE TABLE OF ty_pic,
+              lt_mrp TYPE TABLE OF ty_pic,
+              lt_sus TYPE TABLE OF ty_pic,
+              lt_sus1 TYPE TABLE OF ty_pic,
+              lt_mdmmx_buffer LIKE TABLE OF mdmmx.
+
+        DATA: ls_pic LIKE LINE OF lt_pic,
+              ls_mpn  LIKE LINE OF lt_pic,
+              ls_mrp LIKE LINE OF lt_pic,
+              ls_sus LIKE LINE OF lt_pic,
+              ls_mdmmx1 LIKE LINE OF mdmmx,
+<font color ="#8C8C8C">*              ls_mdmmx2 LIKE LINE OF mdmmx,                                        "N_2697307</font>
+              ls_sus1 LIKE LINE OF lt_pic,                                          "N_2697307
+              lv_berty TYPE berty,                                                  "N_2697307
+              lv_picnum TYPE pic_picnum,
+<font color ="#8C8C8C">*              lv_plwrk TYPE plwrk,                                                 "N_2697307</font>
+              lv_berid TYPE berid.
+
+<font color ="#8C8C8C">* Store original MDMMX into a buffer table. We may need to remove the extra records added, to prevent unnecessary looping during MRP</font>
+        CLEAR: lt_mdmmx_buffer[].
+        lt_mdmmx_buffer[] = mdmmx[].
+
+<font color ="#8C8C8C">*read picnum for all materials in mdmmx[]</font>
+        SELECT matnr picnum piccat
+            INTO CORRESPONDING FIELDS OF TABLE lt_pic
+            FROM v_picps
+            FOR ALL ENTRIES IN mdmmx
+            WHERE matnr = mdmmx-matnr
+            AND piccat = '01'
+            OR piccat = '02' .
+
+        IF lt_pic[] IS NOT INITIAL.
+
+<font color ="#8C8C8C">*       segregate mpn-mrp and sus based on piccat</font>
+<font color ="#8C8C8C">* Begin of Note 2697307</font>
+          LOOP AT lt_pic INTO ls_pic.
+            CLEAR ls_mpn.
+            CLEAR ls_mdmmx1.
+            IF ls_pic-piccat = '02'.
+              ls_mpn = ls_pic.
+              LOOP AT mdmmx INTO ls_mdmmx1 WHERE matnr = ls_pic-matnr.
+                IF sy-subrc = 0.
+                  ls_mpn-werks = ls_mdmmx1-plwrk.
+                  IF ls_mdmmx1-plwrk = ls_mdmmx1-berid.
+                    CLEAR ls_mpn-berid.
+                  ELSE.
+                    ls_mpn-berid = ls_mdmmx1-berid.
+                  ENDIF.
+                  APPEND ls_mpn TO lt_mpn.
+                ENDIF.
+               ENDLOOP.
+            ELSEIF ls_pic-piccat = '01'.
+              ls_sus = ls_pic.
+              READ TABLE mdmmx INTO ls_mdmmx1 WITH KEY matnr = ls_pic-matnr.
+              IF sy-subrc = 0.
+                ls_sus-werks = ls_mdmmx1-plwrk.
+                ls_sus-berid = ls_mdmmx1-berid.
+              ENDIF.
+              APPEND ls_sus to lt_sus.
+            ENDIF.
+          ENDLOOP.
+<font color ="#8C8C8C">*          LOOP AT lt_pic INTO ls_pic.</font>
+<font color ="#8C8C8C">*            CLEAR ls_mpn.</font>
+<font color ="#8C8C8C">*            CLEAR ls_mdmmx1.</font>
+<font color ="#8C8C8C">*            IF ls_pic-piccat = '02'.</font>
+<font color ="#8C8C8C">*              ls_mpn = ls_pic.</font>
+<font color ="#8C8C8C">*              READ TABLE mdmmx INTO ls_mdmmx1 WITH KEY matnr = ls_pic-matnr.</font>
+<font color ="#8C8C8C">*              IF sy-subrc = 0.</font>
+<font color ="#8C8C8C">*                ls_mpn-werks = ls_mdmmx1-plwrk.</font>
+<font color ="#8C8C8C">*                lv_plwrk = ls_mdmmx1-plwrk.</font>
+<font color ="#8C8C8C">**             With MRP Area, materials are not selected for MRP Run  -2243906</font>
+<font color ="#8C8C8C">*                IF ls_mdmmx1-plwrk = ls_mdmmx1-berid.</font>
+<font color ="#8C8C8C">*                  CLEAR ls_mpn-berid.</font>
+<font color ="#8C8C8C">*                  CLEAR lv_berid.</font>
+<font color ="#8C8C8C">*                else.</font>
+<font color ="#8C8C8C">*                  ls_mpn-berid = ls_mdmmx1-berid.</font>
+<font color ="#8C8C8C">*                  lv_berid = ls_mdmmx1-berid.</font>
+<font color ="#8C8C8C">*                endif.</font>
+<font color ="#8C8C8C">*              ELSE.</font>
+<font color ="#8C8C8C">*                ls_mpn-werks = lv_plwrk.</font>
+<font color ="#8C8C8C">*                ls_mpn-berid = lv_berid.</font>
+<font color ="#8C8C8C">*              ENDIF.</font>
+<font color ="#8C8C8C">*              APPEND ls_mpn TO lt_mpn.</font>
+<font color ="#8C8C8C">*            ELSEIF ls_pic-piccat = '01'.</font>
+<font color ="#8C8C8C">*              APPEND ls_pic to lt_sus.</font>
+<font color ="#8C8C8C">*            ENDIF.</font>
+<font color ="#8C8C8C">*          ENDLOOP.</font>
+<font color ="#8C8C8C">* End of Note 2697307</font>
+
+<font color ="#8C8C8C">*         select all materials belonging to mpn mrp set</font>
+          IF lt_mpn[] IS NOT INITIAL.
+            SELECT matnr picnum piccat werks berid
+                INTO CORRESPONDING FIELDS OF TABLE lt_mrp
+                FROM v_picpsrl
+                FOR ALL ENTRIES IN lt_mpn
+                WHERE picnum = lt_mpn-picnum
+                AND werks = lt_mpn-werks
+                AND berid = lt_mpn-berid.
+          ENDIF.
+
+<font color ="#8C8C8C">*        select all materials belonging to supersession class</font>
+          IF lt_sus[] IS NOT INITIAL .
+            SELECT matnr picnum piccat
+                INTO CORRESPONDING FIELDS OF TABLE lt_sus1
+                FROM v_picps
+                FOR ALL ENTRIES IN lt_sus
+                WHERE picnum = lt_sus-picnum.
+<font color ="#8C8C8C">* Begin of Note 2697307</font>
+            LOOP AT lt_sus1 INTO ls_sus1.
+                READ TABLE lt_sus INTO ls_sus WITH KEY picnum = ls_sus1-picnum.
+                ls_sus1-werks = ls_sus-werks.
+                ls_sus1-berid = ls_sus-berid.
+                MODIFY lt_sus1 FROM ls_sus1.
+            ENDLOOP.
+<font color ="#8C8C8C">* End of Note 2697307</font>
+          ENDIF.
+
+<font color ="#8C8C8C">*         append above sus and mrp set materials to mdmmx</font>
+<font color ="#8C8C8C">* Begin of Note 2697307</font>
+          SORT lt_mrp BY PICNUM MATNR BERID.
+          CLEAR lv_picnum.
+          LOOP AT lt_mrp INTO ls_mrp.
+              IF ls_mrp-berid IS INITIAL.
+                lv_berid = ls_mrp-werks.
+              ELSE.
+                lv_berid = ls_mrp-berid.
+              ENDIF.
+              CLEAR ls_mdmmx1.
+              READ TABLE mdmmx INTO ls_mdmmx1 WITH KEY matnr = ls_mrp-matnr berid = lv_berid.
+              IF sy-subrc &lt&gt 0.
+                ls_mrp-berid = lv_berid.
+                MOVE-CORRESPONDING ls_mrp TO ls_mdmmx1.
+                IF lv_picnum &lt&gt ls_mrp-picnum.
+                  SELECT SINGLE disst FROM mara INTO lv_disst WHERE matnr = ls_mrp-matnr.
+                  lv_picnum = ls_mrp-picnum.
+                  IF lv_disst IS INITIAL.
+                    lv_disst = '999'.
+                  ENDIF.
+                ENDIF.
+                IF lv_berid = ls_mrp-werks.
+                  lv_berty = 1.
+                ELSE.
+                  lv_berty = 2.
+                ENDIF.
+                ls_mdmmx1-plwrk = ls_mrp-werks.
+                ls_mdmmx1-disst = lv_disst.
+                ls_mdmmx1-berty = lv_berty.
+                APPEND ls_mdmmx1 TO mdmmx.
+              ENDIF.
+          ENDLOOP.
+
+          SORT lt_sus1 BY PICNUM.
+          CLEAR lv_picnum.
+          LOOP AT lt_sus1 INTO ls_sus.
+              CLEAR ls_mdmmx1.
+              READ TABLE mdmmx INTO ls_mdmmx1 WITH KEY matnr = ls_sus-matnr.
+              IF sy-subrc &lt&gt 0.
+                MOVE-CORRESPONDING ls_sus TO ls_mdmmx1.
+                IF lv_picnum &lt&gt ls_sus-picnum.
+                  SELECT SINGLE disst FROM mara INTO lv_disst WHERE matnr = ls_sus-matnr.
+                  lv_picnum = ls_sus-picnum.
+                  IF lv_disst IS INITIAL.
+                    lv_disst = '999'.
+                  ENDIF.
+                ENDIF.
+                ls_mdmmx1-plwrk = ls_sus-werks.
+                ls_mdmmx1-disst = lv_disst.
+                ls_mdmmx1-berty = 1.
+                APPEND ls_mdmmx1 TO mdmmx.
+              ENDIF.
+          ENDLOOP.
+        ENDIF.
+
+<font color ="#8C8C8C">*          LOOP AT lt_mrp INTO ls_mrp.</font>
+<font color ="#8C8C8C">*            IF lv_picnum = ls_mrp-picnum .</font>
+<font color ="#8C8C8C">*              ls_mdmmx2 = ls_mdmmx1.</font>
+<font color ="#8C8C8C">*              ls_mdmmx2-matnr = ls_mrp-matnr.</font>
+<font color ="#8C8C8C">*              APPEND ls_mdmmx2 TO mdmmx.</font>
+<font color ="#8C8C8C">*            ELSE .</font>
+<font color ="#8C8C8C">*              CLEAR lv_picnum.</font>
+<font color ="#8C8C8C">*              lv_picnum = ls_mrp-picnum.</font>
+<font color ="#8C8C8C">*              READ TABLE mdmmx INTO ls_mdmmx1 WITH KEY matnr = ls_mrp-matnr.</font>
+<font color ="#8C8C8C">*            ENDIF.</font>
+<font color ="#8C8C8C">*          ENDLOOP.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*          LOOP AT lt_sus INTO ls_sus.</font>
+<font color ="#8C8C8C">*            IF lv_picnum = ls_sus-picnum .</font>
+<font color ="#8C8C8C">*              ls_mdmmx2 = ls_mdmmx1.</font>
+<font color ="#8C8C8C">*              ls_mdmmx2-matnr = ls_sus-matnr.</font>
+<font color ="#8C8C8C">*              APPEND ls_mdmmx2 TO mdmmx.</font>
+<font color ="#8C8C8C">*            ELSE .</font>
+<font color ="#8C8C8C">*              CLEAR lv_picnum.</font>
+<font color ="#8C8C8C">*              CLEAR ls_mdmmx1.</font>
+<font color ="#8C8C8C">*              lv_picnum = ls_sus-picnum.</font>
+<font color ="#8C8C8C">*              READ TABLE mdmmx INTO ls_mdmmx1 WITH KEY matnr = ls_mrp-matnr.</font>
+<font color ="#8C8C8C">*            ENDIF.</font>
+<font color ="#8C8C8C">*          ENDLOOP.</font>
+<font color ="#8C8C8C">*        ENDIF.</font>
+<font color ="#8C8C8C">* End of Note 2697307</font>
+
+"{ End ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+
+
+
+ENHANCEMENT-POINT es_mm61xmdv_mdmmx_fill SPOTS es_sapmm61x .
+
+<font color ="#8C8C8C">*   Build material package for Pre-Read</font>
+        PERFORM <a href ="javascript:Link('MM61XC02_BUILD_PACK_PREREAD.html?id=#000000000034');">build_package_preread</a> TABLES   lt_dummy_tab
+                                               mdmmx
+                                      CHANGING lt_matnr_werks_berid.
+<font color ="#8C8C8C">* buffer results in new buffer</font>
+        lv_buffer_result = cl_pph_mdpsx_selection=&gtgc_buffer_mode_x.
+<font color ="#8C8C8C">*--&gt Pre-Read for Material Master without exclusion of materials by user-exit</font>
+        get_start_time time7.
+        PERFORM <a href ="javascript:Link('MM61XHAN.html?id=#000000000576');">material_master_preread_seq</a> USING    lt_matnr_werks_berid
+                                            CHANGING lo_mat_buffer.
+        run_time tdiff time8 time7.
+        gv_rtime_premat = gv_rtime_premat + tdiff.
+
+
+
+"{ Begin ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+<font color ="#8C8C8C">* Repopulate mdmmx - the non-lead parts are not required here.</font>
+        IF lt_mdmmx_buffer IS NOT INITIAL.
+          mdmmx[] = lt_mdmmx_buffer[].
+        ENDIF.
+"{ End ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+
+
+ENHANCEMENT-POINT mm61xmdv_mdmmx_fill_01 SPOTS es_sapmm61x .
+<font color ="#8C8C8C">*   User-Exit: Material Master Data necessary for Deselection</font>
+        IF rm61x-uxkey IS NOT INITIAL.
+          CLEAR lv_disst.
+          CLEAR lt_mdmmx.
+          LOOP AT mdmmx INTO ls_mdmm.
+            IF lv_disst IS INITIAL.
+              lv_disst = ls_mdmm-disst.
+            ENDIF.
+            ls_mdmmx = ls_mdmm.
+            APPEND ls_mdmmx TO lt_mdmmx.
+          ENDLOOP.
+          PERFORM <a href ="javascript:Link('MM61XF31_USER_EXIT_001.html?id=#000000000206');">check_user_exit_001_preread</a> USING    lo_mat_buffer
+                                                       lv_disst
+                                              CHANGING lt_matnr_werks_berid
+                                                       lt_mdmmx[].
+          IF lt_mdmmx[] IS NOT INITIAL.
+            CLEAR mdmmx[].
+            LOOP AT lt_mdmmx INTO ls_mdmmx.
+              ls_mdmm = ls_mdmmx.
+              APPEND ls_mdmm TO mdmmx.
+            ENDLOOP.
+          ELSE.          "Dummy
+            LOOP AT mdmmx INTO ls_mdmmx.
+              EXIT.
+            ENDLOOP.
+            CLEAR mdmmx[].
+            APPEND ls_mdmmx TO mdmmx.
+          ENDIF.
+        ENDIF.
+        IF lt_matnr_werks_berid IS NOT INITIAL.
+<font color ="#8C8C8C">*   Measure runtime for packages</font>
+          get_start_time time5.
+          PERFORM <a href ="javascript:Link('MM61XC02_PLAN_SIT_PREREAD.html?id=#000000000055');">planning_situation_preread</a> USING    cm61x-anzdl
+                                                      lv_buffer_result
+                                                      lt_matnr_werks_berid.
+          run_time tdiff time6 time5.
+          gv_rtime_pre = gv_rtime_pre + tdiff.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                               " MDMMX_FILL
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

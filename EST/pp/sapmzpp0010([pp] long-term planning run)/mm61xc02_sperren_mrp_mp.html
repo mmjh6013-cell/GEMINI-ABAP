@@ -1,0 +1,88 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XC02_SPERREN_MRP_MP</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XC02_SPERREN_MRP_MP</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Sperren Material/Werk bei mehrstufiger Planung</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000070"></div>
+FORM SPERREN_MRP_MP USING WERKS LIKE MT61D-WERKS
+                          BERID LIKE MT61D-BERID
+                          MATNR LIKE MT61D-MATNR.
+  CALL FUNCTION   'ENQUEUE_EMATPLA'
+       EXPORTING  WERKS = WERKS
+                  BERID = BERID
+                  MATNR = MATNR
+                  _SCOPE         = '1'  "do not hand over lock to update tast
+       EXCEPTIONS FOREIGN_LOCK   = 2
+                  SYSTEM_FAILURE = 3.
+       CASE SY-SUBRC.
+         WHEN 0.
+           MOVE CHAR0 TO AM61X-RCODE. EXIT.
+         WHEN 2.
+           MOVE CHAR1 TO AM61X-RCODE. EXIT.
+         WHEN 3.
+           MESSAGE A898.
+       ENDCASE.
+ENDFORM.
+
+
+<font color ="#8C8C8C">* &lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt BEGIN OF INSERTION - NOTE 324982 &lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Sperren Material/Werk mittels Shared Lock</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000071"></div>
+FORM sperren_mrp_shared USING werks LIKE rm61x-werks
+                              berid LIKE rm61x-berid
+                              matnr LIKE rm61x-matnr.
+  DATA: lock_user LIKE sy-msgv1.
+<font color ="#8C8C8C">*--&gt Shared Lock on Material-/Plant-Combination</font>
+  CALL FUNCTION 'ENQUEUE_EMATPLA'
+       EXPORTING
+            mode_ematpla   = 'S'
+            werks          = werks
+            berid          = berid
+            matnr          = matnr
+       EXCEPTIONS
+            foreign_lock   = 2
+            system_failure = 3.
+  CASE sy-subrc.
+    WHEN 0. EXIT.
+    WHEN 2.
+      MOVE sy-msgv1 TO lock_user.
+      MESSAGE e132 WITH matnr werks lock_user.
+    WHEN 3. MESSAGE e898.
+  ENDCASE.
+ENDFORM.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Entsperren Material/Werk mittels Shared Lock</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000072"></div>
+FORM entsperren_mrp_shared USING werks LIKE rm61x-werks
+                                 berid LIKE rm61x-berid
+                                 matnr LIKE rm61x-matnr.
+  CALL FUNCTION 'DEQUEUE_EMATPLA'
+       EXPORTING
+            mode_ematpla = 'S'
+            werks        = werks
+            berid        = berid
+            matnr        = matnr.
+ENDFORM.
+<font color ="#8C8C8C">* &lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt END   OF INSERTION - NOTE 324982 &lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt</font>
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

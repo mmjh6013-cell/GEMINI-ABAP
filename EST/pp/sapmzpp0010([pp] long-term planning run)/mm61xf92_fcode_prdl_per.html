@@ -1,0 +1,181 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF92_FCODE_PRDL_PER</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF92_FCODE_PRDL_PER</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*   INCLUDE MM61XF92_FCODE_PRDL_PER                                    *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Ausdruck der Liste der Periodensummen (-&gt RMDLDR00 )                 *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000470"></div>
+FORM FCODE_PRDL_PER.
+  LEAVE TO LIST-PROCESSING.
+  EXPORT MDKP MT61D MDSUX RM61R CM61X-PLAUF
+         AM61R-UMREN AM61R-UMREZ RM61R-MEINH CM61B
+      TO MEMORY ID ID_DRUC_PS.
+  PERFORM PERIODEN_DRUCKEN(RMDLDR00).
+<font color ="#8C8C8C">* LEAVE.                          "SL HW 134389 Rücksprung Call verhind.</font>
+ENDFORM.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*  Drucken Periodensummen variabel (ALV-Ausgabe)</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<div id="000000000471"></div>
+FORM fcode_pvar_per.
+
+  DATA: mdsuh LIKE mdsu.
+  DATA: mdsup LIKE mdsy OCCURS 0 WITH HEADER LINE.
+  DATA: lv_extsu LIKE mdsy-extsu.
+
+  LOOP AT mdsux INTO mdsuh.                                 "HW 828695
+    CLEAR mdsup.
+    MOVE-CORRESPONDING mdsuh to mdsup.
+<font color ="#8C8C8C">*--&gt Bestandszeilen</font>
+    IF mdsup-fbyte EQ char1.
+      CLEAR mdsup-meind.
+      CLEAR mdsup-mng01.
+    ELSE.
+      MOVE mdst-meinh TO mdsup-meind.
+    ENDIF.
+<font color ="#8C8C8C">**--&gt Verfügbarkeit</font>
+    MOVE mdst-meinh TO mdsup-meinv.
+<font color ="#8C8C8C">*--&gt Bei Fixierungshorizont Mengen-/RW-/Bestandsfelder ausblenden</font>
+    IF mdsup-fbyte EQ char3.              "Fixierungshorizont
+      CLEAR mdsup-meind.
+      CLEAR mdsup-meinv.
+      MOVE  mdsup-extsu TO lv_extsu.
+      CLEAR mdsup.
+      MOVE lv_extsu TO mdsup-extsu.
+      MOVE char3    TO mdsup-fbyte.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Bestandszeilen markieren</font>
+    IF mdsup-fbyte EQ char1.
+      mdsup-info = 'C10'.
+    ELSE.
+      CLEAR mdsup-info.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Verfügbarkeitstermin = WE-Termin ? automatisch !</font>
+<font color ="#8C8C8C">**--&gt Bedarfsvorlauf abziehen ? automatisch!</font>
+<font color ="#8C8C8C">**--&gt Mengenumrechnung</font>
+    PERFORM menge_umrechnen USING mdsup-mng01.
+    PERFORM menge_umrechnen USING mdsup-mng02.
+    PERFORM menge_umrechnen USING mdsup-mng03.
+    PERFORM menge_umrechnen USING mdsup-mng04.
+    PERFORM menge_umrechnen USING mdsup-mng05.
+    PERFORM menge_umrechnen USING mdsup-mng06.
+    PERFORM menge_umrechnen USING mdsup-mng07.
+    PERFORM menge_umrechnen USING mdsup-slbes.
+    PERFORM menge_umrechnen USING mdsup-mdbes.
+    PERFORM menge_umrechnen USING mdsup-mxbes.
+    PERFORM menge_umrechnen USING mdsup-tgbed.
+<font color ="#8C8C8C">*    IF mdst-wirak IS INITIAL           " Bei Wirkstoffabwicklung</font>
+<font color ="#8C8C8C">*    OR  ( cm61x-plauf NE anzbs         " nicht in MD04 und MD07</font>
+<font color ="#8C8C8C">*      AND cm61x-plauf NE anzml</font>
+<font color ="#8C8C8C">*      AND cm61x-plauf NE lfraz         " auch nicht in MS04 und MS07</font>
+<font color ="#8C8C8C">*      AND cm61x-plauf NE lfrml ).</font>
+<font color ="#8C8C8C">*      PERFORM menge_umrechnen2 USING mdezp-univ1.</font>
+<font color ="#8C8C8C">*      PERFORM menge_umrechnen2 USING mdezp-univ2.</font>
+<font color ="#8C8C8C">*    ENDIF.</font>
+    APPEND mdsup.
+<font color ="#8C8C8C">*    IF mdst-meinh IS INITIAL.</font>
+<font color ="#8C8C8C">*      MOVE l_meinh TO mdst-meinh.</font>
+<font color ="#8C8C8C">*    ENDIF.</font>
+  ENDLOOP.
+
+  DATA: exp_key_n LIKE moni-srtfd,
+        exp_key_t LIKE moni-srtfd,
+        akt_modus LIKE sy-modno.
+<font color ="#8C8C8C">* Strukturen Table-Control und Header</font>
+  DATA:  tabcontrol_cols
+         TYPE TABLE OF cxtab_column WITH HEADER LINE.
+  DATA:  header_scrtab
+         TYPE screentab WITH HEADER LINE.
+<font color ="#8C8C8C">* Bezeichner für Strukturen und int. Tab. Table Control und Header</font>
+  DATA:  header_structure(30),
+         tc_structure(30),
+         tc_int_tabname(30),
+         tc_int_table(30).
+<font color ="#8C8C8C">* Aufrufmodus ALV-Druck</font>
+  DATA:  pmode TYPE c.
+<font color ="#8C8C8C">* Feldsymbol für interne Tabelle - Generischer Export</font>
+  FIELD-SYMBOLS: &ltfs_tc_int_table&gt TYPE STANDARD TABLE,
+                 &ltfs_header_struct&gt.
+
+<font color ="#8C8C8C">*--&gt Export für Kopfdaten des Materials</font>
+  EXPORT mdkp mt61d cm61x-plauf
+         rm61r-meinh cm61b
+         mdsta
+      TO MEMORY ID id_druc_ez.
+<font color ="#8C8C8C">*--&gt Key für Memory-Export Bezeichner aufbauen</font>
+  MOVE 'MD_ALV_N' TO exp_key_n.
+  akt_modus = sy-modno + 1.
+  MOVE akt_modus TO exp_key_n+10.
+  MOVE rm61r-werks TO exp_key_n+12.
+<font color ="#8C8C8C">*--&gt Übergabe der Struktur- und int. Tabellen</font>
+<font color ="#8C8C8C">*  header_scrtab[]   = MDEZ_SCRTAB[].</font>
+  CLEAR header_scrtab[].
+  tabcontrol_cols[] = tc_mdsu_col[].
+  tc_structure      = 'MDSY'.
+  header_structure  = 'RM61R'.
+  tc_int_table      = 'MDSUP[]'.
+
+<font color ="#8C8C8C">*--&gt Bezeichnungen ins Memory</font>
+  EXPORT tc_structure tc_int_table header_structure
+         TO MEMORY ID exp_key_n.
+
+<font color ="#8C8C8C">*--&gt Key für Memory-Export Tabellen / Strukturen aufbauen</font>
+  MOVE 'MD_ALV_T' TO exp_key_t.
+  akt_modus = sy-modno + 1.
+  MOVE akt_modus TO exp_key_t+10.
+  MOVE rm61r-werks TO exp_key_t+12.
+<font color ="#8C8C8C">* Feldsymbol und Name für int. Tabelle / Callback-Programm</font>
+  ASSIGN (tc_int_table)     TO &ltfs_tc_int_table&gt.
+  ASSIGN (header_structure) TO &ltfs_header_struct&gt.
+
+<font color ="#8C8C8C">*--&gt Tabellen für Darstellung TC und Kopf ins Memory</font>
+  EXPORT &ltfs_tc_int_table&gt &ltfs_header_struct&gt
+         tabcontrol_cols header_scrtab
+         TO MEMORY ID exp_key_t.
+<font color ="#8C8C8C">*--&gt Fehlerbehandlung                                         "TODO</font>
+
+<font color ="#8C8C8C">*--&gt Aufrufmodus festlegen</font>
+  IF cm61x-plauf EQ anzbs
+  OR cm61x-plauf EQ lfraz
+  OR cm61x-plauf EQ anzml
+  OR cm61x-plauf EQ lfrml.
+    pmode = pmod_det_bbl.              "Einzelne BBL
+  ELSEIF cm61x-plauf EQ anzdl
+      OR cm61x-plauf EQ lfrdl
+      OR cm61x-plauf EQ anzds
+      OR cm61x-plauf EQ lfrds.
+    pmode = pmod_det_dl.               "Einzelne DL
+  ELSE.
+    pmode = pmod_det_pl.               "Einzelnes Pl.erg.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Sprung auf ALV-Report fürs Drucken</font>
+  SUBMIT rmdtcalv
+  WITH memkey_n EQ exp_key_n
+  WITH memkey_t EQ exp_key_t
+  WITH pmode EQ pmode
+  AND RETURN.
+
+ENDFORM.                    "fcode_pvar_per
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

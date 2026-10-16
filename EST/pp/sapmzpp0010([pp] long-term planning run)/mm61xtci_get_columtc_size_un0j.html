@@ -1,0 +1,139 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XTCI_GET_COLUMTC_SIZE_UN0J</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XTCI_GET_COLUMTC_SIZE_UN0J</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*   Breite von Mengenspalten feststellen für</font>
+<font color ="#8C8C8C">*   Tab. Ctrl. Anpassung der Spalten bei Mengeneinheitenänderung</font>
+<font color ="#8C8C8C">*   Einzelzeilen</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000861"></div>
+FORM get_columtc_size_unity_fit_ez.
+  DATA: tccol TYPE CXTAB_COLUMN.          "Hilfsstruktur Tab. Ctrl.
+  DATA: menge LIKE mdez.               "Hilfsstruktur angepasste Mengen
+  DATA: strlen_hilf TYPE i.            "Hilfsfeld für Ausgabelänge
+  DATA: mengenfeld(32)  TYPE c.   "Hilfsfeld für Länge von Mengenanzeige
+  DATA: l_text(60) TYPE c.
+<font color ="#8C8C8C">*max Spaltenbreiten zurücksetzen</font>
+  mdezfsize-mnaus = 0.
+  mdezfsize-univ1 = 0.
+  mdezfsize-univ2 = 0.
+  LOOP AT mdezx.
+    MOVE mdezx TO menge.
+<font color ="#8C8C8C">* Mengeneinheiten umrechnen</font>
+    PERFORM menge_umrechnen USING menge-mnaus.
+    IF NOT rm61r-mein2 IS INITIAL.
+      IF mdst-wirak IS INITIAL         " Bei Wirkstoffabwicklung
+      OR  ( cm61x-plauf NE anzbs       " nicht in MD04 und MD07
+        AND cm61x-plauf NE anzml
+        AND cm61x-plauf NE lfraz       " auch nicht in MS04 und MS07
+        AND cm61x-plauf NE lfrml ).
+        PERFORM menge_umrechnen2 USING menge-univ1.
+        PERFORM menge_umrechnen2 USING menge-univ2.
+      ENDIF.
+    ENDIF.
+<font color ="#8C8C8C">*</font>
+    WRITE menge-mnaus TO mengenfeld LEFT-JUSTIFIED
+                             UNIT mdst-meinh NO-SIGN.
+    IF mdezx-mnaus NE 0.               "Ausschuß 0 -&gt Länge 0 THD40B
+      strlen_hilf = strlen( mengenfeld )."Größte Breite für Ausschuß
+      IF strlen_hilf &gt= mdezfsize-mnaus.
+        mdezfsize-mnaus = strlen_hilf.
+      ENDIF.
+    ENDIF.                             "THD40B
+
+    WRITE menge-univ1 TO mengenfeld LEFT-JUSTIFIED
+                             UNIT mdst-meinh2 NO-SIGN.
+    strlen_hilf = strlen( mengenfeld )."Größte Breite zug/bed
+    IF strlen_hilf &gt= mdezfsize-univ1.
+      mdezfsize-univ1 = strlen_hilf.
+    ENDIF.
+
+    WRITE menge-univ2 TO mengenfeld LEFT-JUSTIFIED
+                             UNIT mdst-meinh2 NO-SIGN.
+    strlen_hilf = strlen( mengenfeld )."Größte Breite für Verf. Meng.
+    IF strlen_hilf &gt= mdezfsize-univ2.
+      mdezfsize-univ2 = strlen_hilf.
+    ENDIF.
+
+  ENDLOOP.
+<font color ="#8C8C8C">*Länge von Mengenfeldern um 3 erhöhen, wegen Vorzeichen und Lesbarkeit.</font>
+<font color ="#8C8C8C">*Länge von Ausschussfeld nur erhöhen falls Ausschuß vorhanden</font>
+  IF mdezfsize-univ1 &gt 0.
+    mdezfsize-univ1 = mdezfsize-univ1 + 3.
+  ENDIF.
+  IF mdezfsize-univ2 &gt 0.
+    mdezfsize-univ2 = mdezfsize-univ1 + 3.
+  ENDIF.
+  IF mdezfsize-mnaus &gt 0.              "THD40B
+    mdezfsize-mnaus = mdezfsize-mnaus + 3.        "Ausschuß.
+  ENDIF.                               "THD40B
+<font color ="#8C8C8C">*----Spaltenbreite einstellen----------------------------------------</font>
+
+  LOOP AT tc_ez-cols INTO tccol.
+    CASE tccol-screen-name.
+      WHEN 'MDEZ-MNAUS'.               "Ausschuss
+        tccol-vislength = mdezfsize-mnaus.
+        IF tccol-vislength &lt ezminsize_mnaus. "Minimale Spaltenbreite
+          tccol-vislength = ezminsize_mnaus.  "aus Festwert einstellen
+        ENDIF.
+<font color ="#8C8C8C">* bei Breite 0 Spalte unsichtbar machen</font>
+        IF tccol-vislength = 0.
+          tccol-invisible  = 1.
+        ELSE.
+          tccol-invisible = 0.
+        ENDIF.
+<font color ="#8C8C8C">*</font>
+      WHEN 'MDEZ-UNIV1'.               "Zugang/Bedarf 2
+        tccol-vislength = mdezfsize-univ1.
+        IF tccol-vislength &gt 0
+        AND tccol-vislength &lt 14.
+          tccol-vislength = 14.        "Breit wg. Anzeige
+        ENDIF.
+        IF tccol-vislength &lt ezminsize_univ1."Minimale Spaltenbreite
+          tccol-vislength = ezminsize_univ1.  "aus Festwert einstellen
+        ENDIF.
+<font color ="#8C8C8C">* bei Breite 0 Spalte unsichtbar machen</font>
+        IF tccol-vislength = 0
+        OR rm61r-mein2 IS INITIAL.     "Keine 2.Mengeneinheit gepflegt
+          tccol-invisible  = 1.
+        ELSE.
+          tccol-invisible = 0.
+        ENDIF.
+      WHEN 'MDEZ-UNIV2'.               "Verfügbare Menge 2
+        tccol-vislength = mdezfsize-univ2.
+        IF tccol-vislength &gt 0
+         AND tccol-vislength &lt 14.
+          tccol-vislength = 14.        "Breit wg. Anzeige
+        ENDIF.
+        IF tccol-vislength &lt ezminsize_univ2."Minimale Spaltenbreite
+          tccol-vislength = ezminsize_univ2.  "aus Festwert einstellen
+        ENDIF.
+<font color ="#8C8C8C">* bei Breite 0 Spalte unsichtbar machen</font>
+        IF tccol-vislength = 0
+        OR rm61r-mein2 IS INITIAL.     "Keine 2.Mengeneinheit gepflegt
+          tccol-invisible  = 1.
+        ELSE.
+          tccol-invisible = 0.
+          MESSAGE s319 WITH rm61r-mein2.    "2. Spalte wurde aufgeklappt
+        ENDIF.
+    ENDCASE.
+    MODIFY tc_ez-cols FROM tccol.
+  ENDLOOP.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

@@ -1,0 +1,279 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZPPR0050_CTOP</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZPPR0050_CTOP</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZPPR0050_CTOP</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+CLASS lcl_alv_grid DEFINITION DEFERRED.
+CLASS lcl_event_handler_1 DEFINITION DEFERRED.
+DATA: go_grid_event_receiver TYPE REF TO lcl_event_handler_1.
+
+
+TABLES : sscrfields.
+INCLUDE : &lticon&gt,
+          &ltsymbol&gt,
+          &ltcl_alv_control&gt.
+
+<font color ="#8C8C8C">*=====================================================================*</font>
+<font color ="#8C8C8C">*## ##</font>
+<font color ="#8C8C8C">*=====================================================================*</font>
+CONSTANTS: gc_0         TYPE char1 VALUE '0',
+           gc_1         TYPE char1 VALUE '1',
+           gc_2         TYPE char1 VALUE '2',
+           gc_3         TYPE char1 VALUE '3',
+           gc_4         TYPE char1 VALUE '4',
+           gc_a         TYPE char1 VALUE 'A',
+           gc_b         TYPE char1 VALUE 'B',
+           gc_f         TYPE char1 VALUE 'F',
+           gc_x         TYPE char1 VALUE 'X',
+           gc_j         TYPE char1 VALUE 'J',
+           gc_d         TYPE char1 VALUE 'D',
+           gc_c         TYPE char1 VALUE 'C',
+           gc_w         TYPE char1 VALUE 'W',
+           gc_p         TYPE char1 VALUE 'P',
+           gc_g         TYPE char1 VALUE 'G',
+           gc_s         TYPE char1 VALUE 'S',
+           gc_m         TYPE char1 VALUE 'M',
+           gc_y         TYPE char1 VALUE 'Y',
+           gc_n         TYPE char1 VALUE 'N',
+           gc_e         TYPE char1 VALUE 'E',
+           gc_quan      TYPE char4 VALUE 'QUAN',
+           gc_char      TYPE char4 VALUE 'CHAR',
+           gc_numc      TYPE char4 VALUE 'NUMC',
+           gc_peri      TYPE char1 VALUE '.',
+           gc_00        TYPE char2 VALUE '00',
+           gc_000       TYPE char3 VALUE '000',
+           gc_100       TYPE char3 VALUE '100',
+           gc_01        TYPE char2 VALUE '01',
+           gc_02        TYPE char2 VALUE '02',
+           gc_10        TYPE char2 VALUE '10',
+           gc_err       TYPE char4 VALUE '@0A@',
+           gc_suc       TYPE char4 VALUE '@08@',
+           gc_war       TYPE char4 VALUE '@09@',
+           gc_led_red   TYPE char4 VALUE '@5C@',
+           gc_led_green TYPE char4 VALUE '@5B@',
+           gc_led_inact TYPE char4 VALUE '@BZ@',
+           gc_0001      TYPE char4 VALUE '0001',
+           gc_99999999  TYPE char8 VALUE '99999999',
+           gc_99991231  TYPE char8 VALUE '99991231',
+           gc_dummy     TYPE c VALUE ''.
+
+<font color ="#8C8C8C">************************************************************************</font>
+<font color ="#8C8C8C">* ### ##</font>
+<font color ="#8C8C8C">************************************************************************</font>
+DEFINE _cls.
+  CLEAR &1.
+  REFRESH &1.
+END-OF-DEFINITION.
+
+DEFINE _app.
+  APPEND &1.
+  CLEAR &1.
+END-OF-DEFINITION.
+
+DEFINE _mod.
+  MODIFY &1.
+  CLEAR &1.
+END-OF-DEFINITION.
+
+
+DEFINE _popup.
+  CALL FUNCTION 'POPUP_TO_CONFIRM'
+  EXPORTING
+    display_cancel_button = ''
+    text_question         = &1
+    text_button_1         = 'Yes'
+    icon_button_1         = '@2K@'
+    text_button_2         = 'No'
+    icon_button_2         = '@2O@ '
+  IMPORTING
+    answer                = &2.
+END-OF-DEFINITION.
+
+DEFINE _progress.
+  CALL FUNCTION 'SAPGUI_PROGRESS_INDICATOR'
+  EXPORTING
+    percentage = &1
+    text = &2.
+END-OF-DEFINITION.
+
+
+DATA lv_fname(50).
+
+DEFINE _alpha.
+  lv_fname = 'CONVERSION_EXIT_ALPHA_' && &1.
+
+  CALL FUNCTION lv_fname
+        EXPORTING
+          input  = &2
+        IMPORTING
+          output = &2.
+END-OF-DEFINITION.
+
+
+DEFINE _mat.
+  lv_fname = 'CONVERSION_EXIT_MATN1_' && &1.
+
+  CALL FUNCTION lv_fname
+        EXPORTING
+          input  = &2
+        IMPORTING
+          output = &2.
+END-OF-DEFINITION.
+
+
+DEFINE _unit.
+  lv_fname = 'CONVERSION_EXIT_CUNIT_' && &1.
+
+  CALL FUNCTION lv_fname
+        EXPORTING
+          input  = &2
+        IMPORTING
+          output = &2.
+END-OF-DEFINITION.
+
+
+<font color ="#8C8C8C">************************************************************************</font>
+<font color ="#8C8C8C">* GLOBAL VARIABLE</font>
+<font color ="#8C8C8C">************************************************************************</font>
+DATA : gr_cx_ref   TYPE REF TO cx_root,
+       gr_conv_ref TYPE REF TO  cx_sy_conversion_error,
+       gv_text     TYPE string.
+
+
+DATA: gv_answer(1).
+DATA: gv_chk(1).
+DATA: gv_okcode_0100 TYPE sy-ucomm,
+      gv_okcode_0050 TYPE sy-ucomm,
+      gv_save_okcode TYPE sy-ucomm.
+
+<font color ="#8C8C8C">* BDC DATA</font>
+DATA : BEGIN OF gt_msg OCCURS 0.
+         INCLUDE STRUCTURE bdcmsgcoll.
+DATA :   msg_text(255) TYPE c, "MESSAGE(ERROR,WARING,SUCCESS)
+       END OF gt_msg.
+
+DATA : gt_bdc LIKE bdcdata OCCURS 0 WITH HEADER LINE.
+DATA : gv_ctu TYPE ctu_params.
+DATA : gt_excl TYPE TABLE OF ui_func.
+
+
+DATA : gv_cnt_suc TYPE i,
+       gv_cnt_war TYPE i,
+       gv_cnt_err TYPE i,
+       gv_cnt_dup TYPE i,
+       gv_cnt_tot TYPE i.
+<font color ="#8C8C8C">************************************************************************</font>
+<font color ="#8C8C8C">* F4 HELP VALUE INTERNAL</font>
+<font color ="#8C8C8C">************************************************************************</font>
+DATA: gt_field  LIKE dfies OCCURS 0 WITH HEADER LINE,
+      gt_rettab LIKE  ddshretval  OCCURS 0  WITH HEADER LINE,
+      gt_dynmap LIKE  dselc       OCCURS 0  WITH HEADER LINE.
+<font color ="#8C8C8C">* ## ##</font>
+DATA: gt_dynfields LIKE dynpread OCCURS 1 WITH HEADER LINE.
+
+
+<font color ="#8C8C8C">*=====================================================================*</font>
+<font color ="#8C8C8C">*ALV ##</font>
+<font color ="#8C8C8C">*=====================================================================*</font>
+DATA: go_docking_container TYPE REF TO cl_gui_docking_container.
+DATA: go_docking_container_100 TYPE REF TO cl_gui_docking_container.
+DATA: go_docking_container_200 TYPE REF TO cl_gui_docking_container.
+DATA: go_splitter_container1 TYPE REF TO cl_gui_splitter_container.
+DATA: go_splitter_container2 TYPE REF TO cl_gui_splitter_container.
+DATA: go_container_1 TYPE REF TO cl_gui_container.
+DATA: go_container_2 TYPE REF TO cl_gui_container.
+DATA: go_container_3 TYPE REF TO cl_gui_container.
+
+DATA: go_grid TYPE REF TO lcl_alv_grid.
+DATA: go_grid2 TYPE REF TO lcl_alv_grid.
+DATA: go_grid_0100 TYPE REF TO lcl_alv_grid.
+DATA: go_grid_0200 TYPE REF TO lcl_alv_grid.
+
+DATA: gt_fcat TYPE lvc_t_fcat.
+DATA: gt_fcat_100 TYPE lvc_t_fcat.
+DATA: gt_fcat_200 TYPE lvc_t_fcat.
+DATA: gt_fcat2 TYPE lvc_t_fcat.
+DATA: gt_fcat3 TYPE lvc_t_fcat.
+
+
+DATA: gs_layout_alv  TYPE lvc_s_layo,
+      gs_layout_alv2 TYPE lvc_s_layo,
+      gs_layout_alv3 TYPE lvc_s_layo,
+      gt_excl_func   TYPE ui_functions,
+      gt_excl_func2  TYPE ui_functions,
+      gt_excl_func3  TYPE ui_functions.
+
+DATA: gv_handle_alv TYPE i.
+DATA: gt_sort_grid TYPE lvc_t_sort WITH HEADER LINE.
+DATA: gt_sort_grid2 TYPE lvc_t_sort WITH HEADER LINE.
+DATA: gt_sort_grid3 TYPE lvc_t_sort WITH HEADER LINE.
+DATA: gt_sort_grid_100 TYPE lvc_t_sort WITH HEADER LINE.
+DATA: gt_sort_grid_200 TYPE lvc_t_sort WITH HEADER LINE.
+DATA gt_slis_fcat TYPE slis_t_fieldcat_alv.
+DATA gs_slis_fcat LIKE LINE OF gt_slis_fcat.
+
+DATA: gs_f4 TYPE lvc_s_f4,
+      gt_f4 TYPE lvc_t_f4.
+DATA: gt_rows TYPE lvc_t_row,
+      gs_rows TYPE lvc_s_row.
+
+DATA: gs_toolbar TYPE stb_button.
+DATA: gt_cells TYPE lvc_t_cell,
+      gs_cells TYPE lvc_s_cell.
+DATA: gt_color TYPE lvc_t_scol WITH HEADER LINE.
+DATA: gs_edit    TYPE lvc_s_styl,
+      gt_edit    TYPE lvc_t_styl,
+      gv_erg     TYPE i,
+      gv_e51(50),
+      gv_e52(50).
+
+DATA : gv_pos TYPE i.
+
+DATA: gv_text1 TYPE i.
+DATA: gv_text2 TYPE i.
+DATA: gv_text3 TYPE i.
+DATA: gv_text4 TYPE i.
+
+DATA: gv_char(1),
+      gv_char3(3).
+DATA: gv_cnt    TYPE i,
+      gv_dis(1).
+
+DATA: BEGIN OF gs_err,
+        chk(1),
+        msg(100),
+      END OF gs_err.
+
+
+DATA gv_excel97 TYPE string VALUE 'Excel 97-2003 files (*.xls)|*.XLS|'.
+DATA gv_excel TYPE string VALUE 'Excel files (*.xlsx)|*.XLSX|'.
+DATA gv_all TYPE string VALUE 'All files (*.*)|*.*|'.
+
+DATA gv_filter TYPE string.
+
+
+<font color ="#8C8C8C">**DATA: GT_EXCEL LIKE TABLE OF ZCMS0020 WITH HEADER LINE.  "BHL 253 "^001</font>
+DATA: gt_excel LIKE TABLE OF zcms0020 WITH HEADER LINE.
+
+
+<font color ="#8C8C8C">**"^001</font>
+<font color ="#8C8C8C">** PUCORE## ## 10### ### ### ### ## ### ######</font>
+<font color ="#8C8C8C">** ## ### ## #### ## ###</font>
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

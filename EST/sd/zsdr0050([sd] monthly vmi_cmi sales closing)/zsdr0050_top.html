@@ -1,0 +1,470 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZSDR0050_TOP</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZSDR0050_TOP</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZSDR0051_TOP</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+ TYPE-POOLS: icon.
+
+ TABLES:
+   sscrfields,
+   vbap,
+   vbkd,
+   vbak.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* CONSTANTS</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+ CONSTANTS:
+   gc_a     TYPE c VALUE 'A',
+   gc_b     TYPE c VALUE 'B',
+   gc_c     TYPE c VALUE 'C',
+   gc_d     TYPE c VALUE 'D',
+   gc_e     TYPE c VALUE 'E',
+   gc_f     TYPE c VALUE 'F',
+   gc_g     TYPE c VALUE 'G',
+   gc_h     TYPE c VALUE 'H',
+   gc_i     TYPE c VALUE 'I',
+   gc_j     TYPE c VALUE 'J',
+   gc_k     TYPE c VALUE 'K',
+   gc_l     TYPE c VALUE 'L',
+   gc_m     TYPE c VALUE 'M',
+   gc_n     TYPE c VALUE 'N',
+   gc_o     TYPE c VALUE 'O',
+   gc_p     TYPE c VALUE 'P',
+   gc_q     TYPE c VALUE 'Q',
+   gc_r     TYPE c VALUE 'R',
+   gc_s     TYPE c VALUE 'S',
+   gc_t     TYPE c VALUE 'T',
+   gc_u     TYPE c VALUE 'U',
+   gc_v     TYPE c VALUE 'V',
+   gc_w     TYPE c VALUE 'W',
+   gc_x     TYPE c VALUE 'X',
+   gc_y     TYPE c VALUE 'Y',
+   gc_z     TYPE c VALUE 'Z',
+
+   gc_1     TYPE c VALUE '1',
+   gc_2     TYPE c VALUE '2',
+   gc_3     TYPE c VALUE '3',
+   gc_4     TYPE c VALUE '4',
+   gc_5     TYPE c VALUE '5',
+   gc_6     TYPE c VALUE '6',
+   gc_7     TYPE c VALUE '7',
+   gc_8     TYPE c VALUE '8',
+   gc_9     TYPE c VALUE '9',
+   gc_0     TYPE c VALUE '0',
+
+   gc_eq(2) TYPE c VALUE 'EQ',
+   gc_bt(2) TYPE c VALUE 'BT',
+   gc_cp(2) TYPE c VALUE 'CP',
+   gc_zsr3  TYPE a901-kschl VALUE 'ZSR3',
+   gc_zsr1  TYPE a901-kschl VALUE 'ZSR1',
+   gc_style TYPE lvc_fname VALUE 'STYLE',
+   gc_ZCR   TYPE vbak-auart VALUE 'ZCR',
+   gc_ZDR   TYPE vbak-auart VALUE 'ZDR',
+   gc_ZKE   TYPE vbak-auart VALUE 'ZKE',
+   gc_ZKR   TYPE vbak-auart VALUE 'ZKR'.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Sales Order Constants</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+ CONSTANTS:
+   gc_ag(2)    TYPE c VALUE 'AG',
+   gc_we(2)    TYPE c VALUE 'WE',
+   gc_re(2)    TYPE c VALUE 'RE',
+   gc_rg(2)    TYPE c VALUE 'RG',
+   gc_spart_00 TYPE spart VALUE '00'.
+ CONSTANTS:
+   gc_due_date TYPE bapidlvcreateheader-due_date
+               VALUE '99991231'.
+
+ CONSTANTS:
+   gc_bill_read_attempts TYPE i VALUE 11,
+   gc_bill_read_interval TYPE decfloat16 VALUE '0.5'.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* TYPE - Excel Upload</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">* Excel columns (physical format, 14 columns):</font>
+<font color ="#8C8C8C">* AUDAT / KUNAG / KUNWE / KUNRG / AUART / VTWEG / AUGRU / MATNR</font>
+<font color ="#8C8C8C">* KWMENG / BSTKH / BSTKD_E / WERKS / NETPR / WAERK</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+ TYPES:
+   BEGIN OF gty_upload,
+     audat   TYPE char50,       " Existing Excel title: Billing Date; value is SO document date
+     kunag   TYPE char50,       " Sold-to Party
+     kunwe   TYPE char50,       " Ship-to Party
+     kunrg   TYPE char50,       " Payer
+     auart   TYPE char50,       " Sales Order Type
+     vtweg   TYPE char50,       " Distribution Channel
+     augru   TYPE char50,       " Order Reason
+     matnr   TYPE char50,       " Material
+     kwmeng  TYPE char50,       " Sales Quantity
+     bstkh   TYPE char50,  " Header Customer PO
+     bstkd_E TYPE char50,       " Customer PO
+     werks   TYPE char50,       " Plant
+     netpr   TYPE char50,       " Unit Price
+     waerk   TYPE char50,       " Currency
+   END OF gty_upload.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* TYPE - ALV Display</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+ TYPES:
+   BEGIN OF gty_disp,
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Status</font>
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+     status        TYPE icon_d,             " Status
+     status_txt    TYPE char20,             " Status Text
+
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Organization</font>
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+     audat         TYPE vbak-audat,
+     price_date    TYPE vbkd-prsdt,      " Persisted SO pricing date (technical)
+
+     vkorg         TYPE vbak-vkorg,     " Sales Organization
+     vkorg_txt     TYPE tvkot-vtext,        " Sales Organization Name
+
+     vkbur         TYPE vbak-vkbur,     " Sales Office
+     vkbur_txt     TYPE tvkbt-bezei,        " Sales Office Name
+
+     vkgrp         TYPE vbak-vkgrp,     " Sales Group
+     vkgrp_txt     TYPE tvgrt-bezei,        " Sales Group Name
+
+     vtweg         TYPE vbak-vtweg,     " Distribution Channel
+     vtweg_txt     TYPE tvtwt-vtext,        " Distribution Channel Name
+
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Partner</font>
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+     kunag         TYPE vbak-kunnr,     " Sold-to Party
+     kunag_txt     TYPE kna1-name1,         " Sold-to Party Name
+
+     kunwe         TYPE kna1-kunnr,     " Ship-to Party
+     kunwe_txt     TYPE kna1-name1,         " Ship-to Party Name
+
+     kunrg         TYPE kna1-kunnr,     " Payer
+     kunrg_txt     TYPE kna1-name1,         " Payer Name
+
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Sales Order Header</font>
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+     auart         TYPE vbak-auart,          " Sales Order Type
+     auart_txt     TYPE tvakt-bezei,         " Sales Order Type Name
+
+     augru         TYPE vbak-augru,          " Order Reason
+     augru_txt     TYPE tvaut-bezei,         " Order Reason Name
+
+     bstkh         TYPE vbkd-bstkd_e,    " Header Customer PO
+     bstkd_e       TYPE vbkd-bstkd_e,      " Customer PO
+
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Item</font>
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+     matnr         TYPE vbap-matnr,      " Material
+     maktx         TYPE makt-maktx,          " Material Name
+
+     charg         TYPE lips-charg,          " Batch
+
+     kwmeng        TYPE vbap-kwmeng,     " Sales Quantity
+     meins         TYPE vbap-vrkme,      " Unit
+
+     werks         TYPE vbap-werks,          " Plant
+     werks_txt     TYPE t001w-name1,         " Plant Name
+
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Price</font>
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+     netpr         TYPE bapicurr_d,          " External price per 1 unit
+     netpr_int     TYPE vbap-netpr,       " Internal amount per KPEIN
+     price_dec     TYPE c LENGTH 1,          " ALV decimal places: 0 / 4
+     waerk         TYPE vbak-waerk,      " Currency
+     kpein         TYPE vbap-kpein, "codition record unit
+     netwr         TYPE netwr,               " Amount
+
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Sales Order</font>
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+     vbeln         TYPE vbak-vbeln,      " Sales Order
+     posnr         TYPE vbap-posnr,      " Sales Order Item
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Delivery</font>
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+     vbeln_vl      TYPE likp-vbeln,   " Delivery
+     posnr_vl      TYPE lips-posnr,           " Delivery Item
+     dlv_qty       TYPE lips-lfimg,
+     dlv_unit      TYPE lips-vrkme,
+
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Goods Issue</font>
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+     mblnr         TYPE mseg-mblnr,      " Material Document
+     wadat_ist     TYPE likp-wadat_ist,       " Actual GI Date
+
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Billing</font>
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+     vbeln_vf      TYPE vbrk-vbeln,   " Billing Document
+     posnr_vf      TYPE vbrp-posnr,           " Billing Item
+     bill_qty      TYPE vbrp-fkimg,
+     bill_unit     TYPE vbrp-vrkme,
+     bill_netwr    TYPE vbrp-netwr,
+     bill_waerk    TYPE vbrk-waerk,
+
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Message</font>
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+     msgty         TYPE symsgty,
+     message       TYPE bapiret2-message,
+
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Internal Use</font>
+<font color ="#8C8C8C">*--------------------------------------------------------------------*</font>
+     new           TYPE abap_bool,
+     del           TYPE abap_bool,
+     changed       TYPE abap_bool,          " Unsaved User Changes
+
+     style         TYPE lvc_t_styl,
+
+
+     price_unit    TYPE vbap-kmein,
+     row_kind      TYPE c LENGTH 1,          " S=SO/Input, D=Delivery, B=Billing
+     hierarchy     TYPE char40,
+     seqno         TYPE i,                      " stable hierarchy ordering
+     bill_actual   TYPE vbrk-fkdat,
+     bill_cancel   TYPE abap_bool,
+     gm_docs       TYPE char255,              " all active material document keys
+     mjahr         TYPE mseg-mjahr,
+     lfsta         TYPE c LENGTH 1,
+     fksta         TYPE c LENGTH 1,
+     wbsta         TYPE c LENGTH 1,
+     vstel         TYPE vbap-vstel,
+     abgru         TYPE vbap-abgru,
+     price_scale   TYPE vbap-kpein,
+     deleted_input TYPE abap_bool,
+     refresh_error TYPE abap_bool,
+
+     dlv_parent    TYPE lips-uecha,  " Batch-split parent (technical)
+
+   END OF gty_disp.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* TYPE - Material</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+ TYPES:
+   BEGIN OF gty_makt,
+     matnr TYPE mara-matnr,
+     meins TYPE mara-meins,
+     maktx TYPE makt-maktx,
+   END OF gty_makt.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* TYPE - Customer</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+ TYPES:
+   BEGIN OF gty_kna1,
+     kunnr TYPE kna1-kunnr,
+     name1 TYPE kna1-name1,
+   END OF gty_kna1.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Allowed Order Reasons</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+ TYPES:
+   BEGIN OF gty_augru_assign,
+     vkorg TYPE vbak-vkorg,
+     auart TYPE vbak-auart,
+     augru TYPE vbak-augru,
+   END OF gty_augru_assign.
+
+ DATA:
+   gt_augru_assign TYPE SORTED TABLE OF gty_augru_assign
+                   WITH UNIQUE KEY vkorg auart augru.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* TYPE - Sales Order Group Key</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">* Sales Order Create Group</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">* Billing Date</font>
+<font color ="#8C8C8C">* Sold-to Party</font>
+<font color ="#8C8C8C">* Ship-to Party</font>
+<font color ="#8C8C8C">* Payer</font>
+<font color ="#8C8C8C">* Sales Order Type</font>
+<font color ="#8C8C8C">* Distribution Channel</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+ TYPES:
+   BEGIN OF gty_so_key,
+     audat TYPE vbak-audat,
+     kunag TYPE vbak-kunnr,
+     kunwe TYPE kna1-kunnr,
+     kunrg TYPE kna1-kunnr,
+     auart TYPE vbak-auart,
+     vtweg TYPE vbak-vtweg,
+   END OF gty_so_key.
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Sales Order Work Data</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+ TYPES:
+   BEGIN OF gty_so_work,
+     row_id  TYPE i,
+     doc_key TYPE char20,
+     data    TYPE gty_disp,
+   END OF gty_so_work.
+
+ TYPES:
+   gty_t_so_work TYPE STANDARD TABLE OF gty_so_work
+                 WITH EMPTY KEY.
+
+
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* DATA OBJECT</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+ DATA:
+   gv_answer   TYPE c,
+   gv_changed  TYPE abap_bool,
+   gv_refresh  TYPE abap_bool,
+   gv_okcode   TYPE sy-ucomm,
+   gv_title    TYPE sy-title,
+
+   gt_fcode    TYPE TABLE OF sy-ucomm,
+   gt_required TYPE TABLE OF screen-name.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* INTERNAL TABLE</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+ DATA:
+   gt_upload TYPE STANDARD TABLE OF gty_upload
+             WITH EMPTY KEY,
+
+   gt_disp   TYPE STANDARD TABLE OF gty_disp
+             WITH EMPTY KEY.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* MASTER / TEXT</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+ DATA:
+   gt_kna1  TYPE SORTED TABLE OF gty_kna1
+           WITH UNIQUE KEY kunnr,
+
+   gt_makt  TYPE SORTED TABLE OF gty_makt
+           WITH UNIQUE KEY matnr,
+
+   gt_tvkot TYPE SORTED TABLE OF tvkot
+            WITH UNIQUE KEY vkorg,
+
+   gt_tvkbt TYPE SORTED TABLE OF tvkbt
+            WITH UNIQUE KEY vkbur,
+
+   gt_tvgrt TYPE SORTED TABLE OF tvgrt
+            WITH UNIQUE KEY vkgrp,
+
+   gt_tvtwt TYPE SORTED TABLE OF tvtwt
+            WITH UNIQUE KEY vtweg,
+
+   gt_tvakt TYPE SORTED TABLE OF tvakt
+            WITH UNIQUE KEY auart,
+
+   gt_tvaut TYPE SORTED TABLE OF tvaut
+            WITH UNIQUE KEY augru,
+
+   gt_t001w TYPE SORTED TABLE OF t001w
+            WITH UNIQUE KEY werks.
+
+ TYPES:
+   BEGIN OF gty_marc,
+     matnr TYPE marc-matnr,
+     werks TYPE marc-werks,
+   END OF gty_marc.
+
+ DATA:
+   gt_tvtw  TYPE SORTED TABLE OF tvtw
+            WITH UNIQUE KEY vtweg,
+
+   gt_tvau  TYPE SORTED TABLE OF tvau
+            WITH UNIQUE KEY augru,
+
+   gt_tcurc TYPE SORTED TABLE OF tcurc
+            WITH UNIQUE KEY waers,
+
+   gt_marc  TYPE SORTED TABLE OF gty_marc
+            WITH UNIQUE KEY matnr werks.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* ALV</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+ DATA:
+   go_cont   TYPE REF TO cl_gui_container,
+   go_cont_c TYPE REF TO cl_gui_custom_container,
+   go_splt   TYPE REF TO cl_gui_splitter_container,
+   go_grid   TYPE REF TO cl_gui_alv_grid,
+   go_dd     TYPE REF TO cl_dd_document,
+
+   gs_layout TYPE lvc_s_layo,
+   gt_sort   TYPE lvc_t_sort,
+   gt_fcat   TYPE lvc_t_fcat.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Standard document buffers (session only; no custom-table persistence)</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+ CONSTANTS: gc_row_so TYPE c VALUE 'S',
+            gc_row_dl TYPE c VALUE 'D',
+            gc_row_bl TYPE c VALUE 'B'.
+ TYPES: BEGIN OF gty_so_item_key,
+          vbeln TYPE vbak-vbeln,
+          posnr TYPE vbap-posnr,
+        END OF gty_so_item_key,
+        gty_t_so_item_key TYPE SORTED TABLE OF gty_so_item_key
+                          WITH UNIQUE KEY vbeln posnr,
+        gty_t_disp        TYPE STANDARD TABLE OF gty_disp WITH EMPTY KEY.
+ DATA: gt_so_keys     TYPE gty_t_so_item_key,
+       gt_input_cache TYPE gty_t_disp,
+       gv_load_error  TYPE abap_bool.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Canonical SO / delivery / billing items for flat-row actions</font>
+<font color ="#8C8C8C">* Session buffer only; never persisted to a custom table.</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+ DATA gt_doc_rows TYPE gty_t_disp.
+
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Deferred standard reread after ALV business-action events</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+ CONSTANTS gc_refresh_okcode TYPE syucomm VALUE 'ZRFS'.
+ DATA:
+   gv_standard_refresh TYPE abap_bool,
+   gt_created_billing  TYPE STANDARD TABLE OF bapivbrksuccess WITH EMPTY KEY.
+
+ "## ## # ## ###
+ TYPES:
+   BEGIN OF gty_pending_billing,
+     bill_doc TYPE vbrk-vbeln,
+     vbeln    TYPE vbak-vbeln,
+     vbeln_vl TYPE likp-vbeln,
+   END OF gty_pending_billing.
+
+ DATA gt_pending_billing TYPE SORTED TABLE OF gty_pending_billing
+                         WITH UNIQUE KEY bill_doc.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

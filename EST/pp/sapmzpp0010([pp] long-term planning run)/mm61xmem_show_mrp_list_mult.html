@@ -1,0 +1,106 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XMEM_SHOW_MRP_LIST_MULT</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XMEM_SHOW_MRP_LIST_MULT</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  SHOW_MRP_LIST_MULT                                                  *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000724"></div>
+FORM SHOW_MRP_LIST_MULT
+     USING IV_MATERIAL LIKE MT61D-MATNR
+           IV_PLANT    LIKE MT61D-WERKS
+           IV_BERID    LIKE MDLV-BERID.
+
+  DATA: LV_COUNT    TYPE I,
+        LV_MATERIAL LIKE MT61D-MATNR,
+        LV_PLANT    LIKE MT61D-WERKS,
+        LV_BERID    LIKE MDLV-BERID,
+        LV_TABIX    LIKE SY-TABIX,
+        LV_INDEX    LIKE SY-TABIX,
+        LV_LINE     TYPE MRP_LIST_LINE_TYPE.
+
+<font color ="#8C8C8C">*--&gt Markierten Eintrag bestimmen</font>
+  LV_COUNT = 0.
+  LOOP AT MDKEX.
+    IF MDKEX-MAKZG = GC_TRUE.
+      LV_COUNT = LV_COUNT + 1.
+    ENDIF.
+    IF IV_MATERIAL = SPACE       AND MDKEX-MAKZG = GC_TRUE
+    OR ( IV_MATERIAL = MDKEX-MATNR
+     AND IV_PLANT    = MDKEX-PLWRK
+     AND IV_BERID    = MDKEX-BERID ).
+      LV_MATERIAL = MDKEX-MATNR.            "erstes markiertes Material
+      LV_PLANT    = MDKEX-PLWRK.
+      LV_BERID    = MDKEX-BERID.
+      LV_TABIX    = SY-TABIX.
+      EXIT.
+    ENDIF.
+  ENDLOOP.
+<font color ="#8C8C8C">*--&gt Ist mehr als ein Eintrag markiert ?</font>
+  IF LV_COUNT &lt= 1.
+    LOOP AT MDKEX FROM LV_TABIX.
+      IF MDKEX-MAKZG = GC_TRUE.
+        LV_COUNT = LV_COUNT + 1.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+  IF LV_COUNT &gt 1.
+    GV_MULT_SELECTED = GC_TRUE.
+  ELSE.
+    GV_MULT_SELECTED = GC_FALSE.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Markierte Dispoliste anzeigen</font>
+  DO.
+    PERFORM SHOW_MRP_LIST
+            USING LV_MATERIAL LV_PLANT LV_BERID
+                  LV_LINE GC_FALSE GC_TRUE.
+    IF AM61X-XCODE = 'NEDL'.      "Naechste Dispoliste
+      PERFORM <a href ="javascript:Link('MM61XSTK_CLEAR_DIALOGSTACK.html?id=#000000000823');">CLEAR_DIALOGSTACK</a>.
+      LV_INDEX = LV_TABIX + 1.
+      LOOP AT MDKEX FROM LV_INDEX WHERE MAKZG = GC_TRUE.
+        LV_MATERIAL = MDKEX-MATNR.
+        LV_PLANT    = MDKEX-PLWRK.
+        LV_BERID    = MDKEX-BERID.
+        LV_TABIX    = SY-TABIX.
+        EXIT.
+      ENDLOOP.
+      IF SY-SUBRC &gt 0.
+        MESSAGE S333(MF).
+      ENDIF.
+    ELSEIF AM61X-XCODE = 'LEDL'.  "Letzte Dispoliste
+      PERFORM <a href ="javascript:Link('MM61XSTK_CLEAR_DIALOGSTACK.html?id=#000000000823');">CLEAR_DIALOGSTACK</a>.
+      LV_INDEX = LV_TABIX.
+      DO.
+        LV_INDEX = LV_INDEX - 1.
+        IF LV_INDEX &lt 1. MESSAGE S334(MF). EXIT. ENDIF.
+        READ TABLE MDKEX INDEX LV_INDEX.
+        IF MDKEX-MAKZG = GC_TRUE.
+          LV_MATERIAL = MDKEX-MATNR.
+          LV_PLANT    = MDKEX-PLWRK.
+          LV_BERID    = MDKEX-BERID.
+          LV_TABIX    = SY-TABIX.
+          EXIT.
+        ENDIF.
+      ENDDO.
+    ELSE.
+      EXIT.
+    ENDIF.
+  ENDDO.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

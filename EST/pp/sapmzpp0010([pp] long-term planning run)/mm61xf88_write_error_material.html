@@ -1,0 +1,152 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF88_WRITE_ERROR_MATERIAL</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF88_WRITE_ERROR_MATERIAL</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       FORM WRITE_ERROR_MATERIAL                                     *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*     Parallel MRP: writes list entry for material with run time error</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  WORKX                                                         *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000411"></div>
+FORM write_error_material USING workx STRUCTURE workx.
+
+  DATA: lv_result    LIKE mdplanresult,
+        lv_error_material(75) TYPE c,
+        lv_error_message(75) TYPE c.
+
+<font color ="#8C8C8C">*--&gt Header for Batchjob                                   "SL ERP1.0</font>
+  IF  GV_FIRST_CALL IS INITIAL
+  AND SY-BATCH EQ XFLAG.
+    IF RM61X-ANZLS EQ XFLAG AND NO_TOP_OF_PAGE IS INITIAL.
+      IF  CM61X-PLAUF NE MRPMP
+      AND CM61X-PLAUF NE MPSMP
+      AND CM61X-PLAUF NE LFRMP.
+        PERFORM WRITE_UEBERSCHRIFT.
+      ENDIF.
+      GV_FIRST_CALL = XFLAG.
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Error Material</font>
+ENHANCEMENT-SECTION     SAPMM61X_02 SPOTS ES_SAPMM61X.
+  IF T000MD-DISFG IS INITIAL.
+    CONCATENATE text-020 workx-matnr
+                text-019 workx-werks
+                ':'
+                text-S15 INTO lv_error_material SEPARATED BY SPACE.
+  ELSE.
+    CONCATENATE text-020 workx-matnr
+                text-039 workx-berid
+                ':'
+                text-S15 INTO lv_error_material SEPARATED BY SPACE.
+  ENDIF.
+END-ENHANCEMENT-SECTION.
+<font color ="#8C8C8C">*--&gt Error Message</font>
+  IF NOT workx-msgno IS INITIAL
+  AND NOT workx-msgno EQ '000'.
+    CONCATENATE 'ERR.' workx-msgno '(' workx-msgid '):' workx-msgtx
+                INTO lv_error_message SEPARATED BY SPACE.
+  ELSE.
+    CONCATENATE 'EXC:' workx-msgtx
+                 INTO lv_error_message SEPARATED BY SPACE.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Insert line in material list or create separate block</font>
+<font color ="#8C8C8C">*--&gt for error material</font>
+  IF RM61X-ANZLS EQ XFLAG.
+<font color ="#8C8C8C">*--&gt first line</font>
+    FORMAT COLOR COL_NORMAL INTENSIFIED OFF.
+    WRITE: /01 sy-vline(1),
+            03(09) rm61x-anzmt USING EDIT MASK '______' NO-ZERO,
+            13 sy-vline(1),
+            15(08) sy-uzeit    USING EDIT MASK '__.__.__',
+            24 sy-vline(1),
+            26(03) cm61d-disst,
+            30 sy-vline(1).
+    IF t000md-disfg IS INITIAL.
+      WRITE:  32(12) workx-werks,
+              43 sy-vline(1),
+              45(21) workx-matnr,
+              66 sy-vline(1).
+    ELSE.
+      WRITE:  32(12) workx-berid,
+              43 sy-vline(1),
+              45(21) workx-matnr,
+              66 sy-vline(1).
+    ENDIF.
+    WRITE 68 sy-vline.
+    WRITE 70 sy-vline.
+    WRITE 72 sy-vline.
+    WRITE 74 sy-vline.
+    WRITE 76 sy-vline.
+    WRITE 78 sy-vline.
+    WRITE 80 sy-vline.
+    WRITE 84 sy-vline.
+<font color ="#8C8C8C">*--&gt second line</font>
+    FORMAT COLOR COL_NEGATIVE INTENSIFIED.
+    WRITE: /01 SY-VLINE(1),
+               lv_error_material,
+            84 SY-VLINE(1).
+<font color ="#8C8C8C">*--&gt third line</font>
+    WRITE: /01 SY-VLINE(1),
+               lv_error_message,
+            84 SY-VLINE(1).
+  ELSE.                         "Create separate block
+<font color ="#8C8C8C">*--&gt Header</font>
+    FORMAT COLOR COL_HEADING INTENSIFIED OFF.
+    WRITE: /01 SY-ULINE(84).
+    WRITE: /01 SY-VLINE(1),
+            03 text-042,
+            84 SY-VLINE(1).
+    FORMAT COLOR COL_NEGATIVE INTENSIFIED.
+<font color ="#8C8C8C">*--&gt first line</font>
+    WRITE: /01 SY-VLINE(1),
+            03 lv_error_material,
+            84 SY-VLINE(1).
+<font color ="#8C8C8C">*--&gt second line</font>
+    WRITE: /01 SY-VLINE(1),
+            03 lv_error_message,
+            84 SY-VLINE(1).
+    WRITE: /01 SY-ULINE(84).
+  ENDIF.
+
+
+<font color ="#8C8C8C">*--&gt Collect Material Status for BADI MD_PLANNING_RESULT</font>
+  MOVE-CORRESPONDING workx TO lv_result.
+  IF NOT gv_md_planning_result_act IS INITIAL.              "HW 557324
+    CALL METHOD gv_md_planning_result-&gtcollect_material_status
+      EXPORTING
+        im_result    =  lv_result
+      CHANGING
+        ex_statustab =  gt_statustab.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Init Error Message</font>
+  CLEAR workx-msgno.
+  CLEAR workx-msgid.
+
+<font color ="#8C8C8C">*  WRITE: /07(30) TEXT-S13            COLOR COL_POSITIVE,</font>
+<font color ="#8C8C8C">*                 WORKX-MATNR COLOR COL_POSITIVE INTENSIFIED,</font>
+<font color ="#8C8C8C">*            (5)  TEXT-S14            COLOR COL_POSITIVE,</font>
+<font color ="#8C8C8C">*                 WORKX-WERKS COLOR COL_POSITIVE INTENSIFIED,</font>
+<font color ="#8C8C8C">*            80   SY-VLINE(1).</font>
+
+ENDFORM.                    "WRITE_ERROR_MATERIAL
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

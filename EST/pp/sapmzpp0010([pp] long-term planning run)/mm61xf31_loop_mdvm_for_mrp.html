@@ -1,0 +1,235 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF31_LOOP_MDVM_FOR_MRP</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF31_LOOP_MDVM_FOR_MRP</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Planungslauf (MD01 und RMMRP000/RMMRP010)</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000204"></div>
+FORM loop_mdvm_for_mrp.
+  DATA: lv_result TYPE mdplanresult.
+  DATA: lt_matnr_werks_berid TYPE pph_matnr_werks_berid_sel_tab,
+        ls_matnr_werks_berid TYPE pph_matnr_werks_berid_sel,
+        lv_buffer_result     TYPE char1,
+        ls_mdmmx             TYPE mdmm,
+        lv_disst             TYPE disst,
+        lt_dummy_tab         TYPE STANDARD TABLE OF cm61dp.
+  DATA: lt_planrequest_temp  TYPE pph_mdmm_tab.   "perf. improvement for HANA optimization
+<font color ="#8C8C8C">*--&gt PIC : Check material master for interchangability "{ ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }</font>
+    DATA : LV_PIC_RC LIKE AM61X-RCODE. "{ ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+
+ENHANCEMENT-POINT mm61xf31_loop_mdvm_for_mrp_01 SPOTS es_sapmm61x STATIC.
+
+
+<font color ="#8C8C8C">*--&gt Kommunikationsaerea -Werksebene- erstellen</font>
+  CALL FUNCTION 'MD_READ_PLANT'
+    EXPORTING
+      ewerks = cm61x-werks
+      ecm61x = cm61x
+    IMPORTING
+      icm61w = cm61w
+      it399d = t399d
+    EXCEPTIONS
+      error  = 1.
+  IF sy-subrc &gt 0.
+    MESSAGE ID sy-msgid TYPE 'A' NUMBER sy-msgno
+            WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt ATP initialisieren bzw. Puffer deaktivieren, falls CM61X-ATPDA = X</font>
+  PERFORM <a href ="javascript:Link('MM61XF31_ATP_INITIALIZE.html?id=#000000000196');">atp_initialize</a>.
+<font color ="#8C8C8C">*--&gt Statistik initialisieren / Startzeitpunkt</font>
+  PERFORM beginn_statistik.
+<font color ="#8C8C8C">*--&gt Initialization</font>
+  PERFORM <a href ="javascript:Link('MM61XF88_MRP_RUN_INIT.html?id=#000000000404');">mrp_run_badi_init</a>.
+<font color ="#8C8C8C">*--&gt Planungslauf sperren</font>
+  PERFORM enqueue_mrp_run USING mdobjb "Bedarfsplanung
+                                cm61x-plscn           "=SPACE
+                                cm61x-werks
+                                space.
+<font color ="#8C8C8C">*--&gt Pre-Read</font>
+  CALL FUNCTION 'MD_MRP_PREREAD'.
+<font color ="#8C8C8C">*--&gt Dispobereichs-Planung aktiv/inaktiv</font>
+  PERFORM <a href ="javascript:Link('MM61XDBR_READ_T000MD.html?id=#000000000138');">read_t000md</a>.
+<font color ="#8C8C8C">*--&gt Check on Existence of Plant MRP Areas</font>
+  PERFORM check_mdlw_exist IN PROGRAM saplmrp1.
+<font color ="#8C8C8C">*--&gt Planungswerk bzw. zugehörige Dispobereiche einlesen</font>
+  PERFORM <a href ="javascript:Link('MM61XF40_FILL_PLANTX.html?id=#000000000252');">fill_plantx</a>.
+<font color ="#8C8C8C">*--&gt Planungswerk zuweisen</font>
+  PERFORM assign_plant.
+<font color ="#8C8C8C">*--&gt Initialisierung des Set-Keys MDVM/DMVM</font>
+  PERFORM init_set_key.
+<font color ="#8C8C8C">*--&gt Materialvormerkungen lesen</font>
+  PERFORM <a href ="javascript:Link('MM61XMDV_MDMMX_FILL.html?id=#000000000698');">mdmmx_fill</a>.
+<font color ="#8C8C8C">*--&gt LOOP ueber Materialvormerkdatei</font>
+  DO.
+    IF cl_pph_mdpsx_selection=&gtget_hana_active( ) = abap_true.
+      IF  mdmmx[] IS INITIAL
+      AND lt_matnr_werks_berid IS NOT INITIAL.
+        PERFORM <a href ="javascript:Link('MM61XMDV_READ_NEXT_MDMMX_PL.html?id=#000000000704');">add_new_planning_objects</a> TABLES mdmmx
+                                         USING  lv_disst
+                                                lt_matnr_werks_berid.
+<font color ="#8C8C8C">*       Measure runtime for packages</font>
+        get_start_time time5.
+<font color ="#8C8C8C">*       for display of MRP list use non-aggregated mode</font>
+        lv_buffer_result = cl_pph_mdpsx_selection=&gtgc_buffer_mode_x.
+        PERFORM <a href ="javascript:Link('MM61XC02_PLAN_SIT_PREREAD.html?id=#000000000055');">planning_situation_preread</a> USING    rm61x-anzdl
+                                                    lv_buffer_result
+                                                    lt_matnr_werks_berid.
+        run_time tdiff time6 time5.
+        gv_rtime_pre = gv_rtime_pre + tdiff.
+<font color ="#8C8C8C">*       Reset addtl. planning file entries for th re-read package</font>
+        PERFORM <a href ="javascript:Link('MM61XC02_RESET_REQUESTS.html?id=#000000000063');">reset_int_planning_requests</a> TABLES lt_dummy_tab
+                                                   lt_matnr_werks_berid
+                                            USING  lv_disst.
+<font color ="#8C8C8C">*       Clear already read materials from table</font>
+        CLEAR lt_matnr_werks_berid[].
+      ENDIF.
+    ENDIF.
+
+<font color ="#8C8C8C">*--&gt Lesen naechste Materialvormerkung</font>
+    PERFORM <a href ="javascript:Link('MM61XMDV_READ_NEXT_MDMMX_PL.html?id=#000000000703');">read_next_mdmmx_pl</a> USING am61x-rcode.      "CM61X CM61D
+    IF am61x-rcode NE char0.
+      EXIT.
+    ENDIF.
+
+
+"{ Begin ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+<font color ="#8C8C8C">*--&gt PIC : Check material master for interchangability</font>
+<font color ="#8C8C8C">*--&gt View Materialstamm lesen</font>
+
+    PERFORM <a href ="javascript:Link('MM61XC02_READ_MT61D.html?id=#000000000059');">READ_MT61D</a> USING CM61D-MATNR CM61D-WERKS CM61D-BERID.
+    IF SY-SUBRC NE 0.
+      MOVE CHAR1 TO AM61X-RCODE.
+<font color ="#8C8C8C">*     EXIT.                                       " &lt&lt&lt&lt DEL note 356157</font>
+      PERFORM <a href ="javascript:Link('MM61XC02_LOESCHEN_MDVM_BT.html?id=#000000000053');">LOESCHEN_MDVM_BT</a>.                   " &lt&lt&lt&lt INS note 356157
+      CONTINUE.                                   " &lt&lt&lt&lt INS note 356157
+    ENDIF.
+<font color ="#8C8C8C">*--&gt PIC : material check for MPN+SUS</font>
+    PERFORM PIC_MDVM_CHECK_BT
+                      USING     MT61D
+                      CHANGING  LV_PIC_RC GT_PIC_PARTS[].
+    IF LV_PIC_RC NE 0.
+      MOVE CHAR1 TO AM61X-RCODE.
+      CONTINUE.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt PIC : Processing SUS-Chain / MPN MRP SET                      "46a</font>
+    IF NOT GT_PIC_PARTS[] IS INITIAL.
+       PERFORM PIC_DO_MRP_BT .
+       CONTINUE.
+    ENDIF.
+"{ End ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+
+
+ENHANCEMENT-POINT mm61xf31_loop_mdvm_for_mrp_02 SPOTS es_sapmm61x.
+<font color ="#8C8C8C">* note 368933 - B</font>
+<font color ="#8C8C8C">*--&gt Ohne Listung im Retail keine Planung</font>
+    CHECK cm61d-nolst IS INITIAL.
+<font color ="#8C8C8C">* note 368933 - E</font>
+
+    IF cl_pph_mdpsx_selection=&gtget_hana_active( ) = abap_true.
+<font color ="#8C8C8C">*     Remember low level code</font>
+      lv_disst = cm61d-disst.
+<font color ="#8C8C8C">*     performance improvements for HANA optimization</font>
+      CALL FUNCTION 'MD_GET_PLANNING_REQUESTS_ALL'
+        TABLES
+          ct_mdmmx = lt_planrequest_temp.
+<font color ="#8C8C8C">*     check whether currrent material is already marked with a planning request</font>
+      READ TABLE lt_planrequest_temp
+           WITH KEY disst = cm61d-disst
+                    matnr = cm61d-matnr
+                    plwrk = cm61d-werks
+                    berid = cm61d-berid
+        BINARY SEARCH
+        TRANSPORTING NO FIELDS.
+      IF sy-subrc = 0.
+<font color ="#8C8C8C">*       delay planning of this planning object to the end since buffer has to be updated</font>
+        CALL METHOD cl_pph_mdpsx_selection=&gtget_other_matnr_werks_requests
+          EXPORTING
+            is_planning_request_current = cm61d
+          IMPORTING
+            et_matnr_werks_berid        = lt_matnr_werks_berid
+          CHANGING
+            ct_planning_request         = mdmmx[].
+
+        IF  mdmmx[] IS INITIAL
+        AND lt_matnr_werks_berid IS NOT INITIAL.
+          PERFORM <a href ="javascript:Link('MM61XMDV_READ_NEXT_MDMMX_PL.html?id=#000000000704');">add_new_planning_objects</a> TABLES mdmmx
+                                           USING  lv_disst
+                                                  lt_matnr_werks_berid.
+<font color ="#8C8C8C">*         Measure runtime for packages</font>
+          get_start_time time5.
+<font color ="#8C8C8C">*         for display of MRP list use non-aggregated mode</font>
+          lv_buffer_result = cl_pph_mdpsx_selection=&gtgc_buffer_mode_x.
+          PERFORM <a href ="javascript:Link('MM61XC02_PLAN_SIT_PREREAD.html?id=#000000000055');">planning_situation_preread</a> USING    rm61x-anzdl
+                                                      lv_buffer_result
+                                                      lt_matnr_werks_berid.
+          run_time tdiff time6 time5.
+          gv_rtime_pre = gv_rtime_pre + tdiff.
+<font color ="#8C8C8C">*         Reset addtl. planning file entries for th re-read package</font>
+          PERFORM <a href ="javascript:Link('MM61XC02_RESET_REQUESTS.html?id=#000000000063');">reset_int_planning_requests</a> TABLES lt_dummy_tab
+                                                     lt_matnr_werks_berid
+                                              USING  lv_disst.
+<font color ="#8C8C8C">*         Clear already read materials from table</font>
+          CLEAR lt_matnr_werks_berid[].
+        ENDIF.
+      ENDIF.
+    ENDIF.
+
+<font color ="#8C8C8C">*--&gt Naechstes Material bearbeiten</font>
+    get_start_time time3.
+    PERFORM bearbeiten_material_pl.
+    CLEAR tdiff.
+    run_time tdiff time4 time3.
+    IF cm61x-stopx = xflag.            "stop planning
+      EXIT.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Statistik erfassen</font>
+    IF cm61d-nomrp IS INITIAL.
+      PERFORM erfassen_statistik USING tdiff.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Collect Material Status</font>
+    MOVE-CORRESPONDING cm61d TO lv_result.
+    MOVE tdiff TO lv_result-rtime.
+    IF NOT gv_md_planning_result_act IS INITIAL.            "HW 557324
+      CALL METHOD gv_md_planning_result-&gtcollect_material_status
+        EXPORTING
+          im_result    = lv_result
+          im_matstat   = statn
+        CHANGING
+          ex_statustab = gt_statustab.
+    ENDIF.
+
+<font color ="#8C8C8C">*   performance improvements for HANA optimization</font>
+    IF cl_pph_mdpsx_selection=&gtget_hana_active( ) = abap_true.
+      PERFORM <a href ="javascript:Link('MM61XC02_CHECK_BUFFER.html?id=#000000000037');">check_and_delete_buffer</a> TABLES lt_dummy_tab
+                                             mdmmx
+                                             lt_matnr_werks_berid
+                                             lt_dummy_tab
+                                      USING  cm61d.
+    ENDIF.
+
+  ENDDO.
+<font color ="#8C8C8C">*--&gt Planungslauf entsperren</font>
+  PERFORM dequeue_mrp_run USING mdobjb
+                                cm61x-plscn
+                                cm61x-werks
+                                space.
+<font color ="#8C8C8C">*--&gt Statistik aufbereiten</font>
+  PERFORM <a href ="javascript:Link('MM61XF88_AUFBEREITEN_STATISTIK.html?id=#000000000396');">aufbereiten_statistik</a>.
+ENDFORM.                    "LOOP_MDVM_FOR_MRP
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

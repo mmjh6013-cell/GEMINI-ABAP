@@ -1,0 +1,558 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>LZFGMM02F01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: LZFGMM02F01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">***INCLUDE LZFGMM02F01.</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form BAPI_MATERIAL_SAVEDATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt LS_SAVE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+FORM BAPI_MATERIAL_SAVEDATA  USING    PS_SAVE LIKE ZMMS0012.
+
+  DATA: LS_HEAD   TYPE BAPIMATHEAD,
+        LS_MARA   TYPE BAPI_MARA,
+        LS_MARAX  TYPE BAPI_MARAX,
+        LS_RETURN TYPE BAPIRET2.
+
+  DATA: LT_MAKT TYPE TABLE OF BAPI_MAKT WITH HEADER LINE.
+
+  LS_HEAD-MATERIAL   = PS_SAVE-INF_NUMBER.
+  LS_HEAD-BASIC_VIEW = 'X'.
+
+  LT_MAKT-LANGU      = SY-LANGU.
+  LT_MAKT-MATL_DESC  = PS_SAVE-INF_DESC.
+  APPEND LT_MAKT.
+
+  CALL FUNCTION 'BAPI_MATERIAL_SAVEDATA'
+    EXPORTING
+      HEADDATA            = LS_HEAD
+      CLIENTDATA          = LS_MARA
+      CLIENTDATAX         = LS_MARAX
+    IMPORTING
+      RETURN              = LS_RETURN
+    TABLES
+      MATERIALDESCRIPTION = LT_MAKT.
+
+  IF LS_RETURN-TYPE = 'E' OR LS_RETURN-TYPE = 'A'.
+    CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
+    PS_SAVE-IF_TYPE = 'E'.
+    PS_SAVE-IF_MSG = LS_RETURN-MESSAGE.
+
+  ELSE.
+    CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+      EXPORTING
+        WAIT = 'X'.
+
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SET_BAPI_BATCH</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt LS_DATA</font>
+<font color ="#8C8C8C">*&      --&gt LS_DATA_GUBUN</font>
+<font color ="#8C8C8C">*&      &lt-- LS_BATCHATT</font>
+<font color ="#8C8C8C">*&      &lt-- LS_BATCHATTX</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+FORM SET_BAPI_BATCH  USING    PS_DATA LIKE ZMMS0540
+                              PV_GUBUN
+                     CHANGING PS_BATCHATT  TYPE BAPIBATCHATT
+                              PS_BATCHATTX TYPE BAPIBATCHATTX.
+
+  DATA: LS_BATCHATT  TYPE BAPIBATCHATT,
+        LS_BATCHATTX TYPE BAPIBATCHATTX.
+
+  DATA: LV_DATUM LIKE SY-DATUM.
+
+  CASE PV_GUBUN.
+    WHEN '1'.
+      LS_BATCHATT-PROD_DATE  = PS_DATA-ZHSDAT.   "###
+      LS_BATCHATT-VENDRBATCH = PS_DATA-ZLICHA.   "#### ##
+
+      IF PS_DATA-ZVFDAT &lt&gt '00000000'.
+        LS_BATCHATT-EXPIRYDATE = PS_DATA-ZVFDAT.   "###
+        LV_DATUM = PS_DATA-ZVFDAT - 30.
+        LS_BATCHATT-NEXTINSPEC = LV_DATUM.   "NEXT INSPECTION DATE
+
+      ENDIF.
+
+      IF PS_DATA-ZLWEDT IS NOT INITIAL.
+        LS_BATCHATT-LASTGRDATE = PS_DATA-ZLWEDT. "#####
+      ENDIF.
+
+
+    WHEN '2'.
+      IF PS_DATA-ZHSDAT &lt&gt '00000000'.
+        LS_BATCHATT-PROD_DATE  = PS_DATA-ZHSDAT.
+        LS_BATCHATTX-PROD_DATE = 'X'.
+
+      ENDIF.
+
+      IF PS_DATA-ZVFDAT &lt&gt '00000000'.
+        LS_BATCHATT-EXPIRYDATE  = PS_DATA-ZVFDAT.
+        LS_BATCHATTX-EXPIRYDATE = 'X'.
+
+        LV_DATUM = PS_DATA-ZVFDAT - 30.
+        LS_BATCHATT-NEXTINSPEC = LV_DATUM.   "NEXT INSPECTION DATE
+        LS_BATCHATTX-NEXTINSPEC = 'X'.
+
+      ENDIF.
+
+      IF PS_DATA-ZLICHA IS NOT INITIAL.
+        LS_BATCHATT-VENDRBATCH  = PS_DATA-ZLICHA.
+        LS_BATCHATTX-VENDRBATCH = 'X'.
+
+      ENDIF.
+
+
+      IF PS_DATA-ZLWEDT IS NOT INITIAL.
+        LS_BATCHATT-LASTGRDATE  = PS_DATA-ZLWEDT.
+        LS_BATCHATTX-LASTGRDATE = 'X'.
+
+      ENDIF.
+
+  ENDCASE.
+
+  PS_BATCHATT  = LS_BATCHATT.
+  PS_BATCHATTX = LS_BATCHATTX.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form MERGE_CLASS_INFO</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt LS_DATA</font>
+<font color ="#8C8C8C">*&      &lt-- LT_ALLOC_CHAR</font>
+<font color ="#8C8C8C">*&      &lt-- LT_ALLOC_NUM</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+FORM MERGE_CLASS_INFO  USING   PS_DATA       TYPE ZMMS0540
+                      CHANGING PT_ALLOC_CHAR TYPE TT_BAPI1003_ALLOC_VALUES_CHAR
+                               PT_ALLOC_NUM  TYPE TT_BAPI1003_ALLOC_VALUES_NUM.
+
+  PERFORM MERGE_NUM USING PT_ALLOC_NUM: PS_DATA-ZHSDAT   'ZHSDAT'   'X',
+                                        PS_DATA-ZBUDAT   'ZBUDAT'   'X',
+                                        PS_DATA-ZVFDAT   'ZVFDAT'   'X',
+                                        PS_DATA-ZLWEDT   'ZLWEDT'   'X',
+                                        PS_DATA-ZNDATE   'ZNDATE'   'X',
+                                        PS_DATA-ZVERSION 'ZVERSION' ' ',
+                                        PS_DATA-ZVFNUM   'ZVFNUM'   ' '.
+
+  PERFORM MERGE_CHAR USING PT_ALLOC_CHAR: PS_DATA-ZLICHA  'ZLICHA',
+                                          PS_DATA-ZPCHARG 'ZPCHARG',
+                                          PS_DATA-ZECONUM 'ZECONUM',
+                                          PS_DATA-ZFMNUM  'ZFMNUM',
+                                          PS_DATA-ZDESTI  'ZDESTI'.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CTCV_CONVERT_DATE_TO_FLOAT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt PS_DATA_ZHSDAT</font>
+<font color ="#8C8C8C">*&      &lt-- LV_FLOAT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+FORM CTCV_CONVERT_DATE_TO_FLOAT  USING    PV_DATE
+                                 CHANGING PV_FLOAT.
+
+  DATA: LV_DATE  LIKE CAWN-ATWRT,
+        LV_FLOAT LIKE CAWN-ATFLV.
+
+  LV_DATE = PV_DATE.
+
+  CALL FUNCTION 'CTCV_CONVERT_DATE_TO_FLOAT'
+    EXPORTING
+      DATE  = LV_DATE
+    IMPORTING
+      FLOAT = LV_FLOAT.
+
+  PV_FLOAT = LV_FLOAT.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CTCV_CONVERT_FLOAT_TO_DATE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt PS_DATA_ZHSDAT</font>
+<font color ="#8C8C8C">*&      &lt-- LV_FLOAT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+FORM CTCV_CONVERT_FLOAT_TO_DATE  USING    PV_FLOAT
+                                 CHANGING PV_DATE.
+
+  DATA: LV_DATE  LIKE CAWN-ATWRT,
+        LV_FLOAT LIKE CAWN-ATFLV.
+
+  LV_FLOAT = PV_FLOAT.
+
+  CALL FUNCTION 'CTCV_CONVERT_FLOAT_TO_DATE'
+    EXPORTING
+      FLOAT = LV_FLOAT
+    IMPORTING
+      DATE  = LV_DATE.
+
+  PV_DATE = LV_DATE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SET_IF_LOG</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt LV_INDEX</font>
+<font color ="#8C8C8C">*&      &lt-- LS_SAVE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+FORM SET_IF_LOG  USING    PV_NUMBER
+                          PV_INDEX
+                          PV_IF_SYS
+                          PV_PROXY
+                 CHANGING PS_SAVE TYPE ANY .
+
+  DATA BEGIN OF LS_SAVE.
+  include structure <a href ="zcms0030,/dictionary-zcms0030,.html">ZCMS0030,</a>.
+                     ZCMS0040.
+
+  DATA END OF LS_SAVE.
+
+  LS_SAVE-IF_KEY   = PV_NUMBER.
+  LS_SAVE-IF_ITEM  = PV_INDEX.
+  LS_SAVE-IF_DATE  = SY-DATUM.
+  LS_SAVE-IF_TIME  = SY-UZEIT.
+  LS_SAVE-IF_SYS   = PV_IF_SYS.
+  LS_SAVE-IF_PROXY = PV_PROXY.
+
+  LS_SAVE-IF_UNAME    = SY-UNAME.
+  LS_SAVE-IF_SAP_DATE = SY-DATUM.
+  LS_SAVE-IF_SAP_TIME = SY-UZEIT.
+
+  MOVE-CORRESPONDING LS_SAVE TO PS_SAVE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form CHECK_ERROR_LIST</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt LS_ZMMT0580</font>
+<font color ="#8C8C8C">*&      --&gt LV_SUM_MENGE</font>
+<font color ="#8C8C8C">*&      &lt-- LV_ERROR_FLAG</font>
+<font color ="#8C8C8C">*&      &lt-- LV_ERR_MSG</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+FORM CHECK_ERROR_LIST  USING    PV_SUM_MENGE  TYPE MENGE_D
+                       CHANGING PT_DATA       LIKE GT_PO_STORE
+                                PV_ERROR_FLAG
+                                PV_ERR_MSG.
+
+<font color ="#8C8C8C">**## ####### #### ##</font>
+  SELECT A~*,
+         B~VBELN,
+         B~POSNR,
+         B~MIGO_CHK,
+         B~MBLNR,
+         B~MJAHR,
+         CASE WHEN B~IF_TYPE = 'D' OR B~VBELN_DEL IS NOT INITIAL OR B~SMBLN IS NOT INITIAL
+              THEN @ABAP_TRUE
+               END AS DELETE_EXC
+    FROM @PT_DATA AS A LEFT OUTER JOIN ZMMT0581 AS B
+                                    ON B~EBELN = A~EBELN
+                                   AND B~EBELP = A~EBELP
+                                   AND B~EXIDV = A~EXIDV
+    INTO CORRESPONDING FIELDS OF TABLE @PT_DATA.
+
+  IF LINE_EXISTS( PT_DATA[ DELETE_EXC = ABAP_TRUE ] ).
+    DATA(LS_DEL_DATA) = PT_DATA[ DELETE_EXC = ABAP_TRUE ].
+    PV_ERROR_FLAG = 'E'.
+    PV_ERR_MSG = |Deleting or completed.( { LS_DEL_DATA-EBELN }/{ LS_DEL_DATA-EBELP })|.
+    EXIT.
+  ENDIF.
+
+<font color ="#8C8C8C">**HEADER</font>
+  "## ### ##
+  READ TABLE PT_DATA INTO DATA(LS_DATA) INDEX 1.
+
+  IF LS_DATA-TOTAL_MENGE &lt&gt PV_SUM_MENGE.
+    PV_ERROR_FLAG = 'E'.
+    PV_ERR_MSG = 'Header Quantity and Items Quantity are not equal'.
+    EXIT.
+
+  ENDIF.
+
+  "#### 3100 ## ## ## ##
+  IF PV_ERROR_FLAG IS INITIAL.
+    IF LS_DATA-INSMK = 'X' OR LS_DATA-ZDETECT = 'X'.
+      PV_ERROR_FLAG = 'E'.
+      PV_ERR_MSG =
+      'Inventory status (Inspection/Sorting) cannot be assigned to storage locations 3100 and above'.
+      EXIT.
+
+    ENDIF.
+
+  ENDIF.
+
+<font color ="#8C8C8C">**ITEM</font>
+  "## ##(MCH1) ## ##
+  SELECT DISTINCT A~MATNR, A~CHARG
+    FROM MCH1 AS A INNER JOIN @PT_DATA AS B
+                           ON B~MATNR = A~MATNR
+                          AND B~CHARG = A~CHARG
+    INTO TABLE @DATA(LT_MCH1).
+  SORT LT_MCH1 BY MATNR CHARG.
+
+  "## #### ##
+  SELECT DISTINCT B~EBELN, B~EBELP, B~LOEKZ, B~ELIKZ,
+                  B~WERKS, A~LIFNR, B~MENGE
+    FROM EKKO AS A INNER JOIN EKPO AS B
+                           ON B~EBELN = A~EBELN
+                   INNER JOIN @PT_DATA AS C
+                           ON C~EBELN = B~EBELN
+                          AND C~EBELP = B~EBELP
+    INTO TABLE @DATA(LT_EKPO).
+  SORT LT_EKPO BY EBELN EBELP.
+
+  "## ###
+  DATA(LT_DATA) = PT_DATA.
+  SORT LT_DATA BY EBELN EBELP.
+  DELETE ADJACENT DUPLICATES FROM LT_DATA COMPARING EBELN EBELP.
+
+  SELECT A~EBELN, A~EBELP, SUM( A~MENGE ) AS MENGE
+    FROM EKES AS A INNER JOIN @LT_DATA AS B
+                           ON B~EBELN = A~EBELN
+                          AND B~EBELP = A~EBELP
+   WHERE A~EBTYP = 'LA' "INBOUND
+   GROUP BY A~EBELN, A~EBELP
+    INTO TABLE @DATA(LT_EKES).
+  SORT LT_EKES BY EBELN EBELP.
+  CLEAR LT_DATA.
+
+  "### HU NUMBER ##
+  SELECT DISTINCT A~EXIDV
+    FROM VEKP AS A INNER JOIN @PT_DATA AS B
+                           ON A~EXIDV = B~EXIDV
+                          AND B~ZCHECK = @SPACE
+    INTO TABLE @DATA(LT_VEKP).
+  SORT LT_VEKP BY EXIDV.
+
+  "### IF# ## ##
+  SELECT DISTINCT A~IF_KEY, A~IF_ID
+    FROM ZMMT0580 AS A INNER JOIN @PT_DATA AS B
+                               ON B~IF_KEY = A~IF_KEY
+                              AND B~IF_ID  = A~IF_ID
+   WHERE A~IF_TYPE = 'S'
+    INTO TABLE @DATA(LT_0580).
+  SORT LT_0580 BY IF_KEY IF_ID.
+
+  " ### ## ## (PO ## # HU ##)
+  LOOP AT PT_DATA ASSIGNING FIELD-SYMBOL(&ltLS_DATA&gt).
+    " PO ## ##
+    READ TABLE LT_EKPO ASSIGNING FIELD-SYMBOL(&ltLS_EKPO&gt)
+                       WITH KEY EBELN = &ltLS_DATA&gt-EBELN
+                                EBELP = &ltLS_DATA&gt-EBELP
+                                BINARY SEARCH.
+    IF SY-SUBRC = 0.
+      IF &ltLS_EKPO&gt-LOEKZ IS NOT INITIAL OR &ltLS_EKPO&gt-ELIKZ IS NOT INITIAL.
+        PV_ERROR_FLAG = 'E'.
+        PV_ERR_MSG    = |Check delete or delivery complete|.
+        EXIT.
+
+      ELSE.
+        &ltLS_DATA&gt-WERKS = &ltLS_EKPO&gt-WERKS.
+        &ltLS_DATA&gt-LIFNR = &ltLS_EKPO&gt-LIFNR.
+
+        "## ##
+        &ltLS_EKPO&gt-MENGE -= &ltLS_DATA&gt-MENGE_I.
+
+        READ TABLE LT_EKES INTO DATA(LS_EKES)
+                           WITH KEY EBELN = &ltLS_DATA&gt-EBELN
+                                    EBELP = &ltLS_DATA&gt-EBELP
+                                    BINARY SEARCH.
+
+        DATA(LV_EKES_MENGE) = COND #( WHEN SY-SUBRC = 0 THEN LS_EKES-MENGE ELSE 0 ).
+
+        IF &ltLS_EKPO&gt-MENGE &lt LV_EKES_MENGE.
+          PV_ERROR_FLAG = 'E'.
+          PV_ERR_MSG = |Check PO remaining amount|.
+          EXIT.
+
+        ENDIF.
+
+      ENDIF.
+
+    ENDIF.
+
+    " HU ## ##
+    IF &ltLS_DATA&gt-ZCHECK &lt&gt 'X'.
+      READ TABLE LT_VEKP TRANSPORTING NO FIELDS
+                         WITH KEY EXIDV = &ltLS_DATA&gt-EXIDV
+                         BINARY SEARCH.
+
+      IF SY-SUBRC = 0.
+        PV_ERROR_FLAG = 'E'.
+        PV_ERR_MSG = |The HU Number already exist: { &ltLS_DATA&gt-EXIDV }|.
+        EXIT.
+
+      ENDIF.
+
+    ENDIF.
+
+    "HU 10## # ### ##### ##
+    DATA(LV_PURE_EXIDV) = CONDENSE( &ltLS_DATA&gt-EXIDV_O ).
+
+    IF LV_PURE_EXIDV CN '0123456789' OR
+       STRLEN( LV_PURE_EXIDV ) &lt&gt 10.
+      PV_ERROR_FLAG = 'E'.
+      PV_ERR_MSG    = 'Check HU number'.
+      EXIT.
+
+    ENDIF.
+
+    READ TABLE LT_MCH1 INTO DATA(LS_MCH1)
+                       WITH KEY MATNR = &ltLS_DATA&gt-MATNR
+                                CHARG = &ltLS_DATA&gt-CHARG
+                                BINARY SEARCH.
+
+    IF SY-SUBRC &lt&gt 0.
+      PV_ERROR_FLAG = 'E'.
+      PV_ERR_MSG = 'Batch number is not exist'.
+      EXIT.
+
+    ENDIF.
+
+    "IF ##
+    READ TABLE LT_0580 TRANSPORTING NO FIELDS
+                       WITH KEY IF_KEY = &ltLS_DATA&gt-IF_KEY
+                                IF_ID  = &ltLS_DATA&gt-IF_ID
+                                BINARY SEARCH.
+
+    IF SY-SUBRC = 0.
+      PV_ERROR_FLAG = 'S'.
+      PV_ERR_MSG    = 'Duplicate IF key'.
+      EXIT.
+
+    ENDIF.
+
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form MERGE_NUM</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt PT_ALLOC_NUM</font>
+<font color ="#8C8C8C">*&      --&gt ZHSDAT</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+FORM MERGE_NUM  USING    PT_ALLOC_NUM  TYPE TT_BAPI1003_ALLOC_VALUES_NUM
+                         PV_DATA
+                         PV_FIELD
+                         PV_CHECK.
+
+  FIELD-SYMBOLS: &ltFV_DATA&gt TYPE ANY,
+                 &ltFS_NUM&gt  TYPE BAPI1003_ALLOC_VALUES_NUM.
+  DATA: LV_FLOAT TYPE AUSP-ATFLV.
+
+  IF PV_DATA IS INITIAL OR PV_DATA = '00000000'.
+    EXIT.
+
+  ENDIF.
+
+  CASE PV_CHECK.
+    WHEN ABAP_TRUE.
+      PERFORM CTCV_CONVERT_DATE_TO_FLOAT USING PV_DATA CHANGING LV_FLOAT.
+      ASSIGN LV_FLOAT TO &ltFV_DATA&gt.
+
+    WHEN SPACE.
+      ASSIGN PV_DATA TO &ltFV_DATA&gt.
+
+  ENDCASE.
+
+  READ TABLE PT_ALLOC_NUM ASSIGNING &ltFS_NUM&gt
+                          WITH KEY CHARACT = PV_FIELD.
+
+  IF SY-SUBRC = 0.
+    &ltFS_NUM&gt-VALUE_FROM = &ltFV_DATA&gt.
+
+  ELSE.
+    APPEND VALUE BAPI1003_ALLOC_VALUES_NUM( CHARACT = PV_FIELD VALUE_FROM = &ltFV_DATA&gt ) TO PT_ALLOC_NUM.
+
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form MERGE_CHAR</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt PT_ALLOC_CHAR</font>
+<font color ="#8C8C8C">*&      --&gt PS_DATA_ZLICHA</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+FORM MERGE_CHAR  USING    PT_ALLOC_CHAR TYPE TT_BAPI1003_ALLOC_VALUES_CHAR
+                          PV_DATA
+                          PV_FIELD.
+
+  IF PV_DATA IS INITIAL.
+    EXIT.
+
+  ENDIF.
+
+  DELETE PT_ALLOC_CHAR WHERE CHARACT = PV_FIELD.
+  APPEND VALUE BAPI1003_ALLOC_VALUES_CHAR( CHARACT = PV_FIELD  VALUE_CHAR = PV_DATA ) TO PT_ALLOC_CHAR.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form SAVE_LOG_PO_STORE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt LT_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+FORM SAVE_LOG_PO_STORE  USING    PT_DATA LIKE GT_PO_STORE
+                     CHANGING    PT_RETURN.
+
+  DATA: LS_ZMMT0580 TYPE ZMMT0580,
+        LT_ZMMT0580 LIKE TABLE OF LS_ZMMT0580 WITH EMPTY KEY,
+        LS_ZMMT0581 TYPE ZMMT0581,
+        LT_ZMMT0581 LIKE TABLE OF ZMMT0581 WITH EMPTY KEY,
+        LT_RETURN   TYPE TABLE OF ZMMMM0110_RECV_RES_MT_RETURN,
+        LT_DATA     LIKE PT_DATA.
+
+  LT_RETURN = CORRESPONDING #( PT_DATA MAPPING  IF_SEQ  = IF_ITEM
+                                                STATUS  = IF_TYPE
+                                                MESSAGE = IF_MSG ) .
+  MOVE-CORRESPONDING LT_RETURN TO PT_RETURN.
+
+  MOVE-CORRESPONDING PT_DATA TO LT_ZMMT0580.
+  MODIFY ZMMT0580 FROM TABLE LT_ZMMT0580.
+
+  "## ## #### ##### ## #### ##
+  LT_DATA = PT_DATA.
+  DELETE LT_DATA WHERE DELETE_EXC = ABAP_TRUE.
+  MOVE-CORRESPONDING PT_DATA TO LT_ZMMT0581.
+  MODIFY ZMMT0581 FROM TABLE LT_ZMMT0581.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

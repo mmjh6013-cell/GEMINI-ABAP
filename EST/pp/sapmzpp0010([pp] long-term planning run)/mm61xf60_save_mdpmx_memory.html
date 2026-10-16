@@ -1,0 +1,79 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF60_SAVE_MDPMX_MEMORY</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF60_SAVE_MDPMX_MEMORY</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Aufloesungstabelle fuer Verbuchung sichern</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000357"></div>
+FORM save_mdpmx_memory.
+<font color ="#8C8C8C">*--&gt Vorraussetzungen pruefen</font>
+  IF  mdps-rsnum IS INITIAL
+  AND am61x-vstat &lt&gt vstath.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Auflösungsflag prüfen (bei Komp.fixierung Anpassung durchführen)</font>
+  IF cm61x-inmem EQ gc_false
+  AND mdps-aktal NE xflag
+  AND mdpss-fix02 NE xflag.                                 "HW 171004
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt vorlaeufiges Abfangen von LP-Einteilungen ohne LB-Komponenten</font>
+  IF  mdps-delkz =  lpein
+  AND mdps-sobes &lt&gt '3'.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Move Auftragskopfdaten in PLKV</font>
+  PERFORM put_mpxx_plkva USING mdps-delkz.
+<font color ="#8C8C8C">*--&gt Pruefen Veraenderung</font>
+  IF plkva       &lt&gt plkvs
+  OR cm61x-inmem =  gc_true
+  OR mdpss-fix02 =  xflag.                              "TL note 425143
+<font color ="#8C8C8C">*--&gt Fixierung überprüfen</font>
+    CASE mdps-delkz.
+      WHEN plauf
+      OR   saauf.
+        IF mdps-fix02 NE xflag AND cm61x-inmem = gc_false.
+          PERFORM <a href ="javascript:Link('MM61XF59_RESET_AKTAL_01.html?id=#000000000343');">reset_aktal_01</a>. EXIT.
+        ENDIF.
+        PERFORM update_mdpmx_plaf.
+      WHEN bsanf.
+        IF mdps-fix02 NE xflag AND cm61x-inmem = gc_false.
+          PERFORM <a href ="javascript:Link('MM61XF59_RESET_AKTAL_01.html?id=#000000000343');">reset_aktal_01</a>. EXIT.
+        ENDIF.
+        PERFORM update_mdpmx_bsanf.
+      WHEN lpein.
+        IF mdps-fix02 NE xflag AND cm61x-inmem = gc_false.
+          PERFORM <a href ="javascript:Link('MM61XF59_RESET_AKTAL_01.html?id=#000000000343');">reset_aktal_01</a>. EXIT.
+        ENDIF.
+        PERFORM update_mdpmx_lpein.
+      WHEN OTHERS.
+        MESSAGE a888.
+    ENDCASE.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Auflösungstabelle ins MEMORY exportieren</font>
+  CALL FUNCTION 'MD_SAVE_MDPMI_MEMORY'
+       EXPORTING
+            ersnum = mdps-rsnum
+            eplnum = mdps-delnr
+       TABLES
+            mdpmx  = mdpmx.
+<font color ="#8C8C8C">*--&gt Setzen Kennzeichen fuer aktuelle Stueli-Aufloesung</font>
+  mdps-aktal = xflag.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

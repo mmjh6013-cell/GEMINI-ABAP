@@ -1,0 +1,147 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZCOR1000_TOP</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZCOR1000_TOP</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZCOR1000_TOP</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+
+TABLES : tka02 ,sscrfields.
+
+
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* TYPE TABLE</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+" #### ## ##
+TYPES: BEGIN OF ty_excel,
+         line_no    TYPE i,                " Excel # ## (## #### ### ####)
+         kokrs      TYPE kokrs,            " Controlling Area (######)
+         bukrs      TYPE bukrs,            " Company Code (####)
+         versn      TYPE tka09-versn,      " Version (##: B00, R01...)
+         cal_year   TYPE gjahr,            " Calendar Year (## ##)
+         cal_period TYPE monat,       " Calendar Period (## #, 01~12)
+         kostl      TYPE kostl,            " Cost Center (### ##)
+         kstar      TYPE kstar,            " Cost Element (####/##)
+<font color ="#8C8C8C">*         amount        TYPE bapicurr_d,  " ##       " Amount</font>
+<font color ="#8C8C8C">*         amount        TYPE wrbtr,     " ##         " Amount (##)</font>
+         amount        TYPE bapicurr_d,  "#[AMOUNT ##] Excel # ### '## ##' ### ### ####.
+       END OF ty_excel.
+
+"" ALV ### ## ##
+TYPES: BEGIN OF ty_alv,
+
+         line_no       TYPE i,             " Excel # ##
+         kokrs         TYPE kokrs,         " Controlling Area
+         bukrs         TYPE bukrs,         " Company Code
+         versn         TYPE tka09-versn,   " Version
+         cal_year      TYPE gjahr,         " Cal. Year  (Excel #)
+         cal_period    TYPE monat,       " ##    " Cal. Period (Excel #)
+         gjahr         TYPE gjahr,         " Fiscal Year   (FI_PERIOD_DETERMINE # ##)
+         poper         TYPE poper,         " Fiscal Period (FI_PERIOD_DETERMINE # ##)
+         kostl         TYPE kostl,         " Cost Center
+         kostl_txt     TYPE ltext,         " Cost Center ### (CSKT)
+         kstar         TYPE kstar,         " COE. Lv2 (Excel # ##)
+         kstar_txt     TYPE ltext,         " COE. Lv2 ### (CSKU)
+         zkstlv1       TYPE zcot2010-zkstlv1,         " COE. Lv1 (ZCOT2010 ## ##)
+<font color ="#8C8C8C">*         zkstlv1_txt   TYPE ZCOT2010-ZKSTLV1_TX ,     "### #### PERFORM f_get_co004_txt ## ##" COE. Lv1 ### (ZCOT9020)</font>
+         zkstlv1_txt   TYPE char50,
+         rep_kstar     TYPE zcot2010-zkstlv2,         " 'kstar' Rep. Element = #### (BAPI # ## ##)
+         rep_kstar_txt TYPE char50,        " #### ###
+<font color ="#8C8C8C">*         amount        TYPE bapicurr_d,  " ##       " Amount</font>
+         amount        TYPE wrbtr,
+         waers         TYPE waers,         " Currency (T001-WAERS)
+
+       END OF ty_alv.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* [## 3] [Register] ## # ### ## (1.4.3.1)</font>
+<font color ="#8C8C8C">*          ## ### ### #### Index # ###</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+TYPES: BEGIN OF ty_agg,
+         gjahr     TYPE gjahr,             " Fiscal Year    #
+         poper     TYPE poper,             " Fiscal Period  #
+         kokrs     TYPE kokrs,             " Contr. Area    # # ### ###
+         bukrs     TYPE bukrs,             " Company Code   # # ## ####
+         versn     TYPE tka09-versn,       " Version        # (COLLECT # #)
+         kostl     TYPE kostl,             " Cost Center    #
+         rep_kstar TYPE kstar,             " ####       #
+         waers     TYPE waers,             " Currency       #
+         index     TYPE n LENGTH 6,        " Index (BAPI # OBJECT_INDEX / VALUE_INDEX # ##)
+<font color ="#8C8C8C">*         amount        TYPE bapicurr_d,  " ## " Amount  TYPE p LENGTH 8 DECIMALS 4,  " ### ## (COLLECT # #### ###)</font>
+         amount    TYPE wrbtr,
+       END OF ty_agg.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  BAPI ### ## (###### &ltLS_BAPI&gt)</font>
+<font color ="#8C8C8C">*    BAPI_COSTACTPLN_POSTPRIMCOST # Import / Tables ####</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+TYPES: BEGIN OF ty_bapi,
+         header         TYPE bapiplnhdr,                                       " HEADERINFO (Import, ##)
+<font color ="#8C8C8C">*         delta          TYPE bapi6031_ctrldata-delta,                          " DELTA      (Import, ##)</font>
+         indexstructure TYPE STANDARD TABLE OF bapiacpstru WITH DEFAULT KEY,   " INDEXSTRUCTURE (Tables, ##)
+         coobj          TYPE STANDARD TABLE OF bapipcpobj  WITH DEFAULT KEY,   " COOBJECT       (Tables, ##)
+         perval         TYPE STANDARD TABLE OF bapipcpval  WITH DEFAULT KEY,   " PERVALUE       (Tables, ##)
+         return         TYPE STANDARD TABLE OF bapiret2    WITH DEFAULT KEY,   " RETURN         (Tables, ##)
+       END OF ty_bapi.
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* DATA ####</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+
+DATA: gt_excel TYPE TABLE OF ty_excel.      "## #####
+
+DATA gt_alv TYPE STANDARD TABLE OF ty_alv. " ALV ### ## ###
+DATA gs_alv TYPE ty_alv.                  " ALV ### ## ##
+DATA gt_agg   TYPE STANDARD TABLE OF ty_agg.     " ## ### (BAPI ###)
+
+DATA gv_waers TYPE t001-waers.                   " #### ## - f_check_133. ## ##
+
+DATA gv_err   TYPE abap_bool.                    " ## ## ## (X ## ## ## ##)
+DATA gv_ktopl TYPE t001-ktopl.                   " #####(Chart of Accounts) -
+" #### ## - 1.3.3 ## ##
+
+DATA gv_registered TYPE abap_bool.                 "## Register ### ##
+"        (DELTA='X' ## ##### ### 2
+
+<font color ="#8C8C8C">*-------------------------------------------------------</font>
+" EXCEL DOWNLOAD & UPLOAD
+<font color ="#8C8C8C">*-------------------------------------------------------</font>
+DATA: gv_answer.  " ### yes no ##
+DATA: gs_functext1 TYPE smp_dyntxt, " ## # #### ##
+      gs_functext2 TYPE smp_dyntxt,
+      gs_functext3 TYPE smp_dyntxt.
+
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* ALV Objects</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+DATA: ok_code      TYPE sy-ucomm,
+      go_container TYPE REF TO cl_gui_custom_container,
+      go_docking   TYPE REF TO cl_gui_docking_container,
+      go_grid      TYPE REF TO cl_gui_alv_grid.
+
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* ALV Structures</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+DATA: gs_layout TYPE lvc_s_layo,
+      gt_fcat   TYPE lvc_t_fcat,
+      gs_fcat   TYPE lvc_s_fcat.
+
+<font color ="#8C8C8C">*CONSTANTS gc_x TYPE c LENGTH 1 VALUE 'X'.   " #### ## (X = ##/##)</font>
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

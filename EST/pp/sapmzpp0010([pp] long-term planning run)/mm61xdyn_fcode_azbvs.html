@@ -1,0 +1,102 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XDYN_FCODE_AZBVS</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XDYN_FCODE_AZBVS</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Absprung zur Bestandsstatistik                                      *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000145"></div>
+FORM fcode_azbvs USING modus.
+
+  DATA: l_nobes(1)   TYPE c,
+        lv_einitf    TYPE c VALUE 'X',
+        ls_mdsta_old TYPE mdsta.
+
+<font color ="#8C8C8C">*--&gt Determine Stock Statistics Information for MDSTA in the HANA case (SP02, AMDP)</font>
+  IF  cl_pph_mdpsx_selection=&gtget_hana_active( ) = abap_true
+  AND cl_pph_mdpsx_selection=&gtget_hana_selection_triggered( ) = abap_true.
+    ls_mdsta_old = mdsta.
+    CALL METHOD cl_pph_mdpsx_postprocessing=&gtfill_mdsta_for_stock
+      EXPORTING
+        iv_matnr = mdkp-matnr
+        iv_werks = mdkp-plwrk
+        iv_berid = cm61b-berid
+        is_cm61x = cm61x
+        is_cm61m = cm61m
+        is_cm61b = cm61b
+        is_t399d = t399d
+        is_mt61d = mt61d
+<font color ="#8C8C8C">*       is_esfilt = sfilt</font>
+      CHANGING
+        cs_mdsta = mdsta
+        cs_mdkp  = mdkp.
+    IF ls_mdsta_old NE mdsta.
+      lv_einitf   = chars.
+      IF am61r-umren NE mdsta-umren
+      OR am61r-umrez NE mdsta-umrez.
+        MOVE am61r-umren TO mdsta-umren.
+        MOVE am61r-umrez TO mdsta-umrez.
+        lv_einitf = charx.
+      ENDIF.
+
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Statistikfeldleiste aufbauen, wenn noch nicht gefüllt</font>
+  IF mdsta-kzsta NE xflag.
+    CALL FUNCTION 'MDSTA_AUFBAUEN'
+      EXPORTING
+        emdsta = mdsta
+        einitf = lv_einitf
+        emt61d = mt61d
+        ekzdwb = t399d-xfan1
+        ekzumb = t399d-kzumb
+        enfvbc = t399d-nfvbc
+      IMPORTING
+        imdsta = mdsta
+      TABLES
+        mdpsx  = mdpsx.
+
+    MOVE xflag TO mdsta-kzsta.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Bei Dispolisten und Langfristplanung ohne  Bestandsfelder !</font>
+  IF cm61x-plauf EQ anzdl    "Dispoliste
+  OR cm61x-plauf EQ anzds    "Dispoliste Sammel
+  OR cm61x-plauf EQ lfrdl    "LFR-Dispoliste
+  OR cm61x-plauf EQ lfrds    "LFR-Dispoliste Sammel
+  OR cm61x-plauf EQ lfrpl    "LFR-Planung
+  OR cm61x-plauf EQ lfrmp    "LFR-Planung -mehrstufig-
+  OR cm61x-plauf EQ lfrep    "LFR-Planung -einstufig-
+  OR cm61x-plauf EQ lfraz.   "Anzeigen LFR-Planung
+    MOVE xflag TO l_nobes.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Aufruf der Bestandsstatistik</font>
+  CALL FUNCTION 'MD_QUANTITY_STATISTICS'
+    EXPORTING
+      emdsta = mdsta
+      emt61d = mt61d
+      emodus = modus
+      enobes = l_nobes
+      ekzdwb = t399d-xfan1
+      ekzumb = t399d-kzumb
+      enfvbc = t399d-nfvbc
+      emdst  = mdst.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

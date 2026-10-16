@@ -1,0 +1,165 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XMDV_ADD_DBVM_TO_MDMMX</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XMDV_ADD_DBVM_TO_MDMMX</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       FORM ADD_DBVM_TO_MDMMX                                        *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Materialvormerkungen in interne Tabelle uebernehmen</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  DBVM    planning file entry                             (I)   *</font>
+<font color ="#8C8C8C">*  --&gt  PORTRC  portion return code  = 1 if DISST changed       (O)   *</font>
+<font color ="#8C8C8C">*                                  or about psize entries read</font>
+<font color ="#8C8C8C">* ( append to internal table MDMMX )</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000686"></div>
+FORM add_dbvm_to_mdmmx USING
+                         dbvm  STRUCTURE dbvm       "Arbeitsbereich
+                       CHANGING
+                         p_matnr LIKE am61x-matnr "Zeiger gel. Mat.
+                         portrc LIKE am61x-rcode.   "Paketende-Check
+  STATICS:
+    matnr_old        LIKE cm61d-matnr,        "Vorhergehende Materialnummer
+    lv_no_first_call TYPE boolean,
+    lv_psize         TYPE i,
+    lv_curr_psize    TYPE i.
+
+<font color ="#8C8C8C">*@001-Begin</font>
+<font color ="#8C8C8C">* Kennung, ob Material gelistet ist</font>
+<font color ="#8C8C8C">* DATA: L_KZGELISTET       TYPE C.</font>
+<font color ="#8C8C8C">*@001-End</font>
+  DATA:    parmx   LIKE mdmm-parmx.    "No. of tasks per material
+  DATA:    lv_max_psize TYPE char10,                       "NOTE 2121225
+           lv_min_psize TYPE char10.
+
+
+<font color ="#8C8C8C">*--&gt Return-Code zuruecksetzen</font>
+  MOVE char0 TO portrc.
+
+<font color ="#8C8C8C">*--&gt Aktuelles Material zuweisen</font>
+  MOVE dbvm-disst TO am61x-disst.
+  MOVE dbvm-matnr TO am61x-matnr.
+  MOVE dbvm-berid TO am61x-berid.
+<font color ="#8C8C8C">*--&gt Werk zu Dispobereich bestimmen</font>
+<font color ="#8C8C8C">* READ TABLE PLANTX WITH KEY BERID = AM61X-BERID.          "NOTE 356566</font>
+<font color ="#8C8C8C">*      TODO LATER : Performance!!                          "NOTE 356566</font>
+<font color ="#8C8C8C">* MOVE PLANTX-PLWRK TO AM61X-WERKS.                        "NOTE 356566</font>
+  DATA: l_mdlv LIKE mdlv.                                  "NOTE 356566
+  PERFORM read_mdlv USING    am61x-berid                   "NOTE 356566
+                    CHANGING l_mdlv.                       "NOTE 356566
+  MOVE l_mdlv-werzg TO am61x-werks.                        "NOTE 356566
+
+
+
+<font color ="#8C8C8C">*--&gt Zusatz-Check/-Selektion RETAIL</font>
+<font color ="#8C8C8C">*@001-Begin</font>
+<font color ="#8C8C8C">*  NUR für Handelsbetriebe Listungsprüfung durchführen</font>
+<font color ="#8C8C8C">* IF NOT T001W-VLFKZ IS INITIAL.</font>
+<font color ="#8C8C8C">*   Default: Material immer gelistet</font>
+<font color ="#8C8C8C">*   MOVE XFLAG TO L_KZGELISTET.</font>
+<font color ="#8C8C8C">*   PERFORM CHECK_LISTUNG CHANGING L_KZGELISTET.</font>
+<font color ="#8C8C8C">*   IF L_KZGELISTET IS INITIAL.</font>
+<font color ="#8C8C8C">*     Material im Zeiger merken</font>
+<font color ="#8C8C8C">*     P_MATNR = AM61X-MATNR.</font>
+<font color ="#8C8C8C">*     EXIT.</font>
+<font color ="#8C8C8C">*   ENDIF.</font>
+<font color ="#8C8C8C">* ENDIF.</font>
+<font color ="#8C8C8C">*@001-End</font>
+
+<font color ="#8C8C8C">*--&gt Easy variation of PSIZE by S/G-Parameter</font>
+  IF lv_no_first_call IS INITIAL.
+<font color ="#8C8C8C">* Maximum</font>
+    GET PARAMETER ID 'PPH_MAX_PSIZE' FIELD lv_max_psize.
+    IF  lv_max_psize IS NOT INITIAL
+    AND lv_max_psize GE 1.
+      lv_psize = lv_max_psize.
+    ELSE.
+      lv_psize = psize.
+    ENDIF.
+<font color ="#8C8C8C">* Minimum</font>
+    GET PARAMETER ID 'PPH_MIN_PSIZE' FIELD lv_min_psize.
+    IF  lv_min_psize IS NOT INITIAL
+    AND lv_min_psize GE 1.
+      gv_hana_psize = lv_min_psize.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Size PFE Read depending on optimal package size and number of tasks</font>
+    IF gv_number_tasks IS NOT INITIAL.
+      lv_curr_psize = lv_psize * gv_number_tasks.
+    ELSE.
+      lv_curr_psize = lv_psize.
+    ENDIF.
+    lv_no_first_call = abap_true.
+  ENDIF.
+
+
+<font color ="#8C8C8C">*--&gt Pakete bilden mit Groesse psize + alles zu demselben Material</font>
+  IF  am61x-flp01 GE lv_curr_psize
+  AND am61x-matnr NE matnr_old.
+    MOVE char1 TO portrc.
+    CLEAR lv_no_first_call.
+    EXIT.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt MDMMX fuellen</font>
+  CLEAR mdmmx.
+  MOVE am61x-werks  TO mdmmx-plwrk.
+  MOVE am61x-disst  TO mdmmx-disst.
+  MOVE am61x-matnr  TO mdmmx-matnr.
+<font color ="#8C8C8C">* IF NOT t000md-disfg IS INITIAL.</font>
+    MOVE am61x-berid  TO mdmmx-berid.
+<font color ="#8C8C8C">* ENDIF.</font>
+  MOVE dbvm-resdt   TO mdmmx-resdt.
+  MOVE dbvm-resal   TO mdmmx-resal.
+  MOVE dbvm-rhytd   TO mdmmx-rhytd.
+<font color ="#8C8C8C">*</font>
+
+  IF  rm61x-paral EQ xflag
+  AND NOT gv_parallel_intramat IS INITIAL.
+<font color ="#8C8C8C">*--&gt Customer logic: identifiying MTO materials with long run times</font>
+    CLEAR parmx.
+    PERFORM <a href ="javascript:Link('MM61XMDV_CHECK_MAT_PARALLEL.html?id=#000000000692');">check_mat_parallel</a> USING    mdmmx-plwrk
+                                        mdmmx-matnr
+                               CHANGING parmx.
+<font color ="#8C8C8C">*--&gt Einfügen Materialvormerkung Intramaterial-Parallelization</font>
+    IF parmx GT 0.
+      mdmmx-parmx = parmx.
+      mdmmx-parct = 0.
+      DO parmx TIMES.
+        APPEND mdmmx.
+        mdmmx-parct = mdmmx-parct + 1.
+      ENDDO.
+      CLEAR mdmmx-parct.
+    ELSE.
+      APPEND mdmmx.
+    ENDIF.
+  ELSE.
+<font color ="#8C8C8C">*--&gt Einfügen Materialvormerkung Standard</font>
+    APPEND mdmmx.
+  ENDIF.
+
+<font color ="#8C8C8C">**--&gt Akt. Dispostufe festlegen</font>
+<font color ="#8C8C8C">*  MOVE am61x-disst TO am61x-akdst.</font>
+
+<font color ="#8C8C8C">*--&gt  Zähler MDMMX-Eintraege</font>
+  am61x-flp01 = am61x-flp01 + 1.       "Zaehler hochsetzen
+<font color ="#8C8C8C">*--&gt Materialnummer merken</font>
+  MOVE mdmmx-matnr TO p_matnr.         "Zeiger gelesene Mat. DBVM
+  MOVE mdmmx-matnr TO matnr_old.       "Vorgängermat. für Mat.block
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

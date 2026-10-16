@@ -1,0 +1,148 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XDYN_GROKO_DATA_SEND_COMP</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XDYN_GROKO_DATA_SEND_COMP</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Verschicken der Daten für großen Dispokopf nach LM61K                *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000150"></div>
+FORM groko_data_send_comp.
+
+  DATA: l_nobes(1) TYPE c.
+
+  "{ Begin ENHO AD_MPN_PUR_SAPMM61X IS-AD-MPN AD_MPN_IC }
+<font color ="#8C8C8C">* Note 1102207</font>
+<font color ="#8C8C8C">*IS-ADEC-MPN: MDKP contains the wrong value. It needs to be repopulated</font>
+<font color ="#8C8C8C">* with what is there in mt61d</font>
+  DATA: ls_mdkp TYPE mdkp.
+  DATA name(30).
+  name = '(SAPLM61X)MDKP'.
+  FIELD-SYMBOLS: &ltfs_mdkp&gt TYPE any.
+
+  ls_mdkp = mdkp.
+  IF mt61d-matnr &lt&gt mdkp-matnr.
+    PERFORM erstellen_mdkp_dp(saplm61x).
+    ASSIGN (name) TO &ltfs_mdkp&gt.
+    mdkp = &ltfs_mdkp&gt.
+    MOVE-CORRESPONDING mt61d TO mdkp.
+  ENDIF.
+  "{ End ENHO AD_MPN_PUR_SAPMM61X IS-AD-MPN AD_MPN_IC }
+
+ENHANCEMENT-POINT groko_data_send_comp_01 SPOTS es_sapmm61xdyn INCLUDE BOUND .
+<font color ="#8C8C8C">*--&gt Bestands- und Zugangsreichweite berechnen</font>
+<font color ="#8C8C8C">*--&gt Nicht bei MD/MS 05,06,07 da in MDKP schon vorhanden</font>
+<font color ="#8C8C8C">*--&gt Nicht bei MD/MS 04, da bereits bei Umterm.pruefung gelesen</font>
+  IF  cm61x-plauf NE anzdl
+  AND cm61x-plauf NE anzds
+  AND cm61x-plauf NE lfrdl
+  AND cm61x-plauf NE lfrds
+  AND cm61x-plauf NE anzbs             "RE 4.6A
+  AND cm61x-plauf NE lfraz             "RE 4.6A
+  AND cm61x-plauf NE anzml
+  AND cm61x-plauf NE lfrml.
+    CALL FUNCTION 'STOCK_COVERAGE_GET'
+      EXPORTING
+        emdkp  = mdkp
+        ecm61w = cm61w
+        ecm61m = cm61m                                "ERP2.0
+      IMPORTING
+        imdkp  = mdkp
+      TABLES
+        mdpsx  = mdpsx.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Bei Dispolisten und Langfristplanung ohne Bestandsfelder !</font>
+<font color ="#8C8C8C">*--&gt Bei Materialübersicht auch ohne Bestandsfelder !</font>
+ENHANCEMENT-SECTION     ehp603_mm61xdyn_groko_send_01 SPOTS es_sapmm61xdyn INCLUDE BOUND .
+  IF cm61x-plauf EQ anzdl              "Dispoliste
+  OR cm61x-plauf EQ anzds              "Dispoliste Sammel
+  OR cm61x-plauf EQ lfrdl              "LFR-Dispoliste
+  OR cm61x-plauf EQ lfrds              "LFR-Dispoliste Sammel
+"{ Begin ENHO MD03_SFWS_MRP_02_MM61XDYN PP-MRP-PE MAN_SFWS_SC_MRP_02 }
+<font color ="#8C8C8C">* OR cm61x-plauf EQ lfrpl              "LFR-Planung</font>
+<font color ="#8C8C8C">* OR cm61x-plauf EQ lfrmp              "LFR-Planung -mehrstufig-</font>
+<font color ="#8C8C8C">* OR cm61x-plauf EQ lfrep              "LFR-Planung -einstufig-</font>
+<font color ="#8C8C8C">* OR cm61x-plauf EQ lfraz              "Anzeigen LFR-Planung</font>
+"{ End ENHO MD03_SFWS_MRP_02_MM61XDYN PP-MRP-PE MAN_SFWS_SC_MRP_02 }
+  OR cm61x-plerg EQ chara.             "aus Materialübersicht  "HW169055
+    MOVE xflag TO l_nobes.
+  ENDIF.
+END-ENHANCEMENT-SECTION.
+
+<font color ="#8C8C8C">* DD MRP: calculate new net flow position</font>
+  IF mdkp-disvf = disvfc AND mdpsx[] IS NOT INITIAL.
+    CALL METHOD cl_pph_read_net_flow=&gtcalc_net_flow_position
+      EXPORTING
+        iv_matnr    = mdkp-matnr
+        iv_werks    = mdkp-plwrk
+        iv_berid    = cm61b-berid
+        iv_plauf    = cm61x-plauf
+        is_mt61d    = mt61d
+        is_cm61m    = cm61m
+        it_mdpsx    = mdpsx[]
+      RECEIVING
+        rs_net_flow = DATA(ls_net_flow).
+<font color ="#8C8C8C">* LS_NET_FLOW is in base unit and must not be converted!</font>
+  ELSE.
+    CLEAR ls_net_flow.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Umrechnen der Mengenwerte in Mdkp     (note 607144)</font>
+  IF ( cm61x-plauf EQ anzdl
+  OR   cm61x-plauf EQ anzds
+  OR   cm61x-plauf EQ lfrdl
+  OR   cm61x-plauf EQ lfrds
+  OR   cm61x-plauf EQ anzbs
+  OR   cm61x-plauf EQ anzml
+  OR   cm61x-plauf EQ lfraz
+  OR   cm61x-plauf EQ lfrml )
+  AND ( matov-refre EQ xflag               "note 614955
+  AND   mdanz-refre EQ xflag ).
+    mdkp-bdarf = mdkp-bdarf * am61r-umren / am61r-umrez.
+    mdkp-eisbe = mdkp-eisbe * am61r-umren / am61r-umrez.
+    mdkp-minbe = mdkp-minbe * am61r-umren / am61r-umrez.
+    mdkp-hoebe = mdkp-hoebe * am61r-umren / am61r-umrez.
+    mdkp-bstmi = mdkp-bstmi * am61r-umren / am61r-umrez.
+    mdkp-bstma = mdkp-bstma * am61r-umren / am61r-umrez.
+    mdkp-bstfx = mdkp-bstfx * am61r-umren / am61r-umrez.
+    mdkp-bstrf = mdkp-bstrf * am61r-umren / am61r-umrez.
+    mdkp-sum01 = mdkp-sum01 * am61r-umren / am61r-umrez.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Übergabe der benötigten Daten an SAPLM61K</font>
+  CALL FUNCTION 'GROKO_DATA_SEND'
+    EXPORTING
+      emdkp      = mdkp
+      emt61d     = mt61d
+      ecm61b     = cm61b
+      emdsta     = mdsta
+      everdyna   = verdyna
+      ecm61m     = cm61m
+      enobes     = l_nobes
+      emdst      = mdst
+      eddprops   = ddprops
+      eddnetflow = ls_net_flow.
+  "{ Begin ENHO AD_MPN_PUR_SAPMM61X IS-AD-MPN AD_MPN_IC }
+<font color ="#8C8C8C">* Note 1102207</font>
+  IF mt61d-matnr &lt&gt ls_mdkp-matnr.
+    mdkp = ls_mdkp.
+    UNASSIGN &ltfs_mdkp&gt.
+  ENDIF.
+  "{ End ENHO AD_MPN_PUR_SAPMM61X IS-AD-MPN AD_MPN_IC }
+
+ENHANCEMENT-POINT groko_data_send_comp_02 SPOTS es_sapmm61xdyn INCLUDE BOUND .
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

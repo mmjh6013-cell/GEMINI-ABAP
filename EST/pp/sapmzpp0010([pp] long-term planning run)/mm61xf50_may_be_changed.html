@@ -1,0 +1,269 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF50_MAY_BE_CHANGED</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF50_MAY_BE_CHANGED</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  MAY_BE_CHANGED</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*  Input-Parameter:</font>
+<font color ="#8C8C8C">*     IS_MDPS   Ausgewaehlte Zeile im Dispobeleg</font>
+<font color ="#8C8C8C">*     IV_DLART = 1 : Es duerfen nur Bestellvorschlaege geaendert werden</font>
+<font color ="#8C8C8C">*              = 2 : Es duerfen nur Fertigungsauftraege geaendert werden</font>
+<font color ="#8C8C8C">*              = 3 : Es darf alles geaendert werden</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000274"></div>
+FORM may_be_changed
+     USING    is_mdps         LIKE mdps
+              iv_dlart        TYPE c
+     CHANGING ev_maybechanged TYPE bool
+              es_message      TYPE messa.
+
+<font color ="#8C8C8C">*--&gt local data:</font>
+  DATA: lv_banfn LIKE eban-banfn,
+        lv_bnfpo LIKE eban-bnfpo.
+
+<font color ="#8C8C8C">*--&gt object instance declaration (note 600940)</font>
+  STATICS:
+    lv_md_interact_planning TYPE REF TO if_ex_md_interact_planning,
+    lv_md_interact_planning_act TYPE boolean.
+  DATA: lv_not_changeable TYPE xfeld.
+
+<font color ="#8C8C8C">*--&gt Pruefen Verarbeitungsart füer Bestellvorschlaege</font>
+  ev_maybechanged = gc_true.
+  CASE is_mdps-delkz.
+    WHEN plauf.
+      PERFORM read_t460p
+              USING obartp is_mdps-beskz is_mdps-sobes is_mdps-vrpla.
+      IF t460p-kzaen = optmi
+      OR iv_dlart    = char2.          "Fertigungsauftrag aendern
+        ev_maybechanged = gc_false.
+      ENDIF.
+      IF is_mdps-plaab EQ mstpla
+      OR is_mdps-plaab EQ vmspla.
+        ev_maybechanged = gc_false.
+      ENDIF.
+    WHEN saauf.
+      PERFORM read_t460p USING obarts                      "note 658615
+                               is_mdps-beskz
+                               is_mdps-sobes
+                               is_mdps-vrpla.
+      IF t460p-kzaen = optmi
+      OR iv_dlart    = char2.
+        ev_maybechanged = gc_false.
+      ENDIF.
+      IF is_mdps-plaab EQ mstpla
+      OR is_mdps-plaab EQ vmspla.
+        ev_maybechanged = gc_false.
+      ENDIF.
+    WHEN bsanf.
+      PERFORM read_t460p USING obartb                      "note 658615
+                               is_mdps-beskz
+                               is_mdps-sobes
+                               is_mdps-vrpla.
+      IF t460p-kzaen = optmi
+      OR iv_dlart    = char2.
+        ev_maybechanged = gc_false.
+      ENDIF.
+      IF iv_dlart = char3
+      AND ( sy-tcode EQ 'MS02'                    "in Langfristplanung
+      OR    sy-tcode EQ 'MS03'
+      OR    sy-tcode EQ 'MS50'
+      OR    sy-tcode EQ 'MS51' ).
+        ev_maybechanged = gc_false.
+      ENDIF.
+<font color ="#8C8C8C">*--&gt DirektBanfen duerfen nicht geaendert werden (nicht implementiert)</font>
+      IF is_mdps-plaab EQ mstpla.
+        ev_maybechanged = gc_false.
+      ENDIF.
+<font color ="#8C8C8C">*--&gt external PReqs(EBP) which are already transfered (fixed) are</font>
+<font color ="#8C8C8C">*    not changeable (note 651135)</font>
+      IF  is_mdps-extnl EQ xflag
+      AND is_mdps-fix01 EQ xflag.
+        ev_maybechanged = gc_false.
+      ENDIF.
+<font color ="#8C8C8C">*--&gt Freigegebene, für MRP fixierte Banfen nicht änderbar     "HW 484964</font>
+      IF is_mdps-fix01 EQ xflag.
+        MOVE is_mdps-delnr TO lv_banfn.
+        MOVE is_mdps-delps TO lv_bnfpo.
+        PERFORM read_eban  USING lv_banfn
+                                 lv_bnfpo.
+        PERFORM read_t161s USING eban-frgkz
+                                 lv_banfn.
+        IF t161s-fixbp EQ xflag.
+          ev_maybechanged = gc_false.
+        ENDIF.
+      ENDIF.
+<font color ="#8C8C8C">*--&gt DCM: purchase requisition not changeable if version management is</font>
+<font color ="#8C8C8C">*         activated and a version exists</font>
+      MOVE is_mdps-delnr TO lv_banfn.
+      MOVE is_mdps-delps TO lv_bnfpo.
+      PERFORM read_eban USING lv_banfn lv_bnfpo.
+      IF      sy-subrc EQ 0
+      AND NOT eban-revno IS INITIAL.
+        ev_maybechanged = gc_false.
+      ENDIF.
+<font color ="#8C8C8C">*--&gt Purchase req. already partially converted to PO -&gt No change allowed</font>
+      IF NOT eban-bsmng IS INITIAL.
+        ev_maybechanged = gc_false.
+      ENDIF.
+    WHEN lpein.
+      IF iv_dlart    = char2.                              "note 658615
+        ev_maybechanged = gc_false.
+      ENDIF.
+      IF iv_dlart = char3
+      AND ( sy-tcode EQ 'MS02'                    "in Langfristplanung
+      OR    sy-tcode EQ 'MS03'
+      OR    sy-tcode EQ 'MS50'
+      OR    sy-tcode EQ 'MS51' ).
+        ev_maybechanged = gc_false.
+      ENDIF.
+      IF is_mdps-sobes = sobesu        "Umlagerungslieferplan
+      OR ( is_mdps-sobes = sobesf
+      AND  NOT is_mdps-wrk02 IS INITIAL ).
+<font color ="#8C8C8C">*       teilgelieferte Lieferplaneinteilungen duerfen nicht</font>
+<font color ="#8C8C8C">*       geaendert werden. (Eigentlich duerfte Menge bis auf zur</font>
+<font color ="#8C8C8C">*       GLMNG bzw. WA-Menge reduziert werden -&gt Entw. spaeter)</font>
+        READ TABLE mdlpy WITH KEY delnr = is_mdps-delnr
+                                  delps = is_mdps-delps
+                                  delet = is_mdps-delet.
+        IF  sy-subrc = 0
+        AND ( mdlpy-wamng &gt 0
+          OR  mdlpy-glmng &gt 0 ).
+          ev_maybechanged = gc_false.
+        ENDIF.
+      ENDIF.
+      IF is_mdps-sobes = sobesl.     "Lohnbearb.-Lieferplan   "HW 409130
+<font color ="#8C8C8C">*       teilgelieferte LB-Lieferplaneinteilungen duerfen      "</font>
+<font color ="#8C8C8C">*       wegen Komponentenmengen nicht mehr geändert werden.   "</font>
+        IF  is_mdps-mng01 NE is_mdps-etmen                    "
+        AND is_mdps-etmen GT 0.                             "HW 421465
+          ev_maybechanged = gc_false.                         "
+        ENDIF.                                                "
+      ENDIF.                                                "HW 409130
+    WHEN feauf.
+      IF iv_dlart = char1.
+        ev_maybechanged = gc_false.
+      ENDIF.
+      IF iv_dlart = char3
+      AND ( sy-tcode EQ 'MD02'
+      OR    sy-tcode EQ 'MD41'
+      OR    sy-tcode EQ 'MS02'
+      OR    sy-tcode EQ 'MS03'
+      OR    sy-tcode EQ 'MS50'
+      OR    sy-tcode EQ 'MS51' ).
+        ev_maybechanged = gc_false.
+      ENDIF.
+    WHEN barez.
+      IF iv_dlart = char1.
+        ev_maybechanged = gc_false.
+      ENDIF.
+      IF iv_dlart = char3
+      AND ( sy-tcode EQ 'MD02'
+      OR    sy-tcode EQ 'MD41'
+      OR    sy-tcode EQ 'MS02'
+      OR    sy-tcode EQ 'MS03'
+      OR    sy-tcode EQ 'MS50'
+      OR    sy-tcode EQ 'MS51' ).
+        ev_maybechanged = gc_false.
+      ENDIF.
+    WHEN umres OR ulres.
+<font color ="#8C8C8C">*--&gt Zunaechst Änderungen nur als Löschfunktion möglich!!!  "SL 40C</font>
+      IF  am61x-xcode NE fc-bvdl
+      AND am61x-xcode NE fc-bvut.
+        ev_maybechanged = gc_false.
+      ELSE.
+        IF iv_dlart EQ char2.
+          ev_maybechanged = gc_false.
+        ENDIF.
+      ENDIF.
+<font color ="#8C8C8C">*--&gt no deletion of MRP firmed ST reservations (note 934185)</font>
+      IF  IS_MDPS-FIX01 EQ XFLAG
+      AND AM61X-XCODE EQ FC-BVDL.
+        EV_MAYBECHANGED = GC_FALSE.
+      ENDIF.
+    WHEN OTHERS.
+      ev_maybechanged = gc_false.
+  ENDCASE.
+
+<font color ="#8C8C8C">*--&gt Pruefen Kontierung</font>
+  IF  ev_maybechanged = gc_true
+  AND is_mdps-knttp &lt&gt space
+  AND is_mdps-kzvbr &lt&gt space
+  AND is_mdps-kzvbr &lt&gt kzvbre
+  AND is_mdps-kzvbr &lt&gt kzvbrp
+  AND is_mdps-kzvbr &lt&gt kzvbru.
+    ev_maybechanged = gc_false.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt implementation of business add-in md_interact_planning to</font>
+<font color ="#8C8C8C">*    deactivate the changeability of MRP elements via</font>
+<font color ="#8C8C8C">*    customer-specific method implementations (note 600940)</font>
+
+<font color ="#8C8C8C">*--&gt element not changeable in standard -&gt EXIT</font>
+  IF ev_maybechanged EQ gc_false.
+    EXIT.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt create object instance</font>
+  IF lv_md_interact_planning IS INITIAL.
+    CALL METHOD cl_exithandler=&gtget_instance
+      EXPORTING
+        exit_name        = 'MD_INTERACT_PLANNING'
+      IMPORTING
+        act_imp_existing = lv_md_interact_planning_act
+      CHANGING
+        instance         = lv_md_interact_planning.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt call method to deactivate changeability</font>
+  IF NOT lv_md_interact_planning_act IS INITIAL.
+    CALL METHOD lv_md_interact_planning-&gtcheck_mrp_element_changeable
+      EXPORTING
+        im_mt61d                      = mt61d
+        im_cm61m                      = cm61m
+        im_cm61b                      = cm61b
+        im_plsc                       = plsc
+        im_plauf                      = cm61x-plauf
+        im_plobj                      = cm61x-plobj
+        im_delkz                      = is_mdps-delkz
+        im_mdps                       = is_mdps
+      CHANGING
+        ch_mrp_element_not_changeable = lv_not_changeable
+        ch_msgid                      = es_message-msgid
+        ch_msgno                      = es_message-msgno
+        ch_msgv1                      = es_message-msgv1
+        ch_msgv2                      = es_message-msgv2
+        ch_msgv3                      = es_message-msgv3
+        ch_msgv4                      = es_message-msgv4.
+<font color ="#8C8C8C">*--&gt check changeability</font>
+    IF lv_not_changeable EQ gc_true.
+      ev_maybechanged = gc_false.
+      IF es_message-msgid IS INITIAL
+      OR es_message-msgno IS INITIAL.
+        CLEAR es_message.
+      ENDIF.
+    ELSE.
+      CLEAR es_message.
+    ENDIF.
+  ENDIF.
+
+
+
+
+ENDFORM.                    "may_be_changed
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

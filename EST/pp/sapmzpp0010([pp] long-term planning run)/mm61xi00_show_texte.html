@@ -1,0 +1,130 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XI00_SHOW_TEXTE</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XI00_SHOW_TEXTE</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Anzeigen Texte zu Parameter                                          *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000592"></div>
+MODULE show_texte.
+<font color ="#8C8C8C">*@001-Begin</font>
+  DATA :
+    memo_aufrufende_ta LIKE sy-tcode,
+    memo_id(4)         TYPE c VALUE 'MRD2',
+    c_vendor_mrp(4)    TYPE c VALUE 'MDW1'.
+<font color ="#8C8C8C">*@001-End</font>
+  PERFORM domval_get_single
+          USING    sy-langu 'VRART' t457a-vrart
+          CHANGING rm61x-vertx.
+  PERFORM domval_get_single
+          USING    sy-langu 'ICMRP' rm61x-icmrp
+          CHANGING rm61x-mrptx.
+  PERFORM domval_get_single
+          USING    sy-langu 'BANER' rm61x-baner
+          CHANGING rm61x-bantx.
+  PERFORM domval_get_single
+          USING    sy-langu 'LIFKZ' rm61x-lifkz
+          CHANGING rm61x-liftx.
+  PERFORM domval_get_single
+          USING    sy-langu 'DISER' rm61x-diser
+          CHANGING rm61x-distx.
+  PERFORM domval_get_single
+          USING    sy-langu 'TRMPL' rm61x-trmpl
+          CHANGING rm61x-trmtx.
+  PERFORM domval_get_single
+          USING    sy-langu 'PLMOD' rm61x-plmod
+          CHANGING rm61x-plmtx.
+  PERFORM domval_get_single
+          USING    sy-langu 'FPAKZ' rm61x-fpakz
+          CHANGING rm61x-fpatx.
+  PERFORM t450u_read
+          USING    rm61x-uxkey
+          CHANGING rm61x-uxtxt.
+
+<font color ="#8C8C8C">*--&gt Konsistenzpruefung fuer Planung im Hauptspeicher</font>
+  IF rm61x-inmem = 'X'.
+    IF rm61x-anzdl = 'X' AND rm61x-anzls = 'X'.
+      rm61x-anzls = 'X'. rm61x-anzdl = space.
+    ELSEIF rm61x-anzdl = space AND rm61x-anzls = space.
+      rm61x-anzls = 'X'. rm61x-anzdl = space.
+    ENDIF.
+  ENDIF.
+
+  "{ Begin ENHO DIMP_GEN_SAPMM61X IS-A DIMP_GENERAL }
+<font color ="#8C8C8C">* thk MMP: Bei RPM-Materialien kein Ergebnis anzeigen möglich</font>
+  IF rm61x-anzdl = 'X'.
+    PERFORM mm61x_check_anzdl(saplmmrp04) USING rm61x-anzdl
+                                                rm61x-matnr
+                                                rm61x-werks
+            IF FOUND.
+  ENDIF.
+
+<font color ="#8C8C8C">* thk MMP: Bei RPM-Materialien kein Simulationsmodus möglich</font>
+  IF rm61x-inmem = 'X'.
+    PERFORM mm61x_check_inmem(saplmmrp04) USING rm61x-inmem
+                                                rm61x-matnr
+                                                rm61x-werks
+            IF FOUND.
+  ENDIF.
+<font color ="#8C8C8C">* thk 28.1.99: 4.5-Anpassung</font>
+  "{ End ENHO DIMP_GEN_SAPMM61X IS-A DIMP_GENERAL }
+
+ENHANCEMENT-POINT mm61xi00_show_texte_02 SPOTS es_sapmm61x.
+
+
+
+"{ Begin ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+
+<font color ="#8C8C8C">*--&gt PIC, bei Supersession kein Ergebnis anzeigen möglich          "46a</font>
+  IF RM61X-ANZDL = 'X'.
+    IF NOT MT61D-PICNUM IS INITIAL.
+      MESSAGE E205(PIC01) .
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt PIC, bei Supersession kein Simulationsmodus möglich           "46a</font>
+  IF RM61X-INMEM = 'X'.
+    IF NOT MT61D-PICNUM IS INITIAL.
+      MESSAGE E206(PIC01) .
+    ENDIF.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Ende PIC Mod.</font>
+
+"{ End ENHO AD_MPN_PUR2_SAPMM61X IS-AD-MPN AD_MPN_IC }
+
+ENHANCEMENT-POINT mm61xi00_show_texte_01 SPOTS es_sapmm61x.
+<font color ="#8C8C8C">*--&gt Nachricht senden (ausser bei WWS)</font>
+  IMPORT memo_aufrufende_ta FROM MEMORY ID memo_id.
+  IF memo_aufrufende_ta NE c_vendor_mrp.
+    MESSAGE w052.
+<font color ="#8C8C8C">*   product group</font>
+    IF rm61x-prgkz = xflag.                                     "3564857
+      MOVE rm61x-txmat TO mt61d-maktx.                          "3564857
+      MOVE mpro2-maktx TO rm61x-txmat.                          "3564857
+    ENDIF.                                                      "3564857
+  ENDIF.
+<font color ="#8C8C8C">*---&gt Werk / Dispobereich prüfen (nicht bei Planungslauf!)</font>
+  IF NOT rm61x-berid IS INITIAL
+  OR NOT rm61x-werks IS INITIAL.
+    PERFORM mrp_area_plant_check USING rm61x-berid
+                                       rm61x-bertx
+                                       rm61x-werks.
+  ENDIF.
+
+ENDMODULE.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

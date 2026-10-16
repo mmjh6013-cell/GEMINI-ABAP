@@ -1,0 +1,84 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XMEM_SHOW_COMPONENTS_INMEM</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XMEM_SHOW_COMPONENTS_INMEM</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  SHOW_COMPONENTS_INMEM                                               *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000722"></div>
+FORM SHOW_COMPONENTS_INMEM.
+  DATA: LS_LINE          TYPE MRP_LIST_LINE_TYPE,
+        LV_FOUND         TYPE BOOL,
+        LS_ORDERID       TYPE APS_ORDERID,
+        LS_NEWORDERID    TYPE APS_ORDERID,
+        LV_MATERIAL      LIKE MT61D-MATNR,
+        LV_PLANT         LIKE MT61D-WERKS,
+        LV_BERID         LIKE MDLV-BERID.
+
+<font color ="#8C8C8C">*--&gt Ausgewaehlte Zeile ermitteln</font>
+  PERFORM PICKUP CHANGING LS_LINE LV_FOUND.
+  CHECK LV_FOUND = GC_TRUE.
+
+<font color ="#8C8C8C">*--&gt Schnittstelle fuellen</font>
+  PERFORM <a href ="javascript:Link('MM61XMEM_MDPS_GET_ORDERID.html?id=#000000000716');">MDPS_GET_ORDERID</a>
+          USING    LS_LINE-MDPS MDKP CM61B
+          CHANGING LS_ORDERID.
+
+<font color ="#8C8C8C">*--&gt Komponenten anzeigen</font>
+  CALL FUNCTION 'APS_SHOW_BOM_MULTILEVEL'
+       EXPORTING  IS_ORDER        = LS_ORDERID
+       IMPORTING  ES_ORDER        = LS_NEWORDERID
+       EXCEPTIONS ORDER_NOT_FOUND = 1.
+  IF SY-SUBRC &gt 0.
+    MESSAGE S112. EXIT.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Wurde auf dem Komponentenbild eine andere Komponente ausgewaehlt?</font>
+  IF LS_ORDERID    =  LS_NEWORDERID
+  OR LS_NEWORDERID IS INITIAL.
+    EXIT.                 "Keine Komponente ausgewaehlt -&gt Raus
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Wenn ja, dannn diese ausgewaehlte Komponente anzeigen</font>
+  CLEAR LS_LINE.
+  CALL FUNCTION 'APS_ORDER_GET_INFO'
+       EXPORTING  IS_ORDER        = LS_NEWORDERID
+       IMPORTING  EV_MATERIAL     = LV_MATERIAL
+                  EV_PLANT        = LV_PLANT
+                  EV_BERID        = LV_BERID
+                  EV_PLSECTION_ID = LS_LINE-MDPS-PLAAB
+                  EV_PLSECTION    = LS_LINE-MDPS-PLANR
+                  EV_END_DATE     = LS_LINE-MDPS-DAT00
+       EXCEPTIONS ORDER_NOT_FOUND = 1.
+  IF SY-SUBRC &gt 0. ENDIF.
+
+<font color ="#8C8C8C">*--&gt Dialogstack aufbauen</font>
+  PERFORM <a href ="javascript:Link('MM61XSTK_PUSH_DIALOGSTACK.html?id=#000000000825');">PUSH_DIALOGSTACK</a>
+          USING MDKP-MATNR MDKP-PLWRK CM61B-BERID LS_LINE.
+
+<font color ="#8C8C8C">*--&gt Material mit ausgewaehlter Komponente anzeigen</font>
+  LS_LINE-MDPS-DELKZ = LS_NEWORDERID-DELKZ.
+  LS_LINE-MDPS-DELNR = LS_NEWORDERID-DELNR.
+  LS_LINE-MDPS-DEL12 = LS_NEWORDERID-DELNR.
+  LS_LINE-MDPS-DELPS = LS_NEWORDERID-DELPS.
+  LS_LINE-MDPS-DELET = LS_NEWORDERID-DELET.
+  PERFORM SHOW_MRP_LIST
+          USING LV_MATERIAL LV_PLANT LV_BERID
+                LS_LINE GC_TRUE GC_FALSE.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

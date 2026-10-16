@@ -1,0 +1,2503 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZCOR8020_F01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZCOR8020_F01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Include          ZCOR8020_F01</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  F4_CYCLE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtP_0040   text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000001"></div>
+FORM f4_cycle  USING    pv_cycle.
+
+  TYPES : BEGIN OF t_cycle.
+  TYPES : cycle TYPE cycle,
+          txt   TYPE text30.
+  TYPES : END OF t_cycle.
+
+  DATA : lt_dynpread TYPE TABLE OF dynpread,
+         ls_dynpread TYPE dynpread,
+         lt_return   TYPE STANDARD TABLE OF ddshretval,
+         ls_return   TYPE ddshretval,
+         lt_cycle    TYPE TABLE OF t_cycle,
+         ls_cycle    TYPE t_cycle.
+
+  DATA : lv_cycle TYPE cycle,
+         lv_langu TYPE sy-langu.
+
+<font color ="#8C8C8C">*  IF sy-mandt = '100'.</font>
+<font color ="#8C8C8C">*    lv_langu = '3'.</font>
+<font color ="#8C8C8C">*  ELSE.</font>
+<font color ="#8C8C8C">*    lv_langu = 'E'.</font>
+<font color ="#8C8C8C">*  ENDIF.</font>
+
+  lv_langu = sy-langu.
+
+<font color ="#8C8C8C">*  CASE gv_tab.</font>
+<font color ="#8C8C8C">*    WHEN 'CCSS'.    " CCTR</font>
+<font color ="#8C8C8C">*      CONCATENATE s_kokrs-low '%' INTO lv_cycle.</font>
+<font color ="#8C8C8C">*    WHEN 'CE71000'. " PA</font>
+<font color ="#8C8C8C">*      CONCATENATE '1000' '%' INTO lv_cycle.</font>
+<font color ="#8C8C8C">*  ENDCASE.</font>
+
+  CASE 'X'.
+    WHEN p_cctr.
+      gv_tab = 'CCSS'.
+    WHEN p_pa.
+      gv_tab = 'CE71000'.
+  ENDCASE.
+
+  CASE 'X'.
+    WHEN p_cctr.
+<font color ="#8C8C8C">*--- ## 10.14 s_kokrs -&gt p_kokrs</font>
+<font color ="#8C8C8C">*      CONCATENATE s_kokrs-low '%' INTO lv_cycle.</font>
+      CONCATENATE p_kokrs '%' INTO lv_cycle.
+<font color ="#8C8C8C">*--- END</font>
+    WHEN p_pa.
+      CONCATENATE '1000' '%' INTO lv_cycle.
+    WHEN OTHERS.
+  ENDCASE.
+
+  CONDENSE lv_cycle.
+
+  SELECT DISTINCT a~cycle b~txt
+    INTO CORRESPONDING FIELDS OF TABLE lt_cycle
+    FROM t811c AS a
+    INNER JOIN t811l AS b
+    ON a~tab  = b~tab
+    AND a~cycle = b~cycle
+    AND a~sdate = b~sdate
+   WHERE a~tab   = gv_tab
+     AND a~cycle LIKE lv_cycle
+     AND b~langu = lv_langu
+     AND b~seqnr = space.
+
+  IF lt_cycle[] IS NOT INITIAL.
+
+    SORT lt_cycle.
+
+    LOOP AT lt_cycle INTO ls_cycle.
+      ls_cycle-cycle = ls_cycle-cycle+4.
+      MODIFY lt_cycle FROM ls_cycle INDEX sy-tabix.
+    ENDLOOP.
+
+    CALL FUNCTION 'F4IF_INT_TABLE_VALUE_REQUEST'
+      EXPORTING
+        retfield        = 'CYCLE'
+        dynpprog        = sy-repid
+        dynpnr          = sy-dynnr
+        dynprofield     = pv_cycle
+        value_org       = 'S'
+      TABLES
+        value_tab       = lt_cycle
+        return_tab      = lt_return
+      EXCEPTIONS
+        parameter_error = 1
+        no_values_found = 2
+        OTHERS          = 3.
+    IF sy-subrc &lt&gt 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+              WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ELSE.
+
+      READ TABLE lt_return INDEX 1 INTO ls_return.
+      CHECK sy-subrc = 0.
+
+      READ TABLE lt_cycle INTO ls_cycle WITH KEY cycle = ls_return-fieldval.
+      IF sy-subrc = 0.
+        CLEAR ls_dynpread.
+        ls_dynpread-fieldname = pv_cycle.
+        ls_dynpread-fieldvalue = ls_cycle-cycle.
+        APPEND ls_dynpread TO lt_dynpread.
+
+        CALL FUNCTION 'DYNP_VALUES_UPDATE'
+          EXPORTING
+            dyname               = sy-cprog
+            dynumb               = sy-dynnr
+          TABLES
+            dynpfields           = lt_dynpread
+          EXCEPTIONS
+            invalid_abapworkarea = 1
+            invalid_dynprofield  = 2
+            invalid_dynproname   = 3
+            invalid_dynpronummer = 4
+            invalid_request      = 5
+            no_fielddescription  = 6
+            undefind_error       = 7
+            OTHERS               = 8.
+      ENDIF.
+    ENDIF.
+
+  ELSE.
+    MESSAGE s001 WITH TEXT-m00.
+  ENDIF.
+
+ENDFORM.                    " F4_CYCLE
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  DATA_QUERY</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  p1        text</font>
+<font color ="#8C8C8C">*  &lt--  p2        text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000002"></div>
+FORM data_query .
+
+  DATA : lt_t811c TYPE TABLE OF t811c, ls_t811c TYPE t811c,
+         lt_t811l TYPE TABLE OF t811l, ls_t811l TYPE t811l,
+         lt_t811s TYPE TABLE OF t811s, ls_t811s TYPE t811s,
+         lt_t811k TYPE TABLE OF t811k, ls_t811k TYPE t811k,
+         lt_t811m TYPE TABLE OF t811m, ls_t811m TYPE t811m.
+  DATA : lv_tabix TYPE sy-tabix.
+
+  DATA : lv_txt(30).
+
+  DATA : lo_ui TYPE REF TO cl_fins_alloc_ui_util.
+
+  CREATE OBJECT lo_ui.
+
+<font color ="#8C8C8C">*--- ## 10.14 s_kokrs -&gt p_kokrs</font>
+<font color ="#8C8C8C">*  LOOP AT s_kokrs.</font>
+  lv_tabix = sy-tabix.
+  gv_kokrs = p_kokrs.
+
+  IF p_pa = 'X'
+    AND lv_tabix &gt 1.
+    EXIT.
+  ENDIF.
+
+  PERFORM <a href="#000000000003">get_table_data</a> TABLES lt_t811c lt_t811l lt_t811s lt_t811k lt_t811m.
+
+  LOOP AT lt_t811c INTO ls_t811c.
+
+    gs_main-cycle      = ls_t811c-cycle.
+    gs_main-sdate	     = ls_t811c-sdate.
+    gs_main-edate	     = ls_t811c-edate.
+    gs_main-rstatus	   = ls_t811c-rstatus.
+    gs_main-crdate     = ls_t811c-crdate.
+    gs_main-puser	     = ls_t811c-puser.
+    gs_main-moddate	   = ls_t811c-moddate.
+    gs_main-moduser	   = ls_t811c-moduser.
+    gs_main-lastexec   = ls_t811c-lastexec.
+    gs_main-lexecby	   = ls_t811c-lexecby.
+    gs_main-iterflag   = ls_t811c-iterflag.
+    gs_main-negtest1   = ls_t811c-negtest.
+    gs_main-alart	     = ls_t811c-alart.
+    gs_main-ipknz	     = ls_t811c-ipknz.
+    gs_main-proc_group = ls_t811c-proc_group.
+
+    READ TABLE lt_t811l INTO ls_t811l WITH KEY cycle = ls_t811c-cycle
+                                               sdate = ls_t811c-sdate BINARY SEARCH.
+    IF sy-subrc EQ 0.
+
+      CLEAR lv_txt.
+
+      LOOP AT lt_t811l INTO ls_t811l FROM sy-tabix
+                                     WHERE cycle = ls_t811c-cycle
+                                       AND sdate = ls_t811c-sdate.
+
+        IF ls_t811l-seqnr IS INITIAL.
+          lv_txt = ls_t811l-txt.
+          CONTINUE.
+        ENDIF.
+
+        gs_main-txt1 = lv_txt.
+        gs_main-seqnr = ls_t811l-seqnr.
+        gs_main-txt2  = ls_t811l-txt.
+
+
+        READ TABLE lt_t811s INTO ls_t811s WITH KEY cycle = ls_t811l-cycle
+                                                   sdate = ls_t811l-sdate
+                                                   seqnr = ls_t811l-seqnr BINARY SEARCH.
+        IF sy-subrc EQ 0.
+
+          LOOP AT lt_t811s INTO ls_t811s FROM sy-tabix
+                                         WHERE cycle = ls_t811l-cycle
+                                           AND sdate = ls_t811l-sdate
+                                           AND seqnr = ls_t811l-seqnr.
+
+            gs_main-name     = ls_t811s-name.
+            gs_main-seqpos   = ls_t811s-seqpos.
+            gs_main-srule    = ls_t811s-srule.
+            gs_main-spercent = ls_t811s-spercent.
+            gs_main-rrule    = ls_t811s-rrule.
+            gs_main-active   = ls_t811s-active.
+            gs_main-negtest2 = lo_ui-&gtconv_negscale_db_to_ui( ls_t811s-negtest ).
+            gs_main-negtest  = lo_ui-&gtconv_negscale_db_to_ui( ls_t811s-negtest ).
+<font color ="#8C8C8C">*              gs_main-negtest2 = ls_t811s-negtest.</font>
+            gs_main-rcdata   = ls_t811s-rcdata.
+
+            READ TABLE lt_t811m INTO ls_t811m WITH KEY fname = gs_main-rcdata BINARY SEARCH.
+            IF sy-subrc EQ 0.
+              gs_main-rcdata_t = ls_t811m-dtext1.
+            ENDIF.
+
+            READ TABLE lt_t811k INTO ls_t811k WITH KEY cycle = ls_t811s-cycle
+                                                       sdate = ls_t811s-sdate
+                                                       seqnr = ls_t811s-seqnr BINARY SEARCH.
+            IF sy-subrc EQ 0.
+
+              LOOP AT lt_t811k INTO ls_t811k FROM sy-tabix
+                                             WHERE cycle = ls_t811s-cycle
+                                               AND sdate = ls_t811s-sdate
+                                               AND seqnr = ls_t811s-seqnr.
+
+                gs_main-setkind = ls_t811k-setkind.
+                gs_main-pos     = ls_t811k-pos.
+                gs_main-field   = ls_t811k-field.
+                gs_main-setname = ls_t811k-setname.
+                gs_main-valmin  = ls_t811k-valmin.
+                gs_main-valmax  = ls_t811k-valmax.
+                gs_main-setid   = ls_t811k-setid.
+                IF ls_t811k-valmin IS NOT INITIAL. gs_main-xvalmin = 'X'. ELSE. gs_main-xvalmin = space. ENDIF.
+                IF ls_t811k-valmax IS NOT INITIAL. gs_main-xvalmax = 'X'. ELSE. gs_main-xvalmax = space. ENDIF.
+                IF ls_t811k-setid  IS NOT INITIAL. gs_main-xsetid  = 'X'. ELSE. gs_main-xsetid  = space. ENDIF.
+
+                gs_main-kokrs = gv_kokrs.
+                APPEND gs_main TO gt_main.
+
+              ENDLOOP.
+
+            ENDIF.
+
+          ENDLOOP.
+
+        ENDIF.
+
+      ENDLOOP.
+
+    ENDIF.
+
+    CLEAR gs_main.
+
+  ENDLOOP.
+
+<font color ="#8C8C8C">*  ENDLOOP.</font>
+<font color ="#8C8C8C">*--- END.</font>
+
+  IF gt_main[] IS INITIAL.
+    MESSAGE s001 WITH TEXT-m00 DISPLAY LIKE 'E'.
+    gv_err_flag = 'X'.
+  ENDIF.
+
+ENDFORM.                    " DATA_QUERY
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  GET_TABLE_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtP_LT_T811C  text</font>
+<font color ="#8C8C8C">*      --&gtP_LT_T811L  text</font>
+<font color ="#8C8C8C">*      --&gtP_LT_T811S  text</font>
+<font color ="#8C8C8C">*      --&gtP_LT_T811K  text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000003"></div>
+FORM get_table_data  TABLES   pt_t811c STRUCTURE t811c
+                              pt_t811l STRUCTURE t811l
+                              pt_t811s STRUCTURE t811s
+                              pt_t811k STRUCTURE t811k
+                              pt_t811m STRUCTURE t811m.
+
+  DATA : lv_langu TYPE sy-langu.
+  RANGES r_cycle FOR gs_main-cycle.
+
+  DATA : lt_t811s TYPE TABLE OF t811s.
+
+  LOOP AT s_cycle.
+    MOVE-CORRESPONDING s_cycle TO r_cycle.
+
+    CASE 'X'.
+      WHEN p_cctr.
+<font color ="#8C8C8C">*--- ## 10.14 s_kokrs -&gt p_kokrs</font>
+        IF r_cycle-low IS NOT INITIAL.
+          CONCATENATE p_kokrs r_cycle-low INTO r_cycle-low.
+        ENDIF.
+
+        IF r_cycle-high IS NOT INITIAL.
+          CONCATENATE p_kokrs r_cycle-high INTO r_cycle-high.
+        ENDIF.
+<font color ="#8C8C8C">*--- End.</font>
+      WHEN p_pa.
+        IF r_cycle-low IS NOT INITIAL.
+          CONCATENATE '1000' r_cycle-low INTO r_cycle-low.
+        ENDIF.
+
+        IF r_cycle-high IS NOT INITIAL.
+          CONCATENATE '1000' r_cycle-high INTO r_cycle-high.
+        ENDIF.
+    ENDCASE.
+
+    APPEND r_cycle.
+  ENDLOOP.
+
+  SELECT *
+    INTO CORRESPONDING FIELDS OF TABLE pt_t811c
+    FROM t811c
+   WHERE tab = gv_tab
+     AND cycle IN r_cycle.
+
+  SELECT *
+    INTO CORRESPONDING FIELDS OF TABLE pt_t811l
+    FROM t811l
+   WHERE langu = sy-langu
+     AND tab = gv_tab
+     AND cycle IN r_cycle.
+
+  SELECT *
+    INTO CORRESPONDING FIELDS OF TABLE pt_t811s
+    FROM t811s
+   WHERE tab = gv_tab
+     AND cycle IN r_cycle.
+
+  SELECT *
+    INTO CORRESPONDING FIELDS OF TABLE pt_t811k
+    FROM t811k
+   WHERE tab = gv_tab
+     AND cycle IN r_cycle.
+
+  lt_t811s[] = pt_t811s[].
+
+  SELECT *
+    FROM t811m AS a
+   WHERE a~tab = @gv_tab
+     AND a~langu = @sy-langu
+     AND EXISTS ( SELECT *
+                    FROM @lt_t811s AS s1
+                   WHERE s1~rcdata = a~fname )
+    INTO CORRESPONDING FIELDS OF TABLE @pt_t811m.
+
+  SORT : pt_t811c BY cycle,
+         pt_t811l BY cycle sdate seqnr,
+         pt_t811s BY cycle sdate seqnr,
+         pt_t811k BY cycle sdate seqnr setkind pos,
+         pt_t811m BY fname.
+
+ENDFORM.                    " GET_TABLE_DATA
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  BUILD_GRID</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  p1        text</font>
+<font color ="#8C8C8C">*  &lt--  p2        text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000004"></div>
+FORM build_grid .
+
+  PERFORM <a href="#000000000005">create_container</a>.
+  PERFORM <a href="#000000000006">deactive_toolbar</a>  CHANGING gt_exclude.
+  PERFORM <a href="#000000000007">set_variant</a>.
+  PERFORM <a href="#000000000008">set_catalog</a> .
+  PERFORM <a href="#000000000013">create_event_receiver_grid</a>.
+  PERFORM <a href="#000000000016">display_grid</a>.
+<font color ="#8C8C8C">*  PERFORM BUILD_GRIDTITLE.</font>
+
+ENDFORM.                    " BUILD_GRID
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  CREATE_CONTAINER</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  p1        text</font>
+<font color ="#8C8C8C">*  &lt--  p2        text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000005"></div>
+FORM create_container .
+
+  DATA: repid  TYPE sy-repid,       " Program name
+        dynnr  TYPE sy-dynnr,       " Screen number
+        l_link TYPE swd_htmlco,
+        l_rcnt TYPE string,
+        l_str  TYPE string.
+
+  repid = sy-repid.
+  dynnr = '0100' .
+
+  CREATE OBJECT w_dialog_container
+    EXPORTING
+      style                       = cl_gui_control=&gtws_child
+      repid                       = repid
+      dynnr                       = dynnr
+      lifetime                    = cl_gui_control=&gtlifetime_imode
+    EXCEPTIONS
+      cntl_error                  = 1
+      cntl_system_error           = 2
+      create_error                = 3
+      lifetime_error              = 4
+      lifetime_dynpro_dynpro_link = 5
+      event_already_registered    = 6
+      error_regist_event          = 7
+      OTHERS                      = 8.
+
+  IF sy-subrc &lt&gt 0 .
+    EXIT .
+  ENDIF.
+
+<font color ="#8C8C8C">*  SPLITTER CONTAINER</font>
+<font color ="#8C8C8C">*  CREATE OBJECT W_SPLITTER</font>
+<font color ="#8C8C8C">*    EXPORTING</font>
+<font color ="#8C8C8C">*      PARENT  = W_DIALOG_CONTAINER</font>
+<font color ="#8C8C8C">*      ROWS    = 2</font>
+<font color ="#8C8C8C">*      COLUMNS = 1.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*  W_CONTAINER = W_SPLITTER-&gtGET_CONTAINER(</font>
+<font color ="#8C8C8C">*      ROW       = 1</font>
+<font color ="#8C8C8C">*      COLUMN    = 1</font>
+<font color ="#8C8C8C">*  ) .</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*  "1ROW# ## ##</font>
+<font color ="#8C8C8C">*  CALL METHOD W_SPLITTER-&gtSET_ROW_HEIGHT</font>
+<font color ="#8C8C8C">*    EXPORTING</font>
+<font color ="#8C8C8C">*      ID     = 1</font>
+<font color ="#8C8C8C">*      HEIGHT = 10.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*  W_CONTAINER1 = W_SPLITTER-&gtGET_CONTAINER(</font>
+<font color ="#8C8C8C">*      ROW       = 2</font>
+<font color ="#8C8C8C">*      COLUMN    = 1</font>
+<font color ="#8C8C8C">*  ) .</font>
+
+
+  "TOP##
+<font color ="#8C8C8C">*  CREATE OBJECT TOP.</font>
+<font color ="#8C8C8C">*  CALL METHOD TOP-&gtDISPLAY_DOCUMENT(</font>
+<font color ="#8C8C8C">*    PARENT = W_CONTAINER ).</font>
+
+  CREATE OBJECT g_alv
+    EXPORTING
+      i_shellstyle = cl_gui_control=&gtws_child
+      i_lifetime   = cl_gui_alv_grid=&gtlifetime_imode
+      i_parent     = w_dialog_container.
+
+ENDFORM.                    " CREATE_CONTAINER
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  DEACTIVE_TOOLBAR</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtPT_EXCLUDE text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000006"></div>
+FORM deactive_toolbar  CHANGING pt_exclude TYPE ui_functions.
+
+  DATA ls_exclude TYPE ui_func.
+
+  REFRESH pt_exclude.
+<font color ="#8C8C8C">*</font>
+  ls_exclude = cl_gui_alv_grid=&gtmc_fc_loc_append_row.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=&gtmc_fc_loc_insert_row.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=&gtmc_fc_loc_undo.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=&gtmc_fc_loc_copy_row.
+  APPEND ls_exclude TO pt_exclude.
+
+  ls_exclude = cl_gui_alv_grid=&gtmc_fc_loc_delete_row.
+  APPEND ls_exclude TO pt_exclude.
+
+  ls_exclude = cl_gui_alv_grid=&gtmc_fc_check .
+  APPEND ls_exclude TO pt_exclude.
+
+  ls_exclude = cl_gui_alv_grid=&gtmc_fc_loc_copy.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=&gtmc_fc_loc_cut.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=&gtmc_fc_loc_move_row.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=&gtmc_fc_loc_paste.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=&gtmc_fc_loc_undo.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=&gtmc_fc_loc_paste_new_row.
+  APPEND ls_exclude TO pt_exclude.
+
+<font color ="#8C8C8C">*  ls_exclude = cl_gui_alv_grid=&gtmc_fc_subtot.</font>
+<font color ="#8C8C8C">*  APPEND ls_exclude TO pt_exclude.</font>
+<font color ="#8C8C8C">*  ls_exclude = cl_gui_alv_grid=&gtmc_fc_sum.</font>
+<font color ="#8C8C8C">*  APPEND ls_exclude TO pt_exclude.</font>
+
+  ls_exclude = cl_gui_alv_grid=&gtmc_fc_detail.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=&gtmc_fc_refresh.
+  APPEND ls_exclude TO pt_exclude.
+<font color ="#8C8C8C">*  ls_exclude = cl_gui_alv_grid=&gtmc_mb_filter.</font>
+<font color ="#8C8C8C">*  APPEND ls_exclude TO pt_exclude.</font>
+<font color ="#8C8C8C">*  ls_exclude = cl_gui_alv_grid=&gtmc_fc_print_prev.</font>
+<font color ="#8C8C8C">*  APPEND ls_exclude TO pt_exclude.</font>
+<font color ="#8C8C8C">*  ls_exclude = cl_gui_alv_grid=&gtmc_mb_export.</font>
+<font color ="#8C8C8C">*  APPEND ls_exclude TO pt_exclude.</font>
+<font color ="#8C8C8C">*  ls_exclude = cl_gui_alv_grid=&gtmc_fc_current_variant.</font>
+<font color ="#8C8C8C">*  APPEND ls_exclude TO pt_exclude.</font>
+
+<font color ="#8C8C8C">*  ls_exclude = cl_gui_alv_grid=&gtmc_fc_pc_file .</font>
+<font color ="#8C8C8C">*  APPEND ls_exclude TO pt_exclude.</font>
+<font color ="#8C8C8C">*  ls_exclude = cl_gui_alv_grid=&gtmc_fc_print_back .</font>
+<font color ="#8C8C8C">*  APPEND ls_exclude TO pt_exclude.</font>
+<font color ="#8C8C8C">*  ls_exclude = cl_gui_alv_grid=&gtmc_fc_print .</font>
+<font color ="#8C8C8C">*  APPEND ls_exclude TO pt_exclude.</font>
+
+  ls_exclude = cl_gui_alv_grid=&gtmc_fc_sort.
+  APPEND ls_exclude TO pt_exclude.
+<font color ="#8C8C8C">*  ls_exclude = cl_gui_alv_grid=&gtmc_fc_sort_asc.</font>
+<font color ="#8C8C8C">*  APPEND ls_exclude TO pt_exclude.</font>
+<font color ="#8C8C8C">*  ls_exclude = cl_gui_alv_grid=&gtmc_fc_sort_dsc.</font>
+<font color ="#8C8C8C">*  APPEND ls_exclude TO pt_exclude.</font>
+
+  ls_exclude = cl_gui_alv_grid=&gtmc_fc_graph.
+  APPEND ls_exclude TO pt_exclude.
+  ls_exclude = cl_gui_alv_grid=&gtmc_fc_info.
+  APPEND ls_exclude TO pt_exclude.
+
+ENDFORM.                    " DEACTIVE_TOOLBAR
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  SET_VARIANT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  p1        text</font>
+<font color ="#8C8C8C">*  &lt--  p2        text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000007"></div>
+FORM set_variant .
+
+  CLEAR : gs_variant .
+  gs_variant-report       = sy-repid.
+  gs_variant-handle       = space.
+  gs_variant-log_group    = space.
+  gs_variant-username     = space.
+<font color ="#8C8C8C">*  GS_VARIANT-VARIANT      = P_VARI .</font>
+  gs_variant-text         = space.
+  gs_variant-dependvars   = space.
+
+ENDFORM.                    " SET_VARIANT
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  SET_CATALOG</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  p1        text</font>
+<font color ="#8C8C8C">*  &lt--  p2        text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000008"></div>
+FORM set_catalog .
+
+  PERFORM <a href="#000000000009">make_layout</a>.
+  PERFORM <a href="#000000000010">make_sort</a>.
+  PERFORM <a href="#000000000011">make_fieldcat</a> .
+
+ENDFORM.                    " SET_CATALOG
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  MAKE_LAYOUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  p1        text</font>
+<font color ="#8C8C8C">*  &lt--  p2        text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000009"></div>
+FORM make_layout .
+
+  CLEAR  :  gs_layout.
+  gs_layout-cwidth_opt  =  'X'.
+  gs_layout-zebra       =  'X'.
+<font color ="#8C8C8C">*  GS_LAYOUT-NO_ROWMARK  =  'X'.   "selection mode# ###</font>
+  gs_layout-sel_mode    =  'A'.
+<font color ="#8C8C8C">*  GS_LAYOUT-SMALLTITLE = 'X'.</font>
+<font color ="#8C8C8C">*  gs_layout-ctab_fname  = 'COLINFO'.</font>
+<font color ="#8C8C8C">*  gs_layout-stylefname  =  'CELLTAB'.</font>
+<font color ="#8C8C8C">*  gs_setting-edt_cll_cb = 'X'.</font>
+
+ENDFORM.                    " MAKE_LAYOUT
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  MAKE_SORT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  p1        text</font>
+<font color ="#8C8C8C">*  &lt--  p2        text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000010"></div>
+FORM make_sort.
+<font color ="#8C8C8C">*     ' ' 'CYCLE'          TEXT-N00      '00',   "</font>
+<font color ="#8C8C8C">*     ' ' 'TXT1'           TEXT-N01      '00',   "</font>
+<font color ="#8C8C8C">*     ' ' 'NAME'          TEXT-N02      '00',   "</font>
+<font color ="#8C8C8C">*     ' ' 'TXT2'          TEXT-N03      '00',   "</font>
+<font color ="#8C8C8C">*     ' ' 'SRULE_TEXT'        TEXT-N04      '00',   "</font>
+<font color ="#8C8C8C">*     ' ' 'SPERCENT'         TEXT-N05      '00',   "</font>
+<font color ="#8C8C8C">*     ' ' 'RRULE_TEXT'          TEXT-N06      '00',   "</font>
+<font color ="#8C8C8C">*     ' ' 'ACTIVE'        TEXT-N08      '00',   "</font>
+
+
+  CLEAR : gs_sort.
+  gs_sort-spos = 1.
+  gs_sort-fieldname  = 'CYCLE'.
+  APPEND gs_sort TO gt_sort.
+
+  CLEAR : gs_sort.
+  gs_sort-spos = 2.
+  gs_sort-fieldname  = 'TXT1'.
+  APPEND gs_sort TO gt_sort.
+
+  CLEAR : gs_sort.
+  gs_sort-spos = 3.
+  gs_sort-fieldname  = 'NAME'.
+  APPEND gs_sort TO gt_sort.
+
+  CLEAR : gs_sort.
+  gs_sort-spos = 4.
+  gs_sort-fieldname  = 'TXT2'.
+  APPEND gs_sort TO gt_sort.
+
+  IF r_full = 'X'.
+    CLEAR : gs_sort.
+    gs_sort-spos = 5.
+    gs_sort-fieldname  = 'SRULE_TEXT'.
+    APPEND gs_sort TO gt_sort.
+
+    CLEAR : gs_sort.
+    gs_sort-spos = 6.
+    gs_sort-fieldname  = 'SPERCENT'.
+    APPEND gs_sort TO gt_sort.
+
+    CLEAR : gs_sort.
+    gs_sort-spos = 7.
+    gs_sort-fieldname  = 'RRULE_TEXT'.
+    APPEND gs_sort TO gt_sort.
+
+    CLEAR : gs_sort.
+    gs_sort-spos = 8.
+    gs_sort-fieldname  = 'RCDATA_T'.
+    APPEND gs_sort TO gt_sort.
+
+    CLEAR : gs_sort.
+    gs_sort-spos = 9.
+    gs_sort-fieldname  = 'NEGTEST_T'.
+    APPEND gs_sort TO gt_sort.
+
+    CLEAR : gs_sort.
+    gs_sort-spos = 10.
+    gs_sort-fieldname  = 'ACTIVE'.
+    APPEND gs_sort TO gt_sort.
+
+
+    CLEAR : gs_sort.
+    gs_sort-spos = 11.
+    gs_sort-fieldname  = 'KSGRU'.
+    APPEND gs_sort TO gt_sort.
+
+    CLEAR : gs_sort.
+    gs_sort-spos = 12.
+    gs_sort-fieldname  = 'GTEXT'.
+    APPEND gs_sort TO gt_sort.
+
+    CLEAR : gs_sort.
+    gs_sort-spos = 13.
+    gs_sort-fieldname  = 'SETKIND_TEXT'.
+    APPEND gs_sort TO gt_sort.
+
+    CLEAR : gs_sort.
+    gs_sort-spos = 14.
+    gs_sort-fieldname  = 'SETID'.
+    APPEND gs_sort TO gt_sort.
+
+    CLEAR : gs_sort.
+    gs_sort-spos = 15.
+    gs_sort-fieldname  = 'DESCRIPT'.
+    APPEND gs_sort TO gt_sort.
+  ENDIF.
+
+ENDFORM.                    " MAKE_SORT
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  MAKE_FIELDCAT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  p1        text</font>
+<font color ="#8C8C8C">*  &lt--  p2        text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000011"></div>
+FORM make_fieldcat .
+
+  REFRESH gt_fieldcat.
+  PERFORM <a href="#000000000012">catalog_setting</a> USING:
+     ' ' 'CYCLE'          TEXT-n00      '00',   "
+     ' ' 'TXT1'           TEXT-n01      '00',   "
+     ' ' 'NAME'           TEXT-n02      '00',   "
+     ' ' 'TXT2'           TEXT-n03      '00',   "
+     ' ' 'SRULE_TEXT'     TEXT-n04      '00',   "
+     ' ' 'SPERCENT'       TEXT-n05      '00',   "
+     ' ' 'RRULE_TEXT'     TEXT-n06      '00',   "
+<font color ="#8C8C8C">*     ' ' 'RCDATA'         TEXT-N46      '00',</font>
+     ' ' 'RCDATA_T'       TEXT-n46      '00',
+<font color ="#8C8C8C">*     ' ' 'NEGTEST'        TEXT-N47      '00',</font>
+     ' ' 'NEGTEST_T'      TEXT-n47      '00'.
+
+  IF r_summ EQ 'X'.
+    PERFORM <a href="#000000000012">catalog_setting</a> USING:
+       ' ' 'KSGRU'             TEXT-n13   '00',   "
+       ' ' 'GTEXT'             TEXT-n14   '00',   "
+       ' ' 'SENDER_SETID'      TEXT-n22   '00',
+       ' ' 'SENDER_DESCRIPT'   TEXT-n23   '00',
+       ' ' 'SENDER_FR_KOSTL'   TEXT-n24   '00',
+       ' ' 'SENDER_FR_CTEXT'   TEXT-n25   '00',
+       ' ' 'SENDER_TO_KOSTL'   TEXT-n26   '00',
+       ' ' 'SENDER_TO_CTEXT'   TEXT-n27   '00',
+       ' ' 'RECEIVER_SETID'    TEXT-n28   '00',
+       ' ' 'RECEIVER_DESCRIPT' TEXT-n29   '00',
+       ' ' 'RECEIVER_FR_KOSTL' TEXT-n30   '00',
+       ' ' 'RECEIVER_FR_CTEXT' TEXT-n31   '00',
+       ' ' 'RECEIVER_TO_KOSTL' TEXT-n32   '00',
+       ' ' 'RECEIVER_TO_CTEXT' TEXT-n33   '00',
+<font color ="#8C8C8C">*       ' ' 'WW010'             TEXT-n34   '00',</font>
+<font color ="#8C8C8C">*       ' ' 'REF'               TEXT-n35   '00',</font>
+<font color ="#8C8C8C">*       ' ' 'MWO'               TEXT-n36   '00',</font>
+<font color ="#8C8C8C">*       ' ' 'WM'                TEXT-n37   '00',</font>
+<font color ="#8C8C8C">*       ' ' 'OSD'               TEXT-n38   '00',</font>
+<font color ="#8C8C8C">*       ' ' 'AC'                TEXT-n39   '00',</font>
+<font color ="#8C8C8C">*       ' ' 'OHE'               TEXT-n40   '00',</font>
+       ' ' 'TYPE'              TEXT-n41   '00',
+       ' ' 'SKF'               TEXT-n20   '00',
+       ' ' 'BEZEI'             TEXT-n42   '00'.
+
+    PERFORM <a href="#000000000012">catalog_setting</a> USING:
+       ' ' 'RTFAC_MIN'         TEXT-n48      '00',
+       ' ' 'RTFAC_MAX'         TEXT-n49      '00',
+       ' ' 'RTFAC_SET'         TEXT-n50      '00'.
+  ELSE.
+    PERFORM <a href="#000000000012">catalog_setting</a> USING:
+       ' ' 'ACTIVE'         TEXT-n08      '00',   "
+
+       ' ' 'FR_KSTAR'       TEXT-n09      '00',   "
+       ' ' 'FR_KTEXT'       TEXT-n10      '00',   "
+       ' ' 'TO_KSTAR'       TEXT-n11      '00',   "
+       ' ' 'TO_KTEXT'       TEXT-n12      '00',   "
+       ' ' 'KSGRU'          TEXT-n13      '00',   "
+       ' ' 'GTEXT'          TEXT-n14      '00',   "
+       ' ' 'SETKIND_TEXT'   TEXT-n15      '00'.   "
+
+    IF p_pa EQ 'X'.
+      PERFORM <a href="#000000000012">catalog_setting</a> USING:
+         ' ' 'FIELD'          TEXT-n44      '00',   "
+         ' ' 'FIELD_TEXT'     TEXT-n45      '00',   "
+         ' ' 'VALMIN'         TEXT-a29      '00',   "
+         ' ' 'VALMAX'         TEXT-a30      '00'.   "
+    ENDIF.
+
+    PERFORM <a href="#000000000012">catalog_setting</a> USING:
+       ' ' 'SETID'          TEXT-n16      '00',
+       ' ' 'DESCRIPT'       TEXT-n17      '00',   "
+       ' ' 'KOSTL'          TEXT-n18      '00',   "
+       ' ' 'CTEXT'          TEXT-n19      '00'.   "
+
+    IF p_cctr EQ 'X'.
+      PERFORM <a href="#000000000012">catalog_setting</a> USING:
+<font color ="#8C8C8C">*         ' ' 'KOSTL'          TEXT-n18      '00',   "</font>
+<font color ="#8C8C8C">*         ' ' 'CTEXT'          TEXT-n19      '00',   "</font>
+         ' ' 'SKF'            TEXT-n20      '00',   "
+         ' ' 'SMEBTR'         TEXT-n21      '00',
+         ' ' 'RECEIVER_VALUE' TEXT-n43      '00'. " ### ####
+
+      PERFORM <a href="#000000000012">catalog_setting</a> USING:
+       ' ' 'RTFAC_MIN'         TEXT-n48      '00',
+       ' ' 'RTFAC_MAX'         TEXT-n49      '00',
+       ' ' 'RTFAC_SET'         TEXT-n50      '00'.
+    ENDIF.
+
+
+<font color ="#8C8C8C">*    PERFORM catalog_setting USING:</font>
+<font color ="#8C8C8C">*       ' ' 'SETID'          TEXT-n16      '00'.   "</font>
+  ENDIF.
+
+ENDFORM.                    " MAKE_FIELDCAT
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  CATALOG_SETTING</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtP_1423   text</font>
+<font color ="#8C8C8C">*      --&gtP_1424   text</font>
+<font color ="#8C8C8C">*      --&gtP_TEXT_F00  text</font>
+<font color ="#8C8C8C">*      --&gtP_1426   text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000012"></div>
+FORM catalog_setting  USING    p_key
+                             p_fname
+                             p_coltext
+                             p_outlen.
+
+  CLEAR  : gs_fieldcat.
+
+<font color ="#8C8C8C">*  CASE p_fname .</font>
+<font color ="#8C8C8C">*    WHEN 'CYCLE'.</font>
+<font color ="#8C8C8C">*    when 'TXT1' OR 'NAME' OR 'TXT2 'OR</font>
+<font color ="#8C8C8C">*         'SRULE_TEXT' OR 'SPERCENT' OR 'RRULE_TEXT' OR 'ACTIVE' .</font>
+<font color ="#8C8C8C">*      gs_fieldcat-key = 'X'.</font>
+<font color ="#8C8C8C">*    WHEN 'SMEBTR'.</font>
+<font color ="#8C8C8C">*      gs_fieldcat-decimals_o = 0.</font>
+<font color ="#8C8C8C">*    WHEN 'KSGRU' OR 'SENDER_SETID' OR 'RECEIVER_SETID'.</font>
+<font color ="#8C8C8C">*      IF r_summ EQ 'X'.</font>
+<font color ="#8C8C8C">*        gs_fieldcat-hotspot = 'X'.</font>
+<font color ="#8C8C8C">*      ENDIF.</font>
+<font color ="#8C8C8C">*  ENDCASE .</font>
+
+  CASE p_fname.
+    WHEN 'CYCLE'.
+      gs_fieldcat-key = 'X'.
+      gs_fieldcat-dd_outlen = '10'.
+    WHEN 'TXT1'.
+      gs_fieldcat-key = 'X'.
+      gs_fieldcat-dd_outlen = '30'.
+    WHEN 'NAME'.
+      gs_fieldcat-key = 'X'.
+      gs_fieldcat-dd_outlen = '10'.
+    WHEN 'TXT2'.
+      gs_fieldcat-key = 'X'.
+      gs_fieldcat-dd_outlen = '30'.
+    WHEN 'SRULE_TEXT'.
+      gs_fieldcat-key = 'X'.
+      gs_fieldcat-dd_outlen = '20'.
+    WHEN 'SPERCENT'.
+      gs_fieldcat-key = 'X'.
+
+    WHEN 'RRULE_TEXT'.
+      gs_fieldcat-key = 'X'.
+      gs_fieldcat-dd_outlen = '20'.
+    WHEN 'RCDATA_T'.
+      gs_fieldcat-key = 'X'.
+      gs_fieldcat-dd_outlen = '15'.
+    WHEN 'NEGTEST_T'.
+      gs_fieldcat-key = 'X'.
+      gs_fieldcat-dd_outlen = '15'.
+    WHEN 'KSGRU'.
+      gs_fieldcat-hotspot = r_summ.
+      gs_fieldcat-dd_outlen = '15'.
+    WHEN 'GTEXT'.
+      gs_fieldcat-dd_outlen = '30'.
+    WHEN 'SENDER_SETID'.
+      gs_fieldcat-hotspot = r_summ.
+      gs_fieldcat-dd_outlen = '34'.
+    WHEN 'SENDER_DESCRIPT'.
+      gs_fieldcat-dd_outlen = '40'.
+    WHEN 'SENDER_FR_KOSTL'.
+      gs_fieldcat-dd_outlen = '10'.
+    WHEN 'SENDER_FR_CTEXT'.
+      gs_fieldcat-dd_outlen = '20'.
+    WHEN 'SENDER_TO_KOSTL'.
+      gs_fieldcat-dd_outlen = '10'.
+    WHEN 'SENDER_TO_CTEXT'.
+      gs_fieldcat-dd_outlen = '20'.
+    WHEN 'RECEIVER_SETID'.
+      gs_fieldcat-hotspot = r_summ.
+      gs_fieldcat-dd_outlen = '34'.
+    WHEN 'RECEIVER_DESCRIPT'.
+      gs_fieldcat-dd_outlen = '40'.
+    WHEN 'RECEIVER_FR_KOSTL'.
+    WHEN 'RECEIVER_FR_CTEXT'.
+      gs_fieldcat-dd_outlen = '20'.
+    WHEN 'RECEIVER_TO_KOSTL'.
+    WHEN 'RECEIVER_TO_CTEXT'.
+      gs_fieldcat-dd_outlen = '20'.
+    WHEN 'WW010'.
+    WHEN 'REF'.
+    WHEN 'MWO'.
+    WHEN 'WM'.
+    WHEN 'OSD'.
+    WHEN 'AC'.
+    WHEN 'OHE'.
+    WHEN 'TYPE'.
+    WHEN 'SKF'.
+      gs_fieldcat-dd_outlen = '24'.
+    WHEN 'BEZEI'.
+      gs_fieldcat-dd_outlen = '40'.
+    WHEN 'ACTIVE'.
+      gs_fieldcat-key = 'X'.
+    WHEN 'FR_KSTAR'.
+    WHEN 'FR_KTEXT'.
+      gs_fieldcat-dd_outlen = '30'.
+    WHEN 'TO_KSTAR'.
+    WHEN 'TO_KTEXT'.
+      gs_fieldcat-dd_outlen = '30'.
+    WHEN 'SETKIND_TEXT'.
+      gs_fieldcat-dd_outlen = '20'.
+    WHEN 'SETID'.
+      gs_fieldcat-dd_outlen = '34'.
+    WHEN 'DESCRIPT'.
+      gs_fieldcat-dd_outlen = '40'.
+    WHEN 'KOSTL'.
+    WHEN 'CTEXT'.
+      gs_fieldcat-dd_outlen = '20'.
+    WHEN 'SKF'.
+      gs_fieldcat-dd_outlen = '24'.
+    WHEN 'SMEBTR'.
+      gs_fieldcat-decimals_o = 0.
+  ENDCASE.
+
+
+<font color ="#8C8C8C">*  GS_FIELDCAT-KEY           = P_KEY.</font>
+  gs_fieldcat-fieldname     = p_fname.
+  gs_fieldcat-coltext       = p_coltext.
+  gs_fieldcat-outputlen     = p_outlen.
+
+  APPEND gs_fieldcat TO gt_fieldcat.
+
+ENDFORM.                    " CATALOG_SETTING
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  CREATE_EVENT_RECEIVER_GRID</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  p1        text</font>
+<font color ="#8C8C8C">*  &lt--  p2        text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000013"></div>
+FORM create_event_receiver_grid .
+
+  PERFORM <a href="#000000000014">create_evt_receiver</a>.
+  PERFORM <a href="#000000000015">create_evt_top</a>.
+
+ENDFORM.                    " CREATE_EVENT_RECEIVER_GRID
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  CREATE_EVT_RECEIVER</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000014"></div>
+FORM create_evt_receiver.
+
+  CREATE OBJECT g_app.
+  SET HANDLER: g_app-&gthandle_hotspot_click           FOR g_alv.
+
+ENDFORM.                    " CREATE_EVT_RECEIVER
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  CREATE_EVT_TOP</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000015"></div>
+FORM create_evt_top.
+
+<font color ="#8C8C8C">*  CALL METHOD G_ALV-&gtLIST_PROCESSING_EVENTS</font>
+<font color ="#8C8C8C">*    EXPORTING</font>
+<font color ="#8C8C8C">*      I_EVENT_NAME = 'TOP_OF_PAGE'</font>
+<font color ="#8C8C8C">*      I_DYNDOC_ID  = TOP.</font>
+
+ENDFORM.                    " CREATE_EVT_TOP
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  DISPLAY_GRID</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  p1        text</font>
+<font color ="#8C8C8C">*  &lt--  p2        text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000016"></div>
+FORM display_grid .
+
+  gs_variant-report = sy-repid.
+
+<font color ="#8C8C8C">*  CALL METHOD G_ALV-&gtSET_TABLE_FOR_FIRST_DISPLAY</font>
+<font color ="#8C8C8C">*    EXPORTING</font>
+<font color ="#8C8C8C">*      I_BUFFER_ACTIVE      = BUFFER_ACTIVE</font>
+<font color ="#8C8C8C">*      I_BYPASSING_BUFFER   = BYPASSING_BUFFER</font>
+<font color ="#8C8C8C">*      I_CONSISTENCY_CHECK  = SPACE</font>
+<font color ="#8C8C8C">*      IS_VARIANT           = GS_VARIANT</font>
+<font color ="#8C8C8C">*      I_SAVE               = 'A'</font>
+<font color ="#8C8C8C">**     I_DEFAULT            = VARI_DEFAULT</font>
+<font color ="#8C8C8C">*      IS_LAYOUT            = GS_LAYOUT</font>
+<font color ="#8C8C8C">*      IT_TOOLBAR_EXCLUDING = GT_EXCLUDE</font>
+<font color ="#8C8C8C">*    CHANGING</font>
+<font color ="#8C8C8C">*      IT_OUTTAB            = GT_MAIN[]</font>
+<font color ="#8C8C8C">*      IT_FIELDCATALOG      = GT_FIELDCAT[]</font>
+<font color ="#8C8C8C">*      IT_SORT              = GT_SORT[].</font>
+
+  IF r_summ EQ 'X'.
+    CALL METHOD g_alv-&gtset_table_for_first_display
+      EXPORTING
+        i_buffer_active      = buffer_active
+        i_bypassing_buffer   = bypassing_buffer
+        i_consistency_check  = space
+        is_variant           = gs_variant
+        i_save               = zcl_co_util=&gtalv_layo_ctrl( )
+<font color ="#8C8C8C">*       I_DEFAULT            = VARI_DEFAULT</font>
+        is_layout            = gs_layout
+        it_toolbar_excluding = gt_exclude
+      CHANGING
+        it_outtab            = gt_data1[]
+        it_fieldcatalog      = gt_fieldcat[]
+        it_sort              = gt_sort[].
+  ELSE.
+    CALL METHOD g_alv-&gtset_table_for_first_display
+      EXPORTING
+        i_buffer_active      = buffer_active
+        i_bypassing_buffer   = bypassing_buffer
+        i_consistency_check  = space
+        is_variant           = gs_variant
+        i_save               = zcl_co_util=&gtalv_layo_ctrl( )
+<font color ="#8C8C8C">*       I_DEFAULT            = VARI_DEFAULT</font>
+        is_layout            = gs_layout
+        it_toolbar_excluding = gt_exclude
+      CHANGING
+        it_outtab            = gt_data[]
+        it_fieldcatalog      = gt_fieldcat[]
+        it_sort              = gt_sort[].
+  ENDIF.
+
+  IF sy-subrc &lt&gt 0.
+<font color ="#8C8C8C">*   Implement suitable error handling here</font>
+  ENDIF.
+
+  .
+  IF sy-subrc &lt&gt 0.
+<font color ="#8C8C8C">*   Implement suitable error handling here</font>
+  ENDIF.
+
+  CALL METHOD g_alv-&gtset_toolbar_interactive.
+  CALL METHOD g_alv-&gtregister_edit_event
+    EXPORTING
+      i_event_id = cl_gui_alv_grid=&gtmc_evt_enter.
+  CALL METHOD g_alv-&gtregister_edit_event
+    EXPORTING
+      i_event_id = cl_gui_alv_grid=&gtmc_evt_modified.
+  CALL METHOD cl_gui_control=&gtset_focus
+    EXPORTING
+      control = g_alv.
+
+ENDFORM.                    " DISPLAY_GRID
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  REFRESH_GRID</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  p1        text</font>
+<font color ="#8C8C8C">*  &lt--  p2        text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000017"></div>
+FORM refresh_grid .
+
+  gs_stbl-row = 'X'.
+  gs_stbl-col = 'X'.
+  CALL METHOD g_alv-&gtrefresh_table_display
+    EXPORTING
+      is_stable      = gs_stbl
+      i_soft_refresh = 'X'.
+
+ENDFORM.                    " REFRESH_GRID
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  CHANGE_CYCLE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  p1        text</font>
+<font color ="#8C8C8C">*  &lt--  p2        text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000018"></div>
+FORM change_cycle .
+
+  DATA : lt_t811c TYPE TABLE OF t811c, ls_t811c TYPE t811c,
+         lt_t811s TYPE TABLE OF t811s, ls_t811s TYPE t811s,
+         lt_t811k TYPE TABLE OF t811k, ls_t811k TYPE t811k,
+         lt_t811l TYPE TABLE OF t811l, ls_t811l TYPE t811l,
+         lt_error TYPE TABLE OF bapiret2, ls_error TYPE bapiret2.
+
+  DATA : lv_testrun TYPE rkga2u-test,
+         lv_langu   TYPE sy-langu.
+
+<font color ="#8C8C8C">*  IF sy-mandt = '100'.</font>
+<font color ="#8C8C8C">*    lv_langu = '3'.</font>
+<font color ="#8C8C8C">*  ELSE.</font>
+<font color ="#8C8C8C">*    lv_langu = 'E'.</font>
+<font color ="#8C8C8C">*  ENDIF.</font>
+
+  lv_langu = sy-langu.
+
+  LOOP AT gt_main INTO gs_main.
+
+    IF ls_t811c-cycle NE gs_main-cycle OR
+       ls_t811c-sdate NE gs_main-sdate.
+
+      CLEAR ls_t811c.
+      ls_t811c-tab        = gv_tab.
+      ls_t811c-cycle      = gs_main-cycle.
+      ls_t811c-sdate      = gs_main-sdate.
+      ls_t811c-edate      = gs_main-edate.
+      ls_t811c-rstatus    = gs_main-rstatus.
+      ls_t811c-crdate     = gs_main-crdate.
+      ls_t811c-puser      = gs_main-puser.
+      ls_t811c-moddate    = gs_main-moddate.
+      ls_t811c-moduser    = gs_main-moduser.
+      ls_t811c-lastexec   = gs_main-lastexec.
+      ls_t811c-lexecby    = gs_main-lexecby.
+      ls_t811c-iterflag   = gs_main-iterflag.
+      ls_t811c-negtest    = gs_main-negtest1.
+      ls_t811c-alart      = gs_main-alart.
+      ls_t811c-ipknz      = gs_main-ipknz.
+      ls_t811c-proc_group = gs_main-proc_group.
+      APPEND ls_t811c TO lt_t811c.
+
+    ENDIF.
+
+    IF ls_t811l-cycle NE gs_main-cycle OR
+       ls_t811l-sdate NE gs_main-sdate OR
+       ls_t811l-seqnr NE gs_main-seqnr.
+
+      CLEAR ls_t811l.
+      ls_t811l-langu = lv_langu.
+      ls_t811l-tab   = gv_tab.
+      ls_t811l-cycle = gs_main-cycle.
+      ls_t811l-sdate = gs_main-sdate.
+      ls_t811l-seqnr = gs_main-seqnr.
+      ls_t811l-txt   = gs_main-txt2.
+      APPEND ls_t811l TO lt_t811l.
+
+    ENDIF.
+
+    IF ls_t811s-cycle NE gs_main-cycle OR
+       ls_t811s-sdate NE gs_main-sdate OR
+       ls_t811s-seqnr NE gs_main-seqnr.
+
+      CLEAR ls_t811s.
+      ls_t811s-tab      = gv_tab.
+      ls_t811s-cycle    = gs_main-cycle.
+      ls_t811s-sdate    = gs_main-sdate.
+      ls_t811s-seqnr    = gs_main-seqnr.
+      ls_t811s-name     = gs_main-name.
+      ls_t811s-seqpos   = gs_main-seqpos.
+      ls_t811s-srule    = gs_main-srule.
+      ls_t811s-spercent = gs_main-spercent.
+      ls_t811s-rrule    = gs_main-rrule.
+      ls_t811s-active   = gs_main-active.
+      ls_t811s-negtest  = gs_main-negtest2.
+      APPEND ls_t811s TO lt_t811s.
+
+    ENDIF.
+
+    IF ls_t811k-cycle NE gs_main-cycle OR
+       ls_t811k-sdate NE gs_main-sdate OR
+       ls_t811k-seqnr NE gs_main-seqnr OR
+       ls_t811k-setkind NE gs_main-setkind OR
+       ls_t811k-pos     NE gs_main-pos.
+
+      CLEAR ls_t811k.
+      ls_t811k-tab     = gv_tab.
+      ls_t811k-cycle   = gs_main-cycle.
+      ls_t811k-sdate   = gs_main-sdate.
+      ls_t811k-seqnr   = gs_main-seqnr.
+      ls_t811k-setkind = gs_main-setkind.
+      ls_t811k-pos     = gs_main-pos.
+      ls_t811k-field   = gs_main-field.
+      ls_t811k-setname = gs_main-setname.
+      ls_t811k-valmin  = gs_main-valmin.
+      ls_t811k-valmax  = gs_main-valmax.
+      ls_t811k-setid   = gs_main-setid.
+      APPEND ls_t811k TO lt_t811k.
+
+    ENDIF.
+
+  ENDLOOP.
+
+
+  SORT : lt_t811c, lt_t811s, lt_t811k, lt_t811l.
+  DELETE ADJACENT DUPLICATES FROM : lt_t811c COMPARING ALL FIELDS,
+                                    lt_t811s COMPARING ALL FIELDS,
+                                    lt_t811k COMPARING ALL FIELDS,
+                                    lt_t811l COMPARING ALL FIELDS.
+
+  lv_testrun = 'X'.
+
+  CALL FUNCTION 'KGAL_CHANGE_CYCLE'
+    EXPORTING
+      testrun   = lv_testrun
+    TABLES
+      it811c    = lt_t811c
+      it811s    = lt_t811s
+      it811k    = lt_t811k
+<font color ="#8C8C8C">*     IT811F    =</font>
+      it811l    = lt_t811l
+      error_log = lt_error.
+
+  IF lt_error[] IS NOT INITIAL.
+
+  ENDIF.
+
+ENDFORM.                    " CHANGE_CYCLE
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  MODIFY_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  p1        text</font>
+<font color ="#8C8C8C">*  &lt--  p2        text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000019"></div>
+FORM modify_data .
+
+  DATA : lt_sender   TYPE TABLE OF t_main WITH HEADER LINE,
+         lt_receiver TYPE TABLE OF t_main WITH HEADER LINE,
+         lt_skf      TYPE TABLE OF t_main WITH HEADER LINE,
+         lt_factor   TYPE TABLE OF t_main WITH HEADER LINE,
+         lt_loop     TYPE TABLE OF t_main WITH HEADER LINE,
+         ls_loop     TYPE t_main,
+         lv_perio    TYPE co_perio.
+
+  lt_factor[] = lt_skf[] = lt_sender[] = lt_receiver[] = lt_loop[] = gt_main[].
+  DELETE lt_sender WHERE setkind &lt&gt '2'
+                      OR
+                      ( field &lt&gt 'KOSTL'
+                      AND field &lt&gt 'KSTAR' ).
+
+  CASE 'X'.
+    WHEN p_cctr.
+      DELETE lt_receiver WHERE setkind &lt&gt '3'
+                            OR
+                            ( field &lt&gt 'KOSTL'
+                            AND field &lt&gt 'KSTAR'
+                            AND field &lt&gt 'AUFNR' ).
+    WHEN p_pa.
+      DELETE lt_receiver WHERE setkind &lt&gt '3'.
+  ENDCASE.
+
+  DELETE lt_skf WHERE setkind &lt&gt '4'
+                   OR
+                   ( field &lt&gt 'STAGR' ).
+
+  DELETE lt_factor WHERE setkind &lt&gt '4'.
+
+  SORT lt_sender BY cycle name field. "KSTAR-&gtKOSTL ### ##
+  SORT lt_receiver BY cycle name field.
+  SORT lt_skf BY cycle name field.
+  SORT lt_factor BY cycle name xvalmin xvalmax xsetid.
+
+  SORT lt_loop BY cycle name.
+  DELETE ADJACENT DUPLICATES FROM lt_loop COMPARING cycle name.
+
+  IF gv_err_flag IS INITIAL.
+    CLEAR : gt_coepr[].
+    lv_perio = '0' && gv_period+4(2).
+<font color ="#8C8C8C">*--- ## 10.14 s_kokrs -&gt p_kokrs</font>
+    SELECT SUM( a~smebtr ) AS smebtr a~objnr a~stagr
+  FROM coepr AS a
+  INTO CORRESPONDING FIELDS OF TABLE gt_coepr
+<font color ="#8C8C8C">*  WHERE kokrs = gv_kokrs</font>
+  WHERE kokrs EQ p_kokrs
+       AND perio = lv_perio
+       AND gjahr = gv_period+0(4)
+       GROUP BY a~objnr a~stagr.
+<font color ="#8C8C8C">*--- End.</font>
+    SORT gt_coepr BY objnr stagr.
+
+    LOOP AT lt_loop.
+
+      gv_kokrs = lt_loop-kokrs.
+      IF r_summ EQ 'X'.
+        PERFORM <a href="#000000000029">set_data_summary</a> USING lt_sender[]
+                                       lt_receiver[]
+                                       lt_skf[]
+                                       lt_factor[]
+                                       lt_loop.
+      ELSE.
+        PERFORM <a href="#000000000020">set_data_from_table</a>  USING lt_sender[]
+                                           lt_receiver[]
+                                           lt_skf[]
+                                           lt_factor[]
+                                           lt_loop.
+      ENDIF.
+    ENDLOOP.
+
+  ENDIF.
+
+ENDFORM.                    " MODIFY_DATA
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  SET_DATA_FROM_TABLE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtP_LT_SENDER  text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000020"></div>
+FORM set_data_from_table  USING pt_sender LIKE gt_main
+                                pt_receiver LIKE gt_main
+                                pt_skf LIKE gt_main
+                                pt_factor LIKE gt_main
+                                ps_loop LIKE gs_main.
+
+  DATA : ls_line           TYPE t_main,
+         lv_skf            TYPE setvalmin,
+         lv_min            TYPE setvalmin,
+         lv_max            TYPE setvalmax,
+         lv_set            TYPE setid,
+         lv_setname        TYPE setnamenew,
+         lv_kostl_no_exist TYPE c,
+         lt_temp           LIKE gt_data.
+  DATA : lt_koset   LIKE TABLE OF bapi0012_cclist WITH HEADER LINE.
+  DATA : lt_aunod TYPE gseth_node_tab,
+         lt_auval TYPE gseth_val_tab,
+         lt_aufnr TYPE gseth_val_tab.
+
+  DATA: lv_ddtext    TYPE dd01t-ddtext,
+        lv_fieldname TYPE dd03l-fieldname.
+
+  CLEAR : lt_temp.
+  MOVE-CORRESPONDING ps_loop TO lt_temp.
+
+<font color ="#8C8C8C">**********************************************************************</font>
+<font color ="#8C8C8C">* SENDER</font>
+<font color ="#8C8C8C">**********************************************************************</font>
+  "######
+  CLEAR : ls_line,lv_setname.
+  READ TABLE pt_sender WITH KEY cycle = ps_loop-cycle
+                                name = ps_loop-name
+                                field = 'KSTAR'
+                                INTO ls_line
+                                BINARY SEARCH.
+  IF sy-subrc = 0.
+    lt_temp-fr_kstar = ls_line-valmin.
+    lt_temp-to_kstar = ls_line-valmax.
+
+    IF p_pa EQ 'X'.
+      lt_temp-setid   = ls_line-setid.
+      lt_temp-valmin  = ls_line-valmin.
+      lt_temp-field   = ls_line-field.
+      lt_temp-valmax  = ls_line-valmax.
+
+      get_domain_text 'CE11000' lt_temp-field lt_temp-field_text.
+    ENDIF.
+
+    lv_setname = ls_line-setid+8.
+    lt_temp-ksgru =   lv_setname.
+    SELECT SINGLE descript
+       FROM setheadert
+      INTO lt_temp-gtext
+      WHERE setclass = '0102'
+           AND subclass = '1000'
+           AND setname = lv_setname.
+
+  ENDIF.
+
+  "#######
+  CLEAR : ls_line,lt_koset[].
+  READ TABLE pt_sender WITH KEY cycle = ps_loop-cycle
+                                name = ps_loop-name
+                                field = 'KOSTL'
+                                INTO ls_line
+                                BINARY SEARCH.
+  IF sy-subrc = 0.
+<font color ="#8C8C8C">*#####</font>
+    PERFORM <a href="#000000000023">get_domain</a> USING ls_line
+                                 CHANGING lt_temp.
+
+    IF p_pa EQ 'X'.
+      lt_temp-setid   = ls_line-setid.
+      lt_temp-valmin  = ls_line-valmin.
+      lt_temp-field   = ls_line-field.
+      lt_temp-valmax  = ls_line-valmax.
+
+      get_domain_text 'CE11000' lt_temp-field lt_temp-field_text.
+    ENDIF.
+
+    lt_temp-setid = ls_line-setid+8.
+
+    IF lt_temp-setid IS NOT INITIAL.
+      PERFORM <a href="#000000000025">get_kostl_group</a> USING lt_temp
+                              CHANGING lt_koset[].
+
+    ELSE.
+
+      PERFORM <a href="#000000000028">get_kostl_line</a> USING ls_line
+                             CHANGING lt_koset[].
+
+    ENDIF.
+
+    IF lt_koset[] IS NOT INITIAL.
+      LOOP AT lt_koset.
+        MOVE-CORRESPONDING lt_temp TO gt_data.
+        gt_data-kostl = lt_koset-costcenter.
+        gt_data-ctext = lt_koset-descript.
+
+        PERFORM <a href="#000000000022">get_text</a> USING ls_line
+                      CHANGING gt_data.
+
+        APPEND gt_data.
+        CLEAR : gt_data.
+
+      ENDLOOP.
+    ELSE.
+      lv_kostl_no_exist = 'X'.
+
+    ENDIF.
+  ELSE.
+    lv_kostl_no_exist = 'X'.
+  ENDIF.
+
+  IF lv_kostl_no_exist IS NOT INITIAL.
+    PERFORM <a href="#000000000027">no_kostl_group</a> USING lt_temp
+                                 ls_line.
+
+    APPEND gt_data.
+    CLEAR : gt_data.
+  ENDIF.
+
+<font color ="#8C8C8C">**********************************************************************</font>
+<font color ="#8C8C8C">* RECEIVER</font>
+<font color ="#8C8C8C">**********************************************************************</font>
+
+  CLEAR : lv_kostl_no_exist.
+  "SKF ##
+  CLEAR : lv_skf.
+  READ TABLE pt_skf WITH KEY cycle = ps_loop-cycle
+                             name = ps_loop-name
+                             field = 'STAGR'
+                             INTO ls_line
+                             BINARY SEARCH.
+  IF sy-subrc = 0.
+    lv_skf = ls_line-valmin.
+  ENDIF.
+
+  CLEAR : lv_min, lv_max, lv_set.
+
+  READ TABLE pt_factor WITH KEY cycle = ps_loop-cycle
+                                name = ps_loop-name
+                                xvalmin = 'X'
+                           INTO ls_line.
+  IF sy-subrc = 0.
+    lv_min = ls_line-valmin.
+  ENDIF.
+
+  READ TABLE pt_factor WITH KEY cycle = ps_loop-cycle
+                                name = ps_loop-name
+                                xvalmax = 'X'
+                           INTO ls_line.
+  IF sy-subrc = 0.
+    lv_max = ls_line-valmax.
+  ENDIF.
+
+  READ TABLE pt_factor WITH KEY cycle = ps_loop-cycle
+                                name = ps_loop-name
+                                xsetid = 'X'
+                           INTO ls_line.
+  IF sy-subrc = 0.
+    lv_set = ls_line-setid+8.
+  ENDIF.
+
+  "#######
+  CLEAR : ls_line, lt_koset[].
+  CASE 'X'.
+    WHEN p_cctr.
+      READ TABLE pt_receiver WITH KEY cycle = ps_loop-cycle
+                                      name = ps_loop-name
+                                      field = 'KOSTL'
+                                      INTO ls_line
+                                      BINARY SEARCH.
+      IF sy-subrc EQ 0.
+<font color ="#8C8C8C">*    #####</font>
+        PERFORM <a href="#000000000023">get_domain</a> USING ls_line
+                                     CHANGING lt_temp.
+
+        lt_temp-setid     = ls_line-setid+8.
+
+        IF lt_temp-setid IS NOT INITIAL.
+          PERFORM <a href="#000000000025">get_kostl_group</a> USING lt_temp
+                               CHANGING lt_koset[].
+        ELSE.
+          PERFORM <a href="#000000000028">get_kostl_line</a> USING ls_line
+                              CHANGING lt_koset[].
+        ENDIF.
+
+        IF lt_koset[] IS NOT INITIAL.
+
+          LOOP AT lt_koset.
+            MOVE-CORRESPONDING lt_temp TO gt_data.
+            gt_data-kostl = lt_koset-costcenter.
+            gt_data-ctext = lt_koset-descript.
+
+            PERFORM <a href="#000000000026">get_objnr</a> USING gt_data
+                                    'KS'
+                                    lv_skf.
+
+            PERFORM <a href="#000000000022">get_text</a> USING ls_line
+                                         CHANGING gt_data.
+
+            PERFORM <a href="#000000000032">get_receiver_value</a> CHANGING gt_data.
+
+            gt_data-skf = lv_skf.
+            gt_data-rtfac_set = lv_set.
+            gt_data-rtfac_max = lv_max.
+            gt_data-rtfac_min = lv_min.
+            APPEND gt_data.
+            CLEAR : gt_data.
+
+          ENDLOOP.
+        ELSE.
+          lv_kostl_no_exist = 'X'.
+
+        ENDIF.
+      ELSE.
+        lv_kostl_no_exist = 'X'.
+      ENDIF.
+
+      IF lv_kostl_no_exist IS NOT INITIAL.
+        PERFORM <a href="#000000000027">no_kostl_group</a> USING lt_temp
+                                     ls_line.
+
+        PERFORM <a href="#000000000026">get_objnr</a> USING gt_data
+                                'KS'
+                                  lv_skf.
+
+        gt_data-skf = lv_skf.
+        APPEND gt_data.
+        CLEAR : gt_data.
+
+      ENDIF.
+
+<font color ="#8C8C8C">*------------------------------------------- Start AUFNR ##</font>
+      CLEAR : lv_kostl_no_exist.
+      READ TABLE pt_receiver WITH KEY cycle = ps_loop-cycle
+                                      name = ps_loop-name
+                                      field = 'AUFNR'
+                                      INTO ls_line
+                                      BINARY SEARCH.
+      IF sy-subrc EQ 0.
+<font color ="#8C8C8C">*    #####</font>
+        PERFORM <a href="#000000000023">get_domain</a> USING ls_line
+                           CHANGING lt_temp.
+
+        lt_temp-setid     = ls_line-setid.
+
+        IF lt_temp-setid IS NOT INITIAL.
+          PERFORM <a href="#000000000034">get_aufnr_group</a> USING lt_temp-setid
+                               CHANGING lt_aunod[]
+                                        lt_auval[].
+
+          PERFORM <a href="#000000000035">get_aufnr_line</a> USING lt_auval
+                              CHANGING lt_aufnr[].
+        ENDIF.
+
+        IF lt_aufnr[] IS NOT INITIAL.
+
+          READ TABLE lt_aunod INTO DATA(ls_aunod) INDEX 1.
+
+          LOOP AT lt_aufnr INTO DATA(ls_aufnr).
+            MOVE-CORRESPONDING lt_temp TO gt_data.
+            gt_data-setid = ls_aunod-shortname.
+            gt_data-descript = ls_aunod-descript.
+            gt_data-kostl = ls_aufnr-vfrom.
+            gt_data-ctext = ls_aufnr-descript.
+
+            PERFORM <a href="#000000000026">get_objnr</a> USING gt_data
+                                    'OR'
+                                    lv_skf.
+
+            PERFORM <a href="#000000000022">get_text</a> USING ls_line
+                             CHANGING gt_data.
+
+            PERFORM <a href="#000000000032">get_receiver_value</a> CHANGING gt_data.
+
+            gt_data-skf = lv_skf.
+            gt_data-rtfac_set = lv_set.
+            gt_data-rtfac_max = lv_max.
+            gt_data-rtfac_min = lv_min.
+            APPEND gt_data.
+            CLEAR : gt_data.
+
+          ENDLOOP.
+        ELSE.
+          lv_kostl_no_exist = 'X'.
+
+        ENDIF.
+      ELSE.
+        lv_kostl_no_exist = 'X'.
+      ENDIF.
+
+<font color ="#8C8C8C">*      IF lv_kostl_no_exist IS NOT INITIAL.</font>
+<font color ="#8C8C8C">*        PERFORM no_kostl_group USING lt_temp</font>
+<font color ="#8C8C8C">*                                     ls_line.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*        PERFORM get_objnr USING gt_data</font>
+<font color ="#8C8C8C">*                                'OR'</font>
+<font color ="#8C8C8C">*                                  lv_skf.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*        gt_data-skf = lv_skf.</font>
+<font color ="#8C8C8C">*        APPEND gt_data.</font>
+<font color ="#8C8C8C">*        CLEAR : gt_data.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*      ENDIF.</font>
+<font color ="#8C8C8C">*------------------------------------------- End</font>
+
+    WHEN p_pa.
+      LOOP AT pt_receiver INTO ls_line WHERE cycle = ps_loop-cycle
+                                         AND  name = ps_loop-name.
+        lt_temp-setid   = ls_line-setid.
+        lt_temp-valmin  = ls_line-valmin.
+        lt_temp-field   = ls_line-field.
+        lt_temp-valmax  = ls_line-valmax.
+
+        get_domain_text 'CE11000' lt_temp-field lt_temp-field_text.
+
+        MOVE-CORRESPONDING lt_temp TO gt_data.
+
+        PERFORM <a href="#000000000023">get_domain</a> USING ls_line
+                        CHANGING lt_temp.
+
+        PERFORM <a href="#000000000027">no_kostl_group</a> USING lt_temp
+                                     ls_line.
+
+        PERFORM <a href="#000000000026">get_objnr</a> USING gt_data
+                                'KS'
+                                lv_skf.
+
+        PERFORM <a href="#000000000032">get_receiver_value</a> CHANGING gt_data.
+
+        gt_data-skf = lv_skf.
+        gt_data-rtfac_set = lv_set.
+        gt_data-rtfac_max = lv_max.
+        gt_data-rtfac_min = lv_min.
+        APPEND gt_data.
+        CLEAR : gt_data.
+
+      ENDLOOP.
+  ENDCASE.
+
+ENDFORM.                    " SET_DATA_FROM_TABLE
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  SET_PARA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  p1        text</font>
+<font color ="#8C8C8C">*  &lt--  p2        text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000021"></div>
+FORM set_para .
+  CLEAR : gv_kokrs,gv_period.
+
+<font color ="#8C8C8C">*  IF S_KOKRS[] IS NOT INITIAL.</font>
+<font color ="#8C8C8C">*    CLEAR : S_KOKRS.</font>
+<font color ="#8C8C8C">*    READ TABLE S_KOKRS INDEX 1.</font>
+<font color ="#8C8C8C">*    GV_KOKRS = S_KOKRS-LOW.</font>
+<font color ="#8C8C8C">*  ENDIF.</font>
+
+  IF s_yyyymm[] IS NOT INITIAL.
+    CLEAR : s_yyyymm.
+    READ TABLE s_yyyymm INDEX 1.
+
+    IF s_yyyymm-low+4(2) &gt 12.
+      MESSAGE e000 WITH TEXT-m01."'#### #### ####'.
+    ENDIF.
+
+    gv_period = s_yyyymm-low.
+  ENDIF.
+
+  CASE 'X'.
+    WHEN p_cctr.
+      gv_tab = 'CCSS'.
+    WHEN p_pa.
+      gv_tab = 'CE71000'.
+  ENDCASE.
+
+  PERFORM <a href="#000000000037">set_parameter</a>.
+
+ENDFORM.                    " SET_PARA
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  GET_TEXT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtP_LS_LINE  text</font>
+<font color ="#8C8C8C">*      &lt--P_LT_TEMP  text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000022"></div>
+FORM get_text  USING    ps_line TYPE t_main
+               CHANGING pt_temp STRUCTURE gt_data.
+
+  IF pt_temp-fr_kstar IS NOT INITIAL.
+    SELECT SINGLE ktext
+      FROM csku
+      INTO gt_data-fr_ktext
+      WHERE spras = sy-langu
+          AND ktopl = '1000'
+          AND kstar = pt_temp-fr_kstar.
+  ENDIF.
+  IF pt_temp-to_kstar IS NOT INITIAL.
+    SELECT SINGLE ktext
+      FROM csku
+      INTO gt_data-to_ktext
+      WHERE spras = sy-langu
+          AND ktopl = '1000'
+          AND kstar = pt_temp-to_kstar.
+  ENDIF.
+
+ENDFORM.                    " GET_TEXT
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  GET_TEXT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtP_LS_LINE  text</font>
+<font color ="#8C8C8C">*      &lt--P_LT_TEMP  text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000023"></div>
+FORM get_domain  USING    ps_line TYPE t_main
+               CHANGING pt_temp STRUCTURE gt_data.
+
+
+  PERFORM <a href="#000000000024">get_domvalue</a> USING 'SRULE'
+                                                      ps_line-srule
+                                            CHANGING pt_temp-srule_text.
+
+  PERFORM <a href="#000000000024">get_domvalue</a> USING 'RRULE'
+                                                       ps_line-rrule
+                                            CHANGING pt_temp-rrule_text.
+
+  PERFORM <a href="#000000000024">get_domvalue</a> USING 'SETKIND'
+                                                       ps_line-setkind
+                                            CHANGING pt_temp-setkind_text.
+
+  pt_temp-setkind_text = |{ ps_line-setkind }. { pt_temp-setkind_text }|.
+
+  PERFORM <a href="#000000000024">get_domvalue</a> USING 'NEGTEST'
+                                                       ps_line-negtest
+                                            CHANGING pt_temp-negtest_t.
+
+ENDFORM.                    " GET_TEXT
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  GET_DOMVALUE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtP_2092   text</font>
+<font color ="#8C8C8C">*      &lt--P_PT_TEMP_SRULE_TEXT  text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000024"></div>
+FORM get_domvalue  USING   p_domname
+                                                 p_value
+                   CHANGING p_text.
+  DATA : lt_dd07v   LIKE TABLE OF dd07v WITH HEADER LINE,
+         lv_domname LIKE dd07l-domname,
+         lv_langu   TYPE sy-langu.
+
+<font color ="#8C8C8C">*  IF sy-mandt = '100'.</font>
+<font color ="#8C8C8C">*    lv_langu = '3'.</font>
+<font color ="#8C8C8C">*  ELSE.</font>
+<font color ="#8C8C8C">*    lv_langu = 'E'.</font>
+<font color ="#8C8C8C">*  ENDIF.</font>
+
+  lv_langu = sy-langu.
+
+  lv_domname = p_domname.
+  CALL FUNCTION 'DD_DOMVALUES_GET'
+    EXPORTING
+      domname        = lv_domname
+      text           = 'X'
+      langu          = lv_langu
+      bypass_buffer  = 'X'
+<font color ="#8C8C8C">* IMPORTING</font>
+<font color ="#8C8C8C">*     RC             =</font>
+    TABLES
+      dd07v_tab      = lt_dd07v
+    EXCEPTIONS
+      wrong_textflag = 1
+      OTHERS         = 2.
+
+  IF sy-subrc = 0.
+    READ TABLE lt_dd07v WITH KEY domvalue_l = p_value.
+    IF sy-subrc = 0.
+      p_text = lt_dd07v-ddtext.
+    ENDIF.
+
+  ENDIF.
+
+ENDFORM.                    " GET_DOMVALUE
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  GET_KOSTL_GROUP</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtP_PT_RECEIVER[]  text</font>
+<font color ="#8C8C8C">*      --&gtP_LT_TEMP  text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000025"></div>
+FORM get_kostl_group  USING   pt_temp STRUCTURE gt_data
+                      CHANGING pt_koset TYPE STANDARD TABLE.
+
+  DATA: lt_returnc LIKE TABLE OF bapiret2 WITH HEADER LINE,
+        lt_ctr_grp TYPE ksgru,
+        lv_setname TYPE setnamenew.
+
+  CLEAR: lt_returnc[],lt_ctr_grp.
+  lv_setname = lt_ctr_grp = pt_temp-setid.
+  SELECT SINGLE descript
+    FROM setheadert
+    INTO pt_temp-descript
+   WHERE setclass = '0101'
+<font color ="#8C8C8C">*     AND subclass = '1100'</font>
+
+     AND subclass = gv_kokrs
+     AND setname = lv_setname.
+
+  CALL FUNCTION 'K_COSTCTR_BAPI_GETLIST'
+    EXPORTING
+<font color ="#8C8C8C">*     controllingarea = '1100'</font>
+      controllingarea = gv_kokrs
+      costcentergroup = lt_ctr_grp
+    TABLES
+      costcenterlist  = pt_koset
+      return          = lt_returnc.
+
+ENDFORM.                    " GET_KOSTL_GROUP
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  GET_OBJNR</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtP_GT_DATA  text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000026"></div>
+FORM get_objnr  USING    pt_data STRUCTURE gt_data
+                         pv_objty
+                         pv_skf.
+  DATA : lv_objnr TYPE j_objnr.
+  CLEAR : lv_objnr.
+
+<font color ="#8C8C8C">*  lv_objnr = 'KS1100' && pt_data-kostl.</font>
+
+  lv_objnr = pv_objty && gv_kokrs && pt_data-kostl.
+
+  READ TABLE gt_coepr WITH KEY objnr = lv_objnr
+                               stagr = pv_skf
+                               BINARY SEARCH.
+  IF sy-subrc = 0.
+    pt_data-smebtr = gt_coepr-smebtr.
+  ENDIF.
+
+ENDFORM.                    " GET_OBJNR
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  NO_KOSTL_GROUP</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtP_LT_TEMP  text</font>
+<font color ="#8C8C8C">*      --&gtP_LS_LINE  text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000027"></div>
+FORM no_kostl_group  USING    pt_temp STRUCTURE gt_data
+                              ps_line TYPE t_main.
+
+  MOVE-CORRESPONDING pt_temp TO gt_data.
+
+  PERFORM <a href="#000000000022">get_text</a> USING ps_line
+                               CHANGING gt_data.
+
+ENDFORM.                    " NO_KOSTL_GROUP
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  GET_KOSTL_LINE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtP_LT_TEMP  text</font>
+<font color ="#8C8C8C">*      --&gtP_LS_LINE  text</font>
+<font color ="#8C8C8C">*      &lt--P_LT_KOSET[]  text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+
+<div id="000000000028"></div>
+FORM get_kostl_line  USING   ps_line TYPE t_main
+                             CHANGING pt_koset TYPE STANDARD TABLE.
+
+  RANGES : lr_kostl FOR csks-kostl OCCURS 0.
+  CLEAR : lr_kostl[].
+  IF ps_line-valmax IS NOT INITIAL.
+    lr_kostl-low = ps_line-valmin.
+    lr_kostl-high = ps_line-valmax.
+    lr_kostl-sign = 'I'.
+    lr_kostl-option = 'BT'.
+  ELSE.
+    lr_kostl-low = ps_line-valmin.
+    lr_kostl-sign = 'I'.
+    lr_kostl-option = 'EQ'.
+  ENDIF.
+  APPEND lr_kostl.
+  CLEAR : lr_kostl.
+
+  SELECT a~kostl AS costcenter
+               b~ktext AS descript
+    INTO CORRESPONDING FIELDS OF TABLE pt_koset
+    FROM csks AS a
+    INNER JOIN cskt AS b
+    ON a~kokrs = b~kokrs
+    AND a~kostl = b~kostl
+    AND a~datbi = b~datbi
+<font color ="#8C8C8C">*    WHERE a~kokrs = s_kokrs-low</font>
+    WHERE a~kokrs = gv_kokrs
+         AND a~kostl IN lr_kostl
+         AND a~datbi = '99991231'.
+
+ENDFORM.                    " GET_KOSTL_LINE
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  SET_DATA_SUMMARY</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtP_LT_SENDER[]  text</font>
+<font color ="#8C8C8C">*      --&gtP_LT_RECEIVER[]  text</font>
+<font color ="#8C8C8C">*      --&gtP_LT_SKF[]  text</font>
+<font color ="#8C8C8C">*      --&gtP_LT_LOOP  text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000029"></div>
+FORM set_data_summary  USING    pt_sender LIKE gt_main
+                                pt_receiver LIKE gt_main
+                                pt_skf LIKE gt_main
+                                pt_factor LIKE gt_main
+                                ps_loop LIKE gs_main.
+
+  DATA : ls_line        TYPE t_main,
+         lv_skf         TYPE setvalmin,
+         lv_setname     TYPE setnamenew,
+         lt_temp        LIKE gt_data1,
+         lv_ksgru       TYPE ksgru,
+         lv_kostl       TYPE kostl,
+         lv_type(1),
+         lv_domestic(1),
+         lv_export(1),
+         lv_len         TYPE i.
+  DATA : lt_koset  TYPE TABLE OF bapi0012_cclist WITH HEADER LINE,
+         lt_return TYPE TABLE OF bapiret2 WITH HEADER LINE.
+  DATA : lt_aunod TYPE gseth_node_tab,
+         lt_auval TYPE gseth_val_tab.
+  RANGES : r_kostl FOR csks-kostl.
+  REFRESH : lt_koset, r_kostl.
+  CLEAR : lt_temp.
+  MOVE-CORRESPONDING ps_loop TO lt_temp.
+
+<font color ="#8C8C8C">** ####, #####</font>
+  PERFORM <a href="#000000000024">get_domvalue</a> USING 'SRULE'
+                              ps_loop-srule
+                       CHANGING lt_temp-srule_text.
+  PERFORM <a href="#000000000024">get_domvalue</a> USING 'RRULE'
+                              ps_loop-srule
+                       CHANGING lt_temp-rrule_text.
+  PERFORM <a href="#000000000024">get_domvalue</a> USING 'NEGTEST'
+                              ps_loop-negtest
+                        CHANGING lt_temp-negtest_t.
+
+<font color ="#8C8C8C">**********************************************************************</font>
+<font color ="#8C8C8C">* SENDER</font>
+<font color ="#8C8C8C">**********************************************************************</font>
+  "######
+  CLEAR : ls_line.
+  READ TABLE pt_sender WITH KEY cycle = ps_loop-cycle
+                                 name = ps_loop-name
+                                field = 'KSTAR'
+                           INTO ls_line BINARY SEARCH.
+  IF sy-subrc = 0.
+    lv_setname = ls_line-setid+8.
+    lt_temp-ksgru =   lv_setname.
+    SELECT SINGLE descript
+       FROM setheadert
+      INTO lt_temp-gtext
+      WHERE setclass = '0102'
+           AND subclass = '1000'
+           AND setname = lv_setname.
+
+  ENDIF.
+
+  "####
+  CLEAR : ls_line.
+  READ TABLE pt_sender WITH KEY cycle = ps_loop-cycle
+                                 name = ps_loop-name
+                                field = 'KOSTL'
+                           INTO ls_line BINARY SEARCH.
+  IF sy-subrc = 0.
+
+
+    lt_temp-sender_setid = ls_line-setid+8.
+
+    IF lt_temp-sender_setid IS NOT INITIAL.
+      SELECT SINGLE descript
+        FROM setheadert
+        INTO lt_temp-sender_descript
+       WHERE setclass = '0101'
+<font color ="#8C8C8C">*         AND subclass = '1100'</font>
+
+         AND subclass = gv_kokrs
+         AND setname = lt_temp-sender_setid.
+    ELSE.
+      lt_temp-sender_fr_kostl = ls_line-valmin.
+      lt_temp-sender_to_kostl = ls_line-valmax.
+
+      PERFORM <a href="#000000000030">get_kostl_text</a> USING lt_temp-sender_fr_kostl
+                             CHANGING lt_temp-sender_fr_ctext.
+      PERFORM <a href="#000000000030">get_kostl_text</a> USING lt_temp-sender_to_kostl
+                             CHANGING lt_temp-sender_to_ctext.
+    ENDIF.
+  ENDIF.
+
+  "### ##
+  CLEAR ls_line.
+  READ TABLE pt_receiver WITH KEY cycle = ps_loop-cycle
+                                   name = ps_loop-name
+                                  field = 'KOSTL'
+                             INTO ls_line BINARY SEARCH.
+  IF sy-subrc EQ 0.
+
+    lt_temp-receiver_setid = ls_line-setid+8.
+    lt_temp-receiver_type  = gcs_rtype-cctr.
+
+    IF lt_temp-receiver_setid IS NOT INITIAL.
+      SELECT SINGLE descript
+        FROM setheadert
+        INTO lt_temp-receiver_descript
+       WHERE setclass = '0101'
+<font color ="#8C8C8C">*         AND subclass = '1100'</font>
+
+         AND subclass = gv_kokrs
+         AND setname = lt_temp-receiver_setid.
+
+      lv_ksgru = lt_temp-receiver_setid.
+
+      CALL FUNCTION 'K_COSTCTR_BAPI_GETLIST'
+        EXPORTING
+<font color ="#8C8C8C">*         controllingarea = '1100'</font>
+          controllingarea = gv_kokrs
+          costcentergroup = lv_ksgru
+        TABLES
+          costcenterlist  = lt_koset
+          return          = lt_return.
+    ELSE.
+      lt_temp-receiver_fr_kostl = ls_line-valmin.
+      lt_temp-receiver_to_kostl = ls_line-valmax.
+
+      PERFORM <a href="#000000000030">get_kostl_text</a> USING lt_temp-receiver_fr_kostl
+                             CHANGING lt_temp-receiver_fr_ctext.
+      PERFORM <a href="#000000000030">get_kostl_text</a> USING lt_temp-receiver_to_kostl
+                             CHANGING lt_temp-receiver_to_ctext.
+
+      IF ls_line-valmax IS INITIAL.
+        r_kostl-sign = 'I'.
+        r_kostl-option = 'EQ'.
+        r_kostl-low    = ls_line-valmin.
+        APPEND r_kostl.
+      ELSE.
+        r_kostl-sign = 'I'.
+        r_kostl-option = 'BT'.
+        r_kostl-low    = ls_line-valmin.
+        r_kostl-high   = ls_line-valmax.
+        APPEND r_kostl.
+      ENDIF.
+
+      IF r_kostl[] IS NOT INITIAL.
+        SELECT a~kostl AS costcenter
+               b~ktext AS descript
+          INTO CORRESPONDING FIELDS OF TABLE lt_koset
+          FROM csks AS a INNER JOIN cskt AS b
+               ON  a~kokrs = b~kokrs
+               AND a~kostl = b~kostl
+               AND a~datbi = b~datbi
+<font color ="#8C8C8C">*         WHERE a~kokrs = s_kokrs-low</font>
+         WHERE a~kokrs = gv_kokrs
+           AND a~kostl IN r_kostl
+           AND a~datbi = '99991231'.
+      ENDIF.
+    ENDIF.
+
+<font color ="#8C8C8C">*    IF lt_koset[] IS NOT INITIAL.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*      LOOP AT lt_koset.</font>
+<font color ="#8C8C8C">*        SPLIT lt_koset-costcenter AT '/' INTO lv_kostl lv_type.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*        lt_temp-type = lv_type.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*        lv_len = strlen( lv_kostl ).</font>
+<font color ="#8C8C8C">*        lv_len = lv_len - 1.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*        CLEAR : lv_kostl, lv_type, lv_len.</font>
+<font color ="#8C8C8C">*      ENDLOOP.</font>
+<font color ="#8C8C8C">*    ENDIF.</font>
+
+  ENDIF.
+
+  "### ## - ##
+  CLEAR ls_line.
+  IF lt_temp-receiver_setid IS INITIAL.
+    READ TABLE pt_receiver WITH KEY cycle = ps_loop-cycle
+                                     name = ps_loop-name
+                                    field = 'AUFNR'
+                               INTO ls_line BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      lt_temp-receiver_setid = ls_line-setid.
+      lt_temp-receiver_type  = gcs_rtype-ordr.
+
+      IF lt_temp-receiver_setid IS NOT INITIAL.
+
+        PERFORM <a href="#000000000034">get_aufnr_group</a> USING lt_temp-receiver_setid
+                                 CHANGING lt_aunod[]
+                                          lt_auval[].
+
+        READ TABLE lt_aunod INTO DATA(ls_aunod) INDEX 1.
+        lt_temp-receiver_setid = ls_aunod-shortname.
+        lt_temp-receiver_descript = ls_aunod-descript.
+
+      ELSE.
+
+        lt_temp-receiver_fr_kostl = ls_line-valmin.
+        lt_temp-receiver_to_kostl = ls_line-valmax.
+
+        SELECT SINGLE a~ktext
+          FROM aufk AS a
+         WHERE a~aufnr = @lt_temp-receiver_fr_kostl
+          INTO @lt_temp-receiver_fr_ctext.
+
+        SELECT SINGLE a~ktext
+          FROM aufk AS a
+         WHERE a~aufnr = @lt_temp-receiver_to_kostl
+          INTO @lt_temp-receiver_to_ctext.
+
+      ENDIF.
+    ENDIF.
+  ENDIF.
+
+  "SKF ##
+  CLEAR ls_line.
+  READ TABLE pt_skf WITH KEY cycle = ps_loop-cycle
+                              name = ps_loop-name
+                             field = 'STAGR'
+                        INTO ls_line BINARY SEARCH.
+  IF sy-subrc = 0.
+    lt_temp-skf = ls_line-valmin.
+
+    SELECT SINGLE bezei
+      INTO lt_temp-bezei
+      FROM tkt03
+     WHERE spras = sy-langu
+<font color ="#8C8C8C">*       AND kokrs EQ s_kokrs-low</font>
+       AND kokrs EQ gv_kokrs
+       AND stagr = lt_temp-skf.
+  ENDIF.
+
+  READ TABLE pt_factor WITH KEY cycle = ps_loop-cycle
+                                name = ps_loop-name
+                                xvalmin = 'X'
+                           INTO ls_line.
+  IF sy-subrc = 0.
+    lt_temp-rtfac_min = ls_line-valmin.
+  ENDIF.
+
+  READ TABLE pt_factor WITH KEY cycle = ps_loop-cycle
+                                name = ps_loop-name
+                                xvalmax = 'X'
+                           INTO ls_line.
+  IF sy-subrc = 0.
+    lt_temp-rtfac_max = ls_line-valmax.
+  ENDIF.
+
+  READ TABLE pt_factor WITH KEY cycle = ps_loop-cycle
+                                name = ps_loop-name
+                                xsetid = 'X'
+                           INTO ls_line.
+  IF sy-subrc = 0.
+    lt_temp-rtfac_set = ls_line-setid+8.
+  ENDIF.
+
+  APPEND lt_temp TO gt_data1.
+  CLEAR lt_temp.
+
+ENDFORM.                    " SET_DATA_SUMMARY
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  GET_KOSTL_TEXT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtP_LT_TEMP_SENDER_FR_KOSTL  text</font>
+<font color ="#8C8C8C">*      &lt--P_LT_TEMP_SENDER_FR_CTEXT  text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000030"></div>
+FORM get_kostl_text  USING    pv_kostl
+                     CHANGING pv_ctext.
+
+  CHECK pv_kostl IS NOT INITIAL.
+
+  SELECT SINGLE ktext
+    INTO pv_ctext
+    FROM cskt
+   WHERE spras EQ sy-langu
+<font color ="#8C8C8C">*     AND kokrs EQ s_kokrs-low</font>
+     AND kokrs EQ gv_kokrs
+     AND kostl EQ pv_kostl
+     AND datbi EQ '99991231'.
+
+ENDFORM.                    " GET_KOSTL_TEXT
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  HOTSPOT_CLICK_EXECUTE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtP_E_ROW_ID  text</font>
+<font color ="#8C8C8C">*      --&gtP_E_COLUMN_ID  text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000031"></div>
+FORM hotspot_click_execute  USING    pv_row  pv_column.
+
+  IF r_summ EQ 'X'.
+    READ TABLE gt_data1 INDEX pv_row.
+    IF sy-subrc EQ 0.
+      CASE pv_column.
+        WHEN 'KSGRU'.
+          CHECK gt_data1-ksgru IS NOT INITIAL.
+
+          SET PARAMETER ID 'CAC' FIELD gt_data1-kokrs.
+          SET PARAMETER ID 'HNA' FIELD gt_data1-ksgru.
+          CALL TRANSACTION 'KAH3' AND SKIP FIRST SCREEN.
+
+        WHEN 'SENDER_SETID'.
+          CHECK gt_data1-sender_setid IS NOT INITIAL.
+
+          SET PARAMETER ID 'CAC' FIELD gt_data1-kokrs.
+          SET PARAMETER ID 'HNA' FIELD gt_data1-sender_setid.
+          CALL TRANSACTION 'KSH3' AND SKIP FIRST SCREEN.
+
+        WHEN 'RECEIVER_SETID'.
+          CHECK gt_data1-receiver_setid IS NOT INITIAL.
+
+          CASE gt_data1-receiver_type.
+            WHEN gcs_rtype-cctr.      " ### ### CCTR
+              SET PARAMETER ID 'CAC' FIELD gt_data1-kokrs.
+              SET PARAMETER ID 'HNA' FIELD gt_data1-receiver_setid.
+              CALL TRANSACTION 'KSH3' AND SKIP FIRST SCREEN.
+            WHEN gcs_rtype-ordr.      " ### ### ORDER
+              SET PARAMETER ID 'HNA' FIELD gt_data1-receiver_setid.
+              CALL TRANSACTION 'KOH3' AND SKIP FIRST SCREEN.
+            WHEN OTHERS.
+          ENDCASE.
+
+      ENDCASE.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                    " HOTSPOT_CLICK_EXECUTE
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      FORM  GET_RECEIVER_VALUE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       TEXT</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtP_GT_DATA  TEXT</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000032"></div>
+FORM get_receiver_value  USING pt_data STRUCTURE gt_data.
+
+  DATA: ls_main LIKE LINE OF gt_main.
+
+  READ TABLE gt_main INTO ls_main WITH KEY  cycle = pt_data-cycle
+                                            name  = pt_data-name.
+  IF sy-subrc EQ 0.
+    SELECT SINGLE value
+      INTO pt_data-receiver_value
+      FROM t811f
+<font color ="#8C8C8C">*     WHERE TAB = 'CCSS'</font>
+     WHERE tab = gv_tab
+       AND cycle    = pt_data-cycle
+       AND seqnr    = ls_main-seqnr
+       AND element1 = pt_data-kostl.
+  ENDIF.
+
+ENDFORM.                    " GET_RECEIVER_VALUE
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      FORM  CHECK_OBLIGATORY</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       TEXT</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  P1        TEXT</font>
+<font color ="#8C8C8C">*  &lt--  P2        TEXT</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000033"></div>
+FORM check_obligatory .
+
+<font color ="#8C8C8C">*--- ## 10.14 s_kokrs -&gt p_kokrs</font>
+  IF p_kokrs IS INITIAL.
+    MESSAGE s000 WITH TEXT-e01 DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+<font color ="#8C8C8C">*--- End.</font>
+
+  IF s_yyyymm[] IS INITIAL.
+    MESSAGE s000 WITH TEXT-e02 DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+
+  IF s_cycle[] IS INITIAL.
+    MESSAGE s000 WITH TEXT-e03 DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+
+ENDFORM.                    " CHECK_OBLIGATORY
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form get_aufnr_group</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt LT_TEMP</font>
+<font color ="#8C8C8C">*&      &lt-- LT_AUSET[]</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000034"></div>
+FORM get_aufnr_group  USING    pv_setid
+                      CHANGING pt_aunod TYPE gseth_node_tab
+                               pt_auval TYPE gseth_val_tab.
+
+  DATA : lt_node      TYPE gseth_node_tab,
+         lt_value     TYPE gseth_val_tab,
+         ls_info      TYPE grphinfo,
+         lv_overwrite TYPE sy-datar,
+         lv_setid     TYPE sethier-setid.
+
+  lv_setid = pv_setid.
+
+  CALL FUNCTION 'K_HIERARCHY_TABLES_READ'
+    EXPORTING
+      e_class                     = '0103'
+      e_setid                     = lv_setid
+      e_kokrs                     = gv_kokrs
+    TABLES
+      t_nodes                     = pt_aunod
+      t_values                    = pt_auval
+    CHANGING
+      c_info                      = ls_info
+      c_overwrite                 = lv_overwrite
+    EXCEPTIONS
+      no_controlling_area         = 1
+      no_chart_of_account         = 2
+      different_controlling_areas = 3
+      different_chart_of_accounts = 4
+      set_not_found               = 5
+      illegal_field_replacement   = 6
+      illegal_table_replacement   = 7
+      fm_raise                    = 8
+      convert_error               = 9
+      no_overwrite_standard_hier  = 10
+      no_bukrs_for_kokrs          = 11
+      OTHERS                      = 12.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form get_aufnr_line</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt LS_LINE</font>
+<font color ="#8C8C8C">*&      &lt-- LT_AUVAL[]</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000035"></div>
+FORM get_aufnr_line  USING    pt_auval TYPE gseth_val_tab
+                     CHANGING pt_aufnr TYPE gseth_val_tab.
+
+  RANGES : lr_aufnr FOR aufk-aufnr.
+
+  LOOP AT pt_auval INTO DATA(ls_auval).
+
+    CLEAR : lr_aufnr.
+    IF ls_auval-vto IS NOT INITIAL.
+      lr_aufnr-low = ls_auval-vfrom.
+      lr_aufnr-high = ls_auval-vto.
+      lr_aufnr-sign = 'I'.
+      lr_aufnr-option = 'BT'.
+    ELSE.
+      lr_aufnr-low = ls_auval-vfrom.
+      lr_aufnr-sign = 'I'.
+      lr_aufnr-option = 'EQ'.
+    ENDIF.
+    APPEND lr_aufnr.
+
+  ENDLOOP.
+
+  CHECK lr_aufnr[] IS NOT INITIAL.
+
+  SELECT a~aufnr AS vfrom,
+         a~ktext AS descript
+    FROM aufk AS a
+    WHERE a~aufnr IN @lr_aufnr
+     INTO CORRESPONDING FIELDS OF TABLE @pt_aufnr.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form init_1000</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000036"></div>
+FORM init_1000 .
+
+  GET PARAMETER ID 'CAC' FIELD p_kokrs.
+
+  PERFORM <a href="#000000000037">set_parameter</a>.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_parameter</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000037"></div>
+FORM set_parameter .
+
+  " #### ###
+  SELECT SINGLE bezei
+    FROM tka01
+   WHERE kokrs EQ @p_kokrs
+    INTO @p_bezei.
+
+  " #### ### #### ## ##
+  SELECT SINGLE bukrs
+    FROM tka02
+   WHERE kokrs EQ @p_kokrs
+    INTO @p_bukrs.
+
+  " ## ###
+  SELECT SINGLE butxt
+    FROM t001
+   WHERE bukrs EQ @p_bukrs
+    INTO @p_butxt.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form modify_screen_1000</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000038"></div>
+FORM modify_screen_1000 .
+
+  LOOP AT SCREEN.
+    IF screen-name EQ 'P_BUKRS'.
+      screen-input = 0.
+    ENDIF.
+    MODIFY SCREEN.
+  ENDLOOP.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

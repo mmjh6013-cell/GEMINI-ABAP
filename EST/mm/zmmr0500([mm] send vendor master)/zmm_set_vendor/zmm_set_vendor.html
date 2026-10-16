@@ -1,0 +1,123 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZMM_SET_VENDOR</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZMM_SET_VENDOR</b></font>
+<hr>
+<pre width="100">
+FUNCTION ZMM_SET_VENDOR.
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*"*"Local Interface:</font>
+<font color ="#8C8C8C">*"  EXPORTING</font>
+<font color ="#8C8C8C">*"     VALUE(ES_RETURN) TYPE  ZMMS0501</font>
+<font color ="#8C8C8C">*"  TABLES</font>
+<font color ="#8C8C8C">*"      IT_DATA STRUCTURE  ZMMS0500 OPTIONAL</font>
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">* PROXY & ## ### ## ##</font>
+
+<font color ="#8C8C8C">*       <a href ="global-zmm_set_vendor.html">Global data declarations</a></font>
+  DATA: ZCL_PROXY TYPE REF TO ZMMCO_MM0050_SO,
+        FAULT     TYPE REF TO CX_AI_SYSTEM_FAULT,
+        ZERROR    TYPE STRING.
+
+<font color ="#8C8C8C">* ##/## ### ## ##</font>
+  DATA : ZREQ TYPE ZMMMM0050_SEND_REQ_MT,
+         ZRES TYPE ZMMMM0050_SEND_RES_MT.
+
+  DATA: ZREQ_LIN TYPE ZMMMM0050_SEND_REQ_MT_ITEM,
+        ZREQ_TAB LIKE TABLE OF ZREQ_LIN.
+
+  DATA: LS_SAVE LIKE ZMMT0500,
+        LT_SAVE LIKE TABLE OF LS_SAVE.
+
+  DATA: LV_INDEX  TYPE STRING,
+        LV_NUMBER TYPE NRFROM.
+
+  CALL FUNCTION <a href ="../zmm_get_interface_number/zmm_get_interface_number.html">'ZMM_GET_INTERFACE_NUMBER'</a>
+    IMPORTING
+      EV_NUMBER = LV_NUMBER.
+
+  LOOP AT IT_DATA[] INTO DATA(LS_DATA).
+    ZREQ_LIN-GUBUN      = LS_DATA-GUBUN.
+    ZREQ_LIN-LOEVM      = LS_DATA-LOEVM.
+    ZREQ_LIN-EKORG      = LS_DATA-EKORG.
+    ZREQ_LIN-LIFNR      = LS_DATA-LIFNR.
+    ZREQ_LIN-NAME1      = LS_DATA-NAME1.
+    ZREQ_LIN-ADDRES     = LS_DATA-ZADDRESS.
+    ZREQ_LIN-PSTLZ      = LS_DATA-PSTL2.
+    ZREQ_LIN-STCD2      = LS_DATA-STCD2.
+    ZREQ_LIN-J_1KFREPRE = LS_DATA-J_1KFREPRE.
+    ZREQ_LIN-LAND1      = LS_DATA-LAND1.
+
+    APPEND ZREQ_LIN TO ZREQ_TAB.
+    CLEAR ZREQ_LIN .
+
+    MOVE-CORRESPONDING LS_DATA TO LS_SAVE.
+
+    LV_INDEX += 1.
+     PERFORM SET_IF_LOG  USING LV_NUMBER LV_INDEX GC_QMS 'MM0050'
+                     CHANGING LS_SAVE.
+
+    APPEND LS_SAVE TO LT_SAVE.
+    CLEAR LS_SAVE.
+
+  ENDLOOP.
+
+  MOVE-CORRESPONDING ZREQ_TAB TO ZREQ-ITEM.
+
+<font color ="#8C8C8C">* PROXY ### ##</font>
+  TRY.
+      CREATE OBJECT ZCL_PROXY.
+<font color ="#8C8C8C">*  IS ##</font>
+      CALL METHOD ZCL_PROXY-&gtMM0050_SO
+        EXPORTING
+          INPUT  = ZREQ  "## ###
+        IMPORTING
+          OUTPUT = ZRES. "## ###
+
+
+<font color ="#8C8C8C">* ####</font>
+    CATCH CX_AI_SYSTEM_FAULT INTO FAULT.
+      CALL METHOD FAULT-&gtGET_TEXT
+        RECEIVING
+          RESULT = ZERROR.
+
+      ES_RETURN-MESSAGE = ZERROR.
+      ES_RETURN-STATUS = 'E'.
+
+  ENDTRY.
+
+  "LOG ##
+  IF LT_SAVE IS NOT INITIAL.
+    IF ES_RETURN-STATUS &lt&gt 'E'.
+      READ TABLE ZRES-RETURN INTO DATA(LS_ITEM) INDEX 1.
+
+      ES_RETURN-MESSAGE = LS_ITEM-MESSAGE.
+      ES_RETURN-STATUS  = LS_ITEM-STATUS.
+
+    ENDIF.
+
+    MODIFY LT_SAVE FROM VALUE #( IF_TYPE = ES_RETURN-STATUS
+                                 IF_MSG  = ES_RETURN-MESSAGE )
+                   TRANSPORTING IF_TYPE
+                                IF_MSG
+                   WHERE IF_TYPE IS INITIAL.
+
+    INSERT ZMMT0500 FROM TABLE LT_SAVE.
+
+  ENDIF.
+
+ENDFUNCTION.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

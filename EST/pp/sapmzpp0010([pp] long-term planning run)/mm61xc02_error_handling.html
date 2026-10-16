@@ -1,0 +1,283 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XC02_ERROR_HANDLING</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XC02_ERROR_HANDLING</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Error Handling          see also LMRP2F04 for sim. MD02              *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000048"></div>
+FORM error_handling.
+<font color ="#8C8C8C">*--&gt Kopfzeile fuer Fehlerbeleg aufbauen</font>
+  CLEAR mdkp.
+<font color ="#8C8C8C">*--&gt Planungsdatum setzen</font>
+  IF cm61x-dispd IS INITIAL.
+    MOVE sy-datlo    TO mdkp-dsdat.
+  ELSE.
+    MOVE cm61x-dispd TO mdkp-dsdat.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Art Dispositionstabelle</font>
+  MOVE cm61x-dtart TO mdkp-dtart.
+  MOVE cm61x-plscn TO mdkp-plscn.
+<font color ="#8C8C8C">*--&gt Materialdaten</font>
+  MOVE mt61d-matnr TO mdkp-matnr.
+  MOVE mt61d-disgr TO mdkp-disgr.
+  MOVE mt61d-werks TO mdkp-plwrk.
+  MOVE mt61d-mtart TO mdkp-mtart.
+  MOVE mt61d-meins TO mdkp-meins.
+  MOVE mt61d-dismm TO mdkp-dismm.
+  MOVE mt61d-disst TO mdkp-disst.
+
+<font color ="#8C8C8C">*--&gt Materialdaten</font>
+  MOVE mt61d-dispo TO mdkp-dispo.
+  IF mdkp-dispo EQ space
+<font color ="#8C8C8C">*--&gt kein Disponent</font>
+   OR ( sy-msgid = '61' AND sy-msgno = 271 ).               "THD
+    MOVE t399d-erdsg TO mdkp-dispo.
+  ENDIF.
+  MOVE mt61d-ekgrp TO mdkp-ekgrp.
+  IF mdkp-ekgrp EQ space.
+    MOVE t399d-erekg TO mdkp-ekgrp.
+  ENDIF.
+  MOVE mt61d-webaz TO mdkp-webaz.
+  MOVE mt61d-disls TO mdkp-disls.
+  MOVE mt61d-eisbe TO mdkp-eisbe.
+  MOVE mt61d-minbe TO mdkp-minbe.
+  MOVE mt61d-mabst TO mdkp-hoebe.
+  MOVE mt61d-bstmi TO mdkp-bstmi.
+  MOVE mt61d-bstma TO mdkp-bstma.
+  MOVE mt61d-bstfe TO mdkp-bstfx.
+  MOVE mt61d-bstrf TO mdkp-bstrf.
+  MOVE mt61d-beskz TO mdkp-beskz.
+  MOVE mt61d-mrppp TO mdkp-mrppp.
+<font color ="#8C8C8C">*--&gt Naechsten Planungstermin bestimmen                        "RE 4.6B</font>
+  PERFORM <a href="#000000000049">berechnen_cm61m_rhdat</a>.                            "RE 4.6B
+<font color ="#8C8C8C">*--&gt Uebernehmen Abbruchmeldung</font>
+  MOVE sy-msgid    TO mdkp-msgid.
+  MOVE sy-msgty    TO mdkp-msgar.
+  MOVE sy-msgno    TO mdkp-msgnr.
+  MOVE sy-msgv1    TO mdkp-msgv1.
+  MOVE sy-msgv2    TO mdkp-msgv2.
+  MOVE sy-msgv3    TO mdkp-msgv3.
+  MOVE sy-msgv4    TO mdkp-msgv4.
+
+<font color ="#8C8C8C">*--&gt Ermitteln Selektionskennzeichen</font>
+  PERFORM read_t458a USING ausa9.
+  MOVE xflag TO mdkp-naukz.
+  IF sy-subrc EQ 0.
+    CASE t458a-selgp.
+      WHEN char1.
+        MOVE xflag TO mdkp-slkz1.
+        MOVE char1 TO mdkp-ausz1.
+      WHEN char2.
+        MOVE xflag TO mdkp-slkz2.
+        MOVE char1 TO mdkp-ausz2.
+      WHEN char3.
+        MOVE xflag TO mdkp-slkz3.
+        MOVE char1 TO mdkp-ausz3.
+      WHEN char4.
+        MOVE xflag TO mdkp-slkz4.
+        MOVE char1 TO mdkp-ausz4.
+      WHEN char5.
+        MOVE xflag TO mdkp-slkz5.
+        MOVE char1 TO mdkp-ausz5.
+      WHEN char6.
+        MOVE xflag TO mdkp-slkz6.
+        MOVE char1 TO mdkp-ausz6.
+      WHEN char7.
+        MOVE xflag TO mdkp-slkz7.
+        MOVE char1 TO mdkp-ausz7.
+      WHEN char8.
+        MOVE xflag TO mdkp-slkz8.
+        MOVE char1 TO mdkp-ausz8.
+    ENDCASE.
+  ELSE.
+    MOVE xflag TO mdkp-slkz8.
+    MOVE char1 TO mdkp-ausz8.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Setzen Erstellungs-KZ fuer die Dispositionstabelle</font>
+  MOVE xflag TO mdkp-vrkz2.
+<font color ="#8C8C8C">**--&gt Planning Result: Collect Termination MRP Lists</font>
+<font color ="#8C8C8C">*  DATA: lv_result TYPE mdplanresult.</font>
+<font color ="#8C8C8C">*  MOVE-CORRESPONDING mdkp TO lv_result.</font>
+<font color ="#8C8C8C">*  MOVE mdkp-plwrk TO lv_result-werks.</font>
+<font color ="#8C8C8C">*  MOVE mdkp-msgnr TO lv_result-msgno.</font>
+<font color ="#8C8C8C">*  CALL METHOD gv_md_planning_result-&gtcollect_material_status</font>
+<font color ="#8C8C8C">*    EXPORTING</font>
+<font color ="#8C8C8C">*      im_status    = '1'</font>
+<font color ="#8C8C8C">*      im_result    = lv_result</font>
+<font color ="#8C8C8C">*    CHANGING</font>
+<font color ="#8C8C8C">*      ex_statustab = gt_statustab.</font>
+<font color ="#8C8C8C">*--&gt Bearbeitungs-KZ fuer Materialvormerkung ueberpruefen</font>
+  MOVE space TO cm61d-vmupd.
+  PERFORM read_t439f USING mdkp-msgnr.
+  IF sy-subrc EQ 0 AND t439f-delvm EQ xflag.
+    CASE cm61x-vrart.
+      WHEN neuvr.
+        MOVE char1 TO cm61d-vmupd.
+      WHEN netvr.
+        MOVE char1 TO cm61d-vmupd.
+      WHEN nplvr.
+        MOVE char2 TO cm61d-vmupd.
+      WHEN OTHERS.
+        MOVE space TO cm61d-vmupd.
+    ENDCASE.
+  ENDIF.
+  IF ( NOT cm61x-plscn IS INITIAL      "wenn Langfristplanung
+       AND mdkp-msgid = '61'           "und  MatStatus sieht keine
+       AND mdkp-msgar = msgtype        "LFP vor ('B' in T4141)
+       AND mdkp-msgnr = '080' ).       "dann
+    CLEAR mdkp-vrkz2.                  "KEINE Dispoliste
+    CASE cm61x-vrart.                  "Plan.vormerk. loeschen
+      WHEN neuvr.
+        MOVE char1 TO cm61d-vmupd.
+      WHEN netvr.
+        MOVE char1 TO cm61d-vmupd.
+      WHEN nplvr.
+        MOVE char2 TO cm61d-vmupd.
+      WHEN OTHERS.
+        MOVE space TO cm61d-vmupd.
+    ENDCASE.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Store Termination Messages</font>
+  MOVE mdkp-msgid TO cm61d-msgid.      "fuer Abbruch-Statistik
+  MOVE mdkp-msgnr TO cm61d-msgno.
+  MOVE mdkp-msgv1 TO cm61d-msgv1.
+  MOVE mdkp-msgv2 TO cm61d-msgv2.
+  MOVE mdkp-msgv3 TO cm61d-msgv3.
+  MOVE mdkp-msgv4 TO cm61d-msgv4.
+  MOVE mdkp-dispo TO cm61d-dispo.
+<font color ="#8C8C8C">*--&gt Abbruchmeldung hinzufuegen</font>
+  PERFORM hinzufuegen_abbruchmeldung_bt.
+<font color ="#8C8C8C">*--&gt Verarbeitungskennzeichen in CM61D sichern (Statistik)</font>
+  PERFORM save_kzxxx_cm61d.
+<font color ="#8C8C8C">*--&gt Statistik</font>
+  rm61x-anzex = rm61x-anzex + 1.
+  "{ Begin ENHO DIMP_GENERAL_MM61XC02_ERROR_HA IS-AD-MPN-MRP AD_MPN_IC }
+<font color ="#8C8C8C">*--&gt PIC : set stop indicator for SUS-Chain                          "46</font>
+  IF NOT cm61m-picid IS INITIAL.
+    MOVE xflag TO cm61x-picstop.
+  ENDIF.
+  "{ End ENHO DIMP_GENERAL_MM61XC02_ERROR_HA IS-AD-MPN-MRP AD_MPN_IC }
+
+ENHANCEMENT-POINT error_handling_01 SPOTS es_mm61xc02_error_handling INCLUDE BOUND.
+<font color ="#8C8C8C">*--&gt Material entsperren</font>
+  IF cm61x-plscn IS INITIAL.
+    PERFORM entsperren_mrp USING cm61d-werks cm61d-berid cm61d-matnr.
+  ELSE.
+    PERFORM entsperren_lfr USING cm61x-plscn
+                                 cm61d-werks cm61d-berid cm61d-matnr.
+  ENDIF.
+ENDFORM.                    "error_handling
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Berechnen CM61M-RHDAT: Naechster Planungstermin           "RE 4.6B   *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000049"></div>
+FORM berechnen_cm61m_rhdat.
+  DATA: l_disgr LIKE mt61d-disgr,
+        subrc   LIKE sy-subrc,
+        l_gkday LIKE mdcal-prend.
+<font color ="#8C8C8C">*--&gt Planungskalender (Disposition) bestimmen</font>
+  MOVE mt61d-lfrhy TO mdkp-lfrhy.
+<font color ="#8C8C8C">*--&gt DISVF bestimmen</font>
+  IF mdkp-disvf NE t438a-disvf.
+    MOVE t438a-disvf TO mdkp-disvf.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt KZREG bestimmen</font>
+  IF cm61m-kzreg NE t438a-kzreg.
+    MOVE t438a-kzreg TO cm61m-kzreg.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt ANDIS bestimmen, wenn regelmaessig disponieren eingestellt</font>
+  IF NOT cm61m-kzreg IS INITIAL.
+    IF mt61d-disgr IS INITIAL.
+      MOVE mt61d-mtart TO l_disgr.
+    ELSE.
+      MOVE mt61d-disgr TO l_disgr.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Tabelle T438M lesen und Daten übernehmen</font>
+    PERFORM <a href="#000000000050">read_t438mi</a> USING mt61d-werks l_disgr
+                        CHANGING t438m subrc.
+<font color ="#8C8C8C">*--&gt Steuerungsparameter aus Dispogruppe des Dispobereichs</font>
+    IF  NOT cm61b-berty IS INITIAL
+    AND NOT cm61b-berty EQ k_werk.
+      PERFORM <a href="#000000000050">read_t438mi</a> USING mt61d-werks cm61b-disgr
+                          CHANGING t438m subrc.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Planungsparameter uebernehmen</font>
+    IF subrc = 0.                      "DISGR vorhanden
+<font color ="#8C8C8C">*--&gt Anzahl Tage, nach denen wieder disponiert werden soll</font>
+      MOVE t438m-andis TO cm61m-andis.
+    ENDIF.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Nächsten Planungstermin bestimmen (nicht Rhythmus)</font>
+  IF mdkp-disvf NE disvfr.
+    IF  ( NOT cm61m-kzreg IS INITIAL ) "regelmaessige Dispo
+    AND ( NOT cm61m-andis IS INITIAL ).
+      cm61m-rhdat = cm61w-dispd.                          "Note 1458449
+    ELSE.
+      CLEAR cm61m-rhdat.
+    ENDIF.
+    EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Nächsten Planungstermin vorbesetzen</font>
+  cm61m-rhdat = cm61w-dispd.
+  PERFORM compute_gkday_pkper_2                             "SL 46C
+          USING mdkp-plwrk mdkp-lfrhy cm61w-dispd 1. "
+  IF sy-subrc EQ 0.                                         "SL 46C
+    MOVE mdcal-pranf TO cm61m-rhdat.                      "Note 1458449
+  ELSE.                                                     "SL 46C
+    CLEAR cm61m-rhdat.                               "
+  ENDIF.                                                    "SL 46C
+ENDFORM.                    "berechnen_cm61m_rhdat
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Lesen Tabelle 438M (parametrisiert)                  "RE 4.6B        *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000050"></div>
+FORM read_t438mi USING    VALUE(werks)  LIKE t438m-werks
+                          VALUE(disgr)  LIKE t438m-mtart
+                 CHANGING t438mi        LIKE t438m
+                          subrc         LIKE sy-subrc.
+  IF disgr IS INITIAL.
+    CLEAR t438mi.
+    subrc = 1. EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt schon gefuellt?</font>
+  IF  werks EQ t438mi-werks
+  AND disgr EQ t438mi-mtart.
+    subrc = 0. EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Workarea überprüfen</font>
+  IF  werks EQ t438m-werks
+  AND disgr EQ t438m-mtart.
+    MOVE t438m TO t438mi.
+    subrc = 0. EXIT.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Satz nachlesen</font>
+  t438mi = cl_pph_cds_redirect=&gtselect_single_t438m(
+              EXPORTING
+                iv_werks = werks
+                iv_mtart = disgr ).
+  IF t438m-werks IS INITIAL.
+    subrc = 4.
+  ELSE.
+    subrc = 0.
+  ENDIF.
+ENDFORM.                    "read_t438mi
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

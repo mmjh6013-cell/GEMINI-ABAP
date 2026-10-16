@@ -1,0 +1,253 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XO42_MODIFY_SCR_ELEMENTS</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XO42_MODIFY_SCR_ELEMENTS</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">***INCLUDE MM61XO42_MODIFY_SCR_ELEMENTS .</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Module  MODIFY_SCREEN_ELEMENTS  OUTPUT</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000770"></div>
+MODULE MODIFY_SCREEN_ELEMENTS OUTPUT.
+
+  LOOP AT SCREEN.
+<font color ="#8C8C8C">*--&gt Kunden-/Lieferanten-Button je nach Beschaffungsart</font>
+<font color ="#8C8C8C">*    IF screen-group3 EQ 'KND'.</font>
+<font color ="#8C8C8C">*      IF mt61d-beskz EQ beskzf.        "fremdbeschafft</font>
+<font color ="#8C8C8C">*        screen-input = 0.</font>
+<font color ="#8C8C8C">*      ENDIF.</font>
+<font color ="#8C8C8C">*    ELSEIF screen-group3 EQ 'LIF'.</font>
+<font color ="#8C8C8C">*      IF mt61d-beskz EQ beskze         "eigengefertigt</font>
+<font color ="#8C8C8C">*      AND mdkp-sobes NE sobesl.        "keine Lohnbearbeitung</font>
+<font color ="#8C8C8C">*        screen-input = 0.</font>
+<font color ="#8C8C8C">*      ENDIF.</font>
+<font color ="#8C8C8C">*    ENDIF.</font>
+<font color ="#8C8C8C">*--&gt Bedarfsvorlauf ein/aus</font>
+    IF screen-group3 EQ 'BVO'.
+      IF mdkp-shflg IS INITIAL.
+        screen-input = 0.
+      ENDIF.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Buttons am Fuße des TC (sc760)</font>
+    IF screen-group4 EQ 'PS'.
+      IF  mdst-anzei NE ps_activ
+      AND mdst-anzei NE psi_activ.
+        screen-invisible = 1.
+      ELSE.
+        screen-invisible = 0.
+      ENDIF.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Buttons am Fuße des TC (sc750)</font>
+    IF screen-group4 EQ 'EZ'.
+      IF  mdst-anzei NE ez_activ
+      AND mdst-anzei NE ezi_activ
+      AND mdst-anzei NE psezsi_activ.
+        screen-invisible = 1.
+      ELSE.
+        screen-invisible = 0.
+      ENDIF.
+    ENDIF.
+
+<font color ="#8C8C8C">*--&gt Bei Periodensummmen-Splitscreen best. Drucktasten ausblenden</font>
+    IF mdst-anzei EQ psezsi_activ
+    AND screen-group2 EQ 'PSE'.
+      screen-invisible = 1.
+    ENDIF.
+
+<font color ="#8C8C8C">*--&gt Auftragsbaum aufbauen ohne Tree ausblenden</font>
+    IF screen-group2 EQ 'TRO'
+    AND mdst-mtree IS INITIAL.
+      screen-input = 0.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt 'Stand vom' wenn nicht gefuellt ausblenden</font>
+    IF screen-group1 EQ 'MEM'
+    AND screen-invisible = 0.
+      IF mdmy-mstmp IS INITIAL.
+        screen-invisible = 1.
+      ELSE.
+<font color ="#8C8C8C">*--&gt Datum ausblenden in MD04/MD07/MS04/MS07: also nur Zeit anzeigen</font>
+        IF screen-group2 EQ 'MET'.
+          IF cm61x-plauf EQ anzbs
+          OR cm61x-plauf EQ anzml
+          OR cm61x-plauf EQ lfraz
+          OR cm61x-plauf EQ lfrml.
+            screen-invisible = 1.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt bei MD02 'Ergebnis anzeigen' keine Änderungsmöglichkeit   SA 46C</font>
+     IF CM61X-PLERG EQ CHARA.
+       IF screen-group3 EQ 'AEN'.
+         screen-input = 0.
+       ENDIF.
+     ENDIF.
+
+    MODIFY SCREEN.
+  ENDLOOP.
+
+<font color ="#8C8C8C">*--&gt Umschalten Verfügbarkeit: Wareneingangs-/Liefertermin</font>
+  PERFORM <a href="#000000000771">set_button_dat00</a>.
+<font color ="#8C8C8C">*--&gt Umschalten Bedarfsvorlauf ein/aus</font>
+  PERFORM <a href="#000000000772">set_button_bedvor</a>.
+<font color ="#8C8C8C">*--&gt Umschalten Sortierung Einzelabschnitte</font>
+  PERFORM <a href="#000000000773">set_button_sort</a>.
+
+
+ENDMODULE.                 " MODIFY_SCREEN_ELEMENTS  OUTPUT
+
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  set_button_dat00</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  p1        text</font>
+<font color ="#8C8C8C">*  &lt--  p2        text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000771"></div>
+FORM set_button_dat00.
+  DATA: icon_quick LIKE icont-quickinfo.
+  DATA: icon_name(40) TYPE c,
+        icon_text(40) TYPE c.
+
+  IF mdst-vrfwe IS INITIAL.
+    icon_name  = 'ICON_DATE'.
+    icon_text  =  text-it1.            "WE/GR
+<font color ="#8C8C8C">*    icon_text  = 'GR'.</font>
+    icon_quick =  text-iq1.
+<font color ="#8C8C8C">*    icon_quick = 'Wareneingangstermin setzen'.</font>
+  ELSE.
+    icon_name  = 'ICON_DATE'.
+    icon_text  = text-it2.             "VF/AV
+<font color ="#8C8C8C">*    icon_text  = 'AV'.</font>
+    icon_quick = text-iq2.
+<font color ="#8C8C8C">*    icon_quick =  'Verfügbarkeitstermin setzen'.</font>
+  ENDIF.
+
+  CALL FUNCTION 'ICON_CREATE'
+       EXPORTING
+            name       = icon_name
+            text       = icon_text
+            info       = icon_quick
+            add_stdinf = space
+       IMPORTING
+            result     = button_dat00
+    exceptions
+         icon_not_found        = 1
+         outputfield_too_short = 2
+         others                = 3.
+  IF sy-subrc &lt&gt 0.
+<font color ="#8C8C8C">* message id sy-msgid type sy-msgty number sy-msgno</font>
+<font color ="#8C8C8C">*         with sy-msgv1 symsgv22 sy-msgv3 sy-msgv4.</font>
+  ENDIF.
+
+ENDFORM.                               " set_button_dat00
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  set_button_bedvor</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  --&gt  p1        text</font>
+<font color ="#8C8C8C">*  &lt--  p2        text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000772"></div>
+FORM set_button_bedvor.
+  DATA: icon_quick LIKE icont-quickinfo.
+  DATA: icon_name(40) TYPE c,
+        icon_text(40) TYPE c.
+
+  IF mdst-bedvl IS INITIAL.
+    icon_name  = 'ICON_DATE'.
+    icon_text  =  text-it3.
+<font color ="#8C8C8C">*   icon_text  = 'ST on '.</font>
+    icon_quick =  text-iq3.
+<font color ="#8C8C8C">*   icon_quick = 'Bedarfsvorlauf einschalten'.</font>
+  ELSE.
+    icon_name  = 'ICON_DATE'.
+    icon_text  =  text-it4.
+<font color ="#8C8C8C">*   icon_text  = 'ST off'.</font>
+    icon_quick =  text-iq4.
+<font color ="#8C8C8C">*   icon_quick =  'Bedarfsvorlauf ausschalten'.</font>
+  ENDIF.
+
+  CALL FUNCTION 'ICON_CREATE'
+       EXPORTING
+            name       = icon_name
+            text       = icon_text
+            info       = icon_quick
+            add_stdinf = space
+       IMPORTING
+            result     = button_bedvor
+    exceptions
+         icon_not_found        = 1
+         outputfield_too_short = 2
+         others                = 3.
+  IF sy-subrc &lt&gt 0.
+ message id sy-msgid type sy-msgty number sy-msgno
+         with sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+ENDFORM.                               " set_button_bedvor
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  set_button_sort</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000773"></div>
+FORM set_button_sort.
+
+  DATA: icon_quick LIKE icont-quickinfo.
+  DATA: icon_name(40) TYPE c,
+        icon_text(40) TYPE c.
+
+  IF mdst-kdsrt EQ datum.
+    icon_name  = 'ICON_SORT_UP'.
+    icon_text  = text-it6.
+<font color ="#8C8C8C">*   icon_text  = 'No.'.</font>
+    icon_quick = text-iq6.
+<font color ="#8C8C8C">*   icon_quick =  'Abschnitte nach Nummer sortieren'.</font>
+  ELSE.
+    icon_name  = 'ICON_SORT_UP'.
+    icon_text  = text-it5.             "Dat./Date
+<font color ="#8C8C8C">*    icon_text  = 'Date'.</font>
+    icon_quick = text-iq5.
+<font color ="#8C8C8C">*    icon_quick = 'Abschnitte nach Datum 1.Bedarf sortieren'.</font>
+  ENDIF.
+
+  CALL FUNCTION 'ICON_CREATE'
+       EXPORTING
+            name       = icon_name
+            text       = icon_text
+            info       = icon_quick
+            add_stdinf = space
+       IMPORTING
+            result     = button_sort
+    exceptions
+         icon_not_found        = 1
+         outputfield_too_short = 2
+         others                = 3.
+  IF sy-subrc &lt&gt 0.
+ message id sy-msgid type sy-msgty number sy-msgno
+         with sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ENDIF.
+
+ENDFORM.                               " set_button_sort
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

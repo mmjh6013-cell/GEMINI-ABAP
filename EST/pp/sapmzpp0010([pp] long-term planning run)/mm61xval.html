@@ -1,0 +1,1170 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XVAL</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XVAL</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">***MM61XVAL</font>
+<font color ="#8C8C8C">***********************************************************************</font>
+<font color ="#8C8C8C">* Festwerte fuer den Bereich Bedarfsplanung</font>
+<font color ="#8C8C8C">***********************************************************************</font>
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*- Änderungen:</font>
+<font color ="#8C8C8C">*- Marke  Thema   Text</font>
+<font color ="#8C8C8C">*- @001   Retail  Änderungen für Aktionsdispo</font>
+<font color ="#8C8C8C">*- @002   Retail  Änderungen für Nachschubdispo</font>
+<font color ="#8C8C8C">*- @003   Retail  Retourenpositionen berücksichtigen</font>
+<font color ="#8C8C8C">*- @004   Retail  Disposition von strukturierten Artikeln</font>
+<font color ="#8C8C8C">*- @005   Automotive  Aufteilung und Auslagerung zweier Includes</font>
+<font color ="#8C8C8C">*- @006   IS-OIL  Konstante 9=Umlag.reservierung TD + Bew.-art 301</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+
+include <a href ="mm61xv01.html">mm61xv01</a>.      " Include: Vergleichswerte
+include <a href ="mm61xv02.html">mm61xv02</a>.      " Include: Allgemeine Kennzeichen
+
+<font color ="#8C8C8C">*---&gt Programmname fuer Include-Dynpros</font>
+CONSTANTS:
+  sapmm61x(8)  TYPE c VALUE 'SAPMM61X',
+  saplcoko(8)  TYPE c VALUE 'SAPLCOKO',
+  saplcoko1(9) TYPE c VALUE 'SAPLCOKO1'.
+
+<font color ="#8C8C8C">*---&gt MDAKT Objekte laut T450N (Kennzeichnen z.B. Art des Sperrobjekts)</font>
+CONSTANTS:
+  mdobjb(1) TYPE c VALUE 'B',      "MRP-Planung
+  mdobjm(1) TYPE c VALUE 'M',      "MPS-Planung
+  mdobjl(1) TYPE c VALUE 'L',      "LFR-Planung ( auch MDVL )
+  mdobjr(1) TYPE c VALUE 'R',      "Kanbanregelkreis
+  mdobjv(1) TYPE c VALUE 'V',      "Planungsvormerkungen MDVM
+  mdobjx(1) TYPE c VALUE 'X',      "Sonstige
+  mdobjp(1) TYPE c VALUE 'P',      "Prognose (fuer Sperrobjekt)
+<font color ="#8C8C8C">* see CL_MRP_COCKPIT_DATA_PROVIDER  IF_MRP_COCKPIT_DATA_PROVIDER~GET_BASIC_LIST</font>
+  mdobja(1) TYPE c VALUE 'A'.      "MRP Apps
+
+<font color ="#8C8C8C">*---&gt Art der Planungsaktivitaeten  (Festwerte fuer T450N-MDATY)</font>
+CONSTANTS:
+  mrppl(2)     TYPE c VALUE 'B1',      "MRP-Planung
+  mrpmp(2)     TYPE c VALUE 'B2',      "MRP-Planung -mehrstufig-
+  mrpep(2)     TYPE c VALUE 'B3',      "MRP-Planung -einstufig-
+  anzbs(2)     TYPE c VALUE 'B4',      "Bestands-/Bedarfssituation
+  anzdl(2)     TYPE c VALUE 'B5',      "Disp.liste -Einzelliste-
+  anzds(2)     TYPE c VALUE 'B6',      "Disp.liste -Sammelanzeige-
+  anzml(2)     TYPE c VALUE 'B7',      "akt. BBL   -Sammelanzeige
+  anzpt(2)     TYPE c VALUE 'SP',      "Planungstableau- nach Ausnahmen
+  anzrm(2)     TYPE c VALUE 'RM',      "Planungstableau- Sammelanzeige
+  mpspl(2)     TYPE c VALUE 'M1',      "MPS-Planung
+  mpsmp(2)     TYPE c VALUE 'M2',      "MPS-Planung -mehrstufig-
+  mpsep(2)     TYPE c VALUE 'M3',      "MPS-Planung -einstufig-
+  mpskd(2)     TYPE c VALUE 'M4',      "MPS-Planung -Kundenauftrag-
+  mpspr(2)     TYPE c VALUE 'M5',      "MPS-Planung -Projekt-
+  mpsip(2)     TYPE c VALUE 'I1',      "MPS-Planung -interaktiv-
+  mpsaw(2)     TYPE c VALUE 'AW',      "MPS- werksübergr. Auswertung
+  mpsla(2)     TYPE c VALUE 'LA',      "MPS-Long-Term-Pl.  (note 750373)
+  ordaz(2)     TYPE c VALUE 'OR',      "Order Report -total-
+  ordkd(2)     TYPE c VALUE 'OK',      "Order Report -Kundenauftrag-
+  ordpr(2)     TYPE c VALUE 'OP',      "Order Report -Projekt-
+  loraz(2)     TYPE c VALUE 'LO',      "Order Report LTP -total-
+  lorkd(2)     TYPE c VALUE 'LC',      "Order Report LTP -Kundenauftrag-
+  lorpr(2)     TYPE c VALUE 'LP',      "Order Report LTP -Projekt-
+  lfrpl(2)     TYPE c VALUE 'L1',      "LFR-Planung
+  lfrmp(2)     TYPE c VALUE 'L2',      "LFR-Planung -mehrstufig-
+  lfrep(2)     TYPE c VALUE 'L3',      "LFR-Planung -einstufig-
+  lfraz(2)     TYPE c VALUE 'L4',      "Anzeigen LFR-Planung - BBL
+  lfrdl(2)     TYPE c VALUE 'L5',      "LFR-Planung - Disp.liste einzel
+  lfrds(2)     TYPE c VALUE 'L6',      "LFR-Planung - Disp.liste Sammel
+  lfrml(2)     TYPE c VALUE 'L7',      "LFR-Planung - Materialübersicht
+  lfrkd(2)     TYPE c VALUE 'LJ',      "LFR-Planung - Kundenauftrag
+  lfrpr(2)     TYPE c VALUE 'LK',      "LFR-Planung - Projekt
+  lfrkp(2)     TYPE c VALUE 'LF',      "LFR-Planung - fix. Plafs kop.
+  mtpv0(2)     TYPE c VALUE 'V0',      "MatPlanungsvormerkung anlegen
+  mtpv1(2)     TYPE c VALUE 'V1',      "MatPlanungsvormerkung anzeigen
+  mtpw0(2)     TYPE c VALUE 'W0',      "MDVL anlegen
+  mtpw1(2)     TYPE c VALUE 'W1',      "MDVL anzeigen
+  verpr(2)     TYPE c VALUE 'X1',      "Verfuegbarkeitsprüfung
+  peggo(2)     TYPE c VALUE 'P1',      "Pegging operativ
+<font color ="#8C8C8C">*--&gt Verrechnung nutzt alten Stand</font>
+  reduc(2)     TYPE c VALUE '01',      "Reduction Primaerbedarf PBATP01
+  reduc_sd(2)  TYPE c VALUE '02',   "Reduction Primaerbed SD PBATP01
+  alloca(2)    TYPE c VALUE '03',     "Reduction Primaerbed SD PBATP01
+  alloca_sd(2) TYPE c VALUE '04',  "Reduction Primaerbed SD PBATP01
+  abbau(2)     TYPE c VALUE 'R',       "Reduction Primaerbedarf
+  alloc(2)     TYPE c VALUE 'D',       "Zuordnen Primaerbedarf
+  simul(2)     TYPE c VALUE 'S',       "Simulation Allocation     ??
+  fehlt(2)     TYPE c VALUE 'X4',      "Fehlteilepruefung
+  raufl(2)     TYPE c VALUE 'X5',      "Rueckstandsauflösung
+  shplo(2)     TYPE c VALUE 'X6',      "Sammelanzeige Planaufträge
+  rauma(2)     TYPE c VALUE 'X7',      "Rueckstandsauflösung Montage
+<font color ="#8C8C8C">* see CL_MRP_COCKPIT_DATA_PROVIDER  IF_MRP_COCKPIT_DATA_PROVIDER~GET_BASIC_LIST</font>
+  mrpapps(2)   TYPE c VALUE 'MA'.    "MRP Apps
+
+<font color ="#8C8C8C">*---&gt Festwerte für t450n-stpre</font>
+CONSTANTS:
+  chsta(2) TYPE c VALUE '02',      "Kanbanimpuls
+  crimp(2) TYPE c VALUE '04',      "Impulsgesteuerten Kanban anlegen
+  reppr(2) TYPE c VALUE '05',      "Printreport
+  repdi(2) TYPE c VALUE '06',      "Auswertereport
+  replk(2) TYPE c VALUE '07'.      "Entsperren Kanbans
+
+<font color ="#8C8C8C">*---&gt Verarbeitungskennzeichen</font>
+CONSTANTS:
+  netvr TYPE c VALUE 'N',          "Net-Change -gesamt-
+  nplvr TYPE c VALUE 'P',          "Net-Change -Planungshorizont-
+  neuvr TYPE c VALUE 'G'.          "Gesamtaufwurf
+
+<font color ="#8C8C8C">*---&gt Transaktionsstatus TRTYP für Planauftrag</font>
+CONSTANTS:
+  mdakth(1) TYPE c VALUE 'H',      "Hinzufuegen
+  mdaktv(1) TYPE c VALUE 'V',      "Veraendern
+  mdakta(1) TYPE c VALUE 'A',      "Anzeigen
+  mdaktl(1) TYPE c VALUE 'L',      "Listanzeige
+  mdaktu(1) TYPE c VALUE 'U',      "Einzelumsetzung
+  mdakts(1) TYPE c VALUE 'S',      "Sammelumsetzung
+  mdaktf(1) TYPE c VALUE 'F'.      "Fixieren
+
+"{ Begin ENHO /SAPMP/ORDCOMB_PP_MM61XVAL IS-MP-PP /SAPMP/ORDER_COMBINATION }
+<font color ="#8C8C8C">* mill 0001 01 HDG</font>
+DATA: BEGIN OF mill_oc_con_atrkz,                      " AZF KM5K000050
+        z LIKE afko-atrkz VALUE 'Z', "Zusammengefasster FA   " AZF KM5K000050
+        u LIKE afko-atrkz VALUE 'U', "Ursprungsauftrag von 'Z'  " AZF
+      END OF mill_oc_con_atrkz.                        " AZF KM5K000050
+"{ End ENHO /SAPMP/ORDCOMB_PP_MM61XVAL IS-MP-PP /SAPMP/ORDER_COMBINATION }
+
+"{ Begin ENHO ISAUTO_APO_CIF_MM61XVAL CA AM_PPC }
+CONSTANTS:
+<font color ="#8C8C8C">*     IS-A 20; Project RPM; 991011                                  ACL</font>
+  aporr(2) TYPE c VALUE 'RR',     "RPM-Bedarf aus dem APO
+<font color ="#8C8C8C">* status lieferavis auto2.0af 221099</font>
+  imwrk(2) TYPE c VALUE 'IW'.
+"{ End ENHO ISAUTO_APO_CIF_MM61XVAL CA AM_PPC }
+
+include <a href ="mm61xval_01 spots es_mm61xval static include bound.html">mm61xval_01 SPOTS es_mm61xval STATIC INCLUDE BOUND</a>.
+
+<font color ="#8C8C8C">*---&gt Transaktionsstatus laut T450N</font>
+CONSTANTS:
+  mdatyh(2) TYPE n VALUE '01',     "Hinzufuegen
+  mdatyv(2) TYPE n VALUE '02',     "Veraendern
+  mdatya(2) TYPE n VALUE '03'.     "Anzeigen
+
+<font color ="#8C8C8C">*---&gt Verarbeitungsstatus</font>
+CONSTANTS:
+  vstath(1) TYPE c VALUE 'H',      "Hinzufuegen
+  vstatv(1) TYPE c VALUE 'V',      "Veraendern
+  vstatl(1) TYPE c VALUE 'L',      "Loeschen
+  vstatn(1) TYPE c VALUE 'N',      "Neu aufloesen
+  vstati(1) TYPE c VALUE 'I',      "Einfuegen
+  vstata(1) TYPE c VALUE 'A',      "Anzeigen/Aktivieren
+  vstatd(1) TYPE c VALUE 'D',      "Deaktivieren
+  vstatt(1) TYPE c VALUE 'T',      "Teilabbau
+  vstatk(1) TYPE c VALUE 'K',      "Komplettabbau/Korrigieren
+  vstats(1) TYPE c VALUE 'S',      "Simulieren
+  vstatc(1) TYPE c VALUE 'C',      "Aggregieren
+  vstatr(1) TYPE c VALUE 'R',      "Rückmeldung - Reduzieren
+  vstate(1) TYPE c VALUE 'E'.      "Endrückmeldung - Löschen
+
+<font color ="#8C8C8C">*---&gt Kennzeichen Sammelumsetzung</font>
+CONSTANTS:
+  umskze(1) TYPE c VALUE 'E',      "Einzelumsetzung
+  umskzs(1) TYPE c VALUE 'S',      "Sammelumsetzung
+  umskzu(1) TYPE c VALUE 'U',      "Planauftrag umgesetzt
+  umskzv(1) TYPE c VALUE 'V'.      "Umsetzung mit Vorschlagsdaten
+
+<font color ="#8C8C8C">*---&gt Fertigungshinweis Planauftrag</font>
+CONSTANTS:
+  frthw1(1) TYPE c VALUE '1',      "Direkteinkauf muß noch angestoß.
+  frthw2(1) TYPE c VALUE '2'.      "Unkontierte Direktbanfs erzeugt
+
+<font color ="#8C8C8C">*---&gt Pflegestatus im Materialstamm</font>
+CONSTANTS:
+  dispo(1)  TYPE c VALUE 'D',      "Disposition
+  pstatq(1) TYPE c VALUE 'Q'.      "Statua QM
+
+<font color ="#8C8C8C">*---&gt Selektionskennzeichen für Transaktionscalls</font>
+CONSTANTS:
+  selkza(1) TYPE c VALUE 'A',      "Anzeigen
+  selkzv(1) TYPE c VALUE 'V',      "Veraendern
+  selkzu(1) TYPE c VALUE 'U'.      "Umsetzen
+
+<font color ="#8C8C8C">*--&gt Mafid's fuer Materialvormerkung</font>
+CONSTANTS:
+  mdmafb TYPE c VALUE 'B',         "MRP-/MPS-Planung
+  mdmafm TYPE c VALUE 'M',         "MRP-/MPS-Planung
+  mdmafd TYPE c VALUE 'D'.         "Dummy-Baugruppe
+
+<font color ="#8C8C8C">*--&gt Art der Dispositionstabelle  DTART</font>
+CONSTANTS:
+  mddisp(2) TYPE c VALUE 'MD',     "Materialdisposition
+  lfplan(2) TYPE c VALUE 'LP'.     "Langfristplanung
+
+<font color ="#8C8C8C">*--&gt Kennzeichen Planungsabschnitt</font>
+CONSTANTS:
+  netpla(2)  TYPE n VALUE '02',    "Nettoplanung
+  brtpla(2)  TYPE n VALUE '04',    "Bruttoplanung
+  lgods1(2)  TYPE n VALUE '06',    "Lagerdisposition-1
+  lgods2(2)  TYPE n VALUE '07',    "Lager von Dispo ausgeschlossen
+  kndpla(2)  TYPE n VALUE '20',    "Kundeneinzel
+  propla(2)  TYPE n VALUE '22',    "Projekteinzel
+  mstpla(2)  TYPE n VALUE '24',    "Direktfertigung
+  lobpla(2)  TYPE n VALUE '26',    "Beistellung fuer Lohnbearb.
+  vorpla(2)  TYPE n VALUE '30',    "Vorplanung o. Montage
+  vmspla(2)  TYPE n VALUE '32',    "Vorplanung Direktfert.
+  lagerpr(2) TYPE n VALUE '50',    "Lagerabschnitt    Verf.pr.
+  chargpr(2) TYPE n VALUE '52',    "Chargenabschnitt  Verf.pr.
+  chalgpr(2) TYPE n VALUE '54',    "ChargenLGOrtAbsch.Verf.pr.
+  kundkon(2) TYPE n VALUE '56',    "Kundenkonsi       Verf.pr.
+  kkcharg(2) TYPE n VALUE '58'.    "Kundenkonsi & Charge
+CONSTANTS:                         "Only display in material grouping
+  lgodbpla(2)  TYPE n VALUE '11',  "Mapped SLOC MRP AREA
+  subcdbpla(2) TYPE n VALUE '12'.  "Mapped Subcon MRP Area
+
+CONSTANTS:                             "Segmentation
+  segpr(2)      TYPE n VALUE '45', "segment
+  segchapr(2)   TYPE n VALUE '60', "segment + batch =&gt obsolete
+  seglgpr(2)    TYPE n VALUE '51', "segment + storage location
+  segchalgpr(2) TYPE n VALUE '62'. "segment + storage location + batch =&gt obsolete
+
+<font color ="#8C8C8C">* DI A&D PCS - Customer & Subcontracting stock</font>
+CONSTANTS:
+  cstpla(2)  TYPE n VALUE '41',     "Customer Stock
+
+  sc2pla(2)  TYPE n VALUE '42',     "Subcontr. Cstmr Stock
+  sc3pla(2)  TYPE n VALUE '43',     "Subcontr. Cstmr Ordr Stock
+  sc4pla(2)  TYPE n VALUE '44',   "Subcontr. Project Stock
+<font color ="#8C8C8C">*--&gt Kennzeichen Planungsart</font>
+  cstplan    TYPE c VALUE '5',        "Customer Stock
+  sctplan    TYPE c VALUE '5',       "Subcontracing Stock
+<font color ="#8C8C8C">* DI A&D PCS - Customer & Subcontracting stock - Sort indicator</font>
+  s2csbst(2) TYPE c VALUE '01',    "Kundenbeistellbestand
+  s2scbst(2) TYPE c VALUE '01',  "Lohnbearbeitung special stock
+<font color ="#8C8C8C">* DI A&D PCS - Customer & Subcontracting stock - MRP Element indicator</font>
+  csbst(2)   TYPE c VALUE 'C1',      " Customer stock
+  s2bst(2)   TYPE c VALUE 'C2',      " Subcontr. Customer Stock
+  s3bst(2)   TYPE c VALUE 'C3',      " Subcontr. Customer Order Stock
+  s4bst(2)   TYPE c VALUE 'C4',    " Subcontr. Project Stock
+<font color ="#8C8C8C">* DI A&D PCS - Customer & Subcontracting stock - SOBKZ Constants</font>
+  sobkzb     TYPE c VALUE 'B',      "Customer Stock
+  sobkzc     TYPE c VALUE 'C',      "Subcontr. Customer Stock
+  sobkzf     TYPE c VALUE 'F',      "Subcontr. Cust Order Stock
+  sobkzi     TYPE c VALUE 'I',      "Not in MRP List
+  sobkzj     TYPE c VALUE 'J',      "Subcontr. Vendor Consingment Stock &lt GV_1678396
+  sobkzr     TYPE c VALUE 'R'.     "Subconrt. Project Stock
+
+<font color ="#8C8C8C">*--&gt Kennzeichen Planungsart</font>
+CONSTANTS:
+  netplan TYPE c VALUE '1',        "Nettoplanung
+  brtplan TYPE c VALUE '2',        "Bruttoplanung
+  lgoplan TYPE c VALUE '3',        "Lagerortdisposition
+  kndplan TYPE c VALUE '5',        "Kundeneinzelplanung
+  vorplan TYPE c VALUE '6',        "Vorplanung
+  proplan TYPE c VALUE '7',        "Projekteinzelplanung
+  mstplan TYPE c VALUE '8',        "Direktfertigung
+  vmsplan TYPE c VALUE '9',        "Vorplan. Direktfert.
+  rhyplan TYPE c VALUE 'R',        "Rhytmische Planung
+  bstplan TYPE c VALUE 'S',        "Bestellpunktplanung
+  ddmplan TYPE c VALUE 'T',        "DD-MRP Planung
+  lobplan TYPE c VALUE 'L',        "Lohnbearb. (Umterminierung!)
+  dumplan TYPE c VALUE ' '.        "Dummyplanung
+
+<font color ="#8C8C8C">*--&gt Dispositionsverfahren</font>
+CONSTANTS:
+  disvfn TYPE c VALUE 'N',         "Keine Disposition
+  disvfb TYPE c VALUE 'B',         "Bestellpunkt
+  disvfc TYPE c VALUE 'C',         "DD-MRP
+  disvfr TYPE c VALUE 'R',         "Rhytmische Disposition
+  disvfs TYPE c VALUE 'S',         "Stochastisch
+  disvfd TYPE c VALUE 'D',         "Deterministisch
+  disvfx TYPE c VALUE 'X',         "ohne Planung, mit SL-Aufl.
+<font color ="#8C8C8C">*@002-Begin</font>
+  disvfw TYPE c VALUE 'W',         "Nachschubdisposition
+<font color ="#8C8C8C">*@002-End</font>
+  disvfm TYPE c VALUE 'M'.         "MPS-Planung
+
+<font color ="#8C8C8C">*--&gt Sortierkennzeichen</font>
+CONSTANTS:
+  s1bestx    TYPE c VALUE '0',     "Bestaende
+  s2wkbst(2) TYPE c VALUE '01',    "Werksbestand
+  s2lgbst(2) TYPE c VALUE '01',    "Lagerortbestand
+  s2kdbst(2) TYPE c VALUE '01',    "Kundeneinzelbestand
+  s2prbst(2) TYPE c VALUE '01',    "Projekteinzelbestand
+  s2lbbst(2) TYPE c VALUE '01',    "Beistellbestand Lohnbearb.
+  s2chbst(2) TYPE c VALUE '01',    "Chargenbestand
+  s2clbst(2) TYPE c VALUE '01',    "Chargenlagerbestand
+  s2kkbst(2) TYPE c VALUE '01',    "Kundenkonsignationsbestand
+  s2dummy(2) TYPE c VALUE '01'.    "DUMMY-Zeile
+
+CONSTANTS:
+  s1plusx    TYPE c VALUE '1',     "Zugaenge
+  s2qmlos(2) TYPE c VALUE '02',    "QM-Prüflos
+  s2feauf(2) TYPE c VALUE '03',    "Fertigungsauftrag
+  s2barez(2) TYPE c VALUE '03',    "Prozeßauftrag
+  s2neauf(2) TYPE c VALUE '03',    "Netzauftrag
+  s2ihauf(2) TYPE c VALUE '03',    "Instandhaltungsauftrag   SA 46a
+  s2lavis(2) TYPE c VALUE '04',    "LieferAVIS
+  s2bsein(2) TYPE c VALUE '04',    "Bestelleinteilung
+  s2lpein(2) TYPE c VALUE '05',    "Lieferplaneinteilungen
+  s2lplab(2) TYPE c VALUE '05',    "Lieferplanabruf (LPein)  SA 46a
+  s2lpfab(2) TYPE c VALUE '05',    "Lieferplan-Feinabruf     SA 46a
+  s2bsanf(2) TYPE c VALUE '06',    "Bestellanforderung
+  s2plauf(2) TYPE c VALUE '07',    "Planauftrag
+  s2saauf(2) TYPE c VALUE '07',    "Simulationsauftrag
+  s2umres(2) TYPE c VALUE '08'.    "Umlagerungsreservierung
+
+CONSTANTS:
+  s1minus    TYPE c VALUE '2',     "Abgaenge
+  s2eorlt(2) TYPE c VALUE '02',    "Ende Wiederbeschaffungszeit
+  s2kdbed(2) TYPE c VALUE '03',    "Kundenprimaerbedarf
+  s2kdauf(2) TYPE c VALUE '03',    "Kundenauftrag
+<font color ="#8C8C8C">*@003-Begin</font>
+  s2retpo(2) TYPE c VALUE '03',    "Retourenposition
+<font color ="#8C8C8C">*@003-End</font>
+  s2matbw(2) TYPE c VALUE '04',    "Lagerabgang
+  s2mrbed(2) TYPE c VALUE '04',    "Materialreservierung
+  s2arbed(2) TYPE c VALUE '04',    "Abhaengige Reservierung
+  s2ppbed(2) TYPE c VALUE '05',    "Planprimaerbedarf
+  s2ubabr(2) TYPE c VALUE '05',    "Abruf UL-Bestellung
+  s2uaabr(2) TYPE c VALUE '05',    "Abruf UL-Anforderung
+  s2upabr(2) TYPE c VALUE '05',    "Abruf UL-SimAuftrag
+  s2ulabr(2) TYPE c VALUE '05',    "Abruf UL-Lieferplan
+  s2unbed(2) TYPE c VALUE '06',    "Ungepl. Bedarf
+  s2prbed(2) TYPE c VALUE '06',    "Prognosebedarf
+  s2skbed(2) TYPE c VALUE '07',    "Sekundaerbedarf
+  s2smbed(2) TYPE c VALUE '07',    "Simulationsbedarf
+  s2brbed(2) TYPE c VALUE '08',    "Bereitstellungsbedarf (ab 3.0E)
+  s2krbed(2) TYPE c VALUE '09',    "Korrigierter Bedarf
+  s2sibed(2) TYPE c VALUE '10',    "Simulierter Bedarf
+  s2htext(2) TYPE c VALUE '11',    "Texte für Horizonte
+  s2kmbed(2) TYPE c VALUE '12',    "Kummumierte Bedarfe (Memory)
+  s2shbst(2) TYPE c VALUE '02',    "Sicherheitsbestand    (ab 4.6a)
+  s2sfdem(2) TYPE c VALUE '06'.    "Safety Demand
+
+<font color ="#8C8C8C">*--&gt Kennzeichen Dispositionselemente</font>
+CONSTANTS:
+  "-- BESTAENDE --
+  wkbst(2)  TYPE c VALUE 'WB',      "Werksbestand
+  shbst(2)  TYPE c VALUE 'SH',      "Sicherheitsbestand   new SA_46a
+  lgbst(2)  TYPE c VALUE 'LB',      "Lagerortbestand
+  kdbst(2)  TYPE c VALUE 'KB',      "Kundeneinzelbestand
+  prbst(2)  TYPE c VALUE 'PB',      "Projekteinzelbestand
+  lbbst(2)  TYPE c VALUE 'LK',      "Beistellbestand Lohnbearb.
+  "-
+  chbst(2)  TYPE c VALUE 'CH',      "Chargenbestand
+  lcbst(2)  TYPE c VALUE 'LC',      "Lager/Chargenbestand
+  kkbst(2)  TYPE c VALUE 'KK',      "Kundenkonsi (ATP)
+
+  hsbst(2)  TYPE c VALUE 'HS',      "SegmentBatchStock
+  lsbst(2)  TYPE c VALUE 'LS',      "SegmentSLocStock
+  csbsts(2) TYPE c VALUE 'CS',      "SegmentBatchSLoc
+  wsbst(2)  TYPE c VALUE 'WS',      "SegmentStock
+
+  "-- ZUGAENGE --
+  qmlos(2)  TYPE c VALUE 'QM',      "QM-Prüflos
+  plauf(2)  TYPE c VALUE 'PA',      "Planauftrag
+  saauf(2)  TYPE c VALUE 'SA',      "Simulationsauftrag
+  feauf(2)  TYPE c VALUE 'FE',      "Fertigungsauftrag
+  "{ Begin ENHO /SAPMP/ORDCOMB_PP_MM61XVAL IS-MP-PP /SAPMP/ORDER_COMBINATION }
+  omauf(2)  TYPE c VALUE 'OM',      " AZF zusammengefaßter Auftrag
+  mpauf(2)  TYPE c VALUE 'MP'.      " AZF zusammengef. Prozeßauftr
+"{ End ENHO /SAPMP/ORDCOMB_PP_MM61XVAL IS-MP-PP /SAPMP/ORDER_COMBINATION }
+
+include <a href ="mm61xval_02 spots es_mm61xval static include bound.html">mm61xval_02 SPOTS es_mm61xval STATIC INCLUDE BOUND</a>.
+CONSTANTS:
+  barez(2) TYPE c VALUE 'BR',      "Prozeßauftrag
+  neauf(2) TYPE c VALUE 'NE',      "Netzauftrag
+  ihauf(2) TYPE c VALUE 'IH',      "Instandhaltungsauftrag   SA 46a
+  bsanf(2) TYPE c VALUE 'BA',      "Bestellanforderung
+  bsein(2) TYPE c VALUE 'BE',      "Bestelleinteilung
+<font color ="#8C8C8C">* neu 46 af</font>
+  lplab(2) TYPE c VALUE 'LL',      "Abrufeinteilung LAB
+  lpfab(2) TYPE c VALUE 'LF',      "Abrufeinteilung FAB
+  lpein(2) TYPE c VALUE 'LE',      "Lieferplaneintelung
+  lavis(2) TYPE c VALUE 'LA',      "LieferAVIS
+  umres(2) TYPE c VALUE 'UR',      "Uml.reservierung LO gl. Werk
+  ulres(2) TYPE c VALUE 'UL',      "Uml.reservierung zw. Werken
+  "-- BEDARFE --
+  trbed(2) TYPE c VALUE 'TB',      "Transportbedarf LVS
+  skbed(2) TYPE c VALUE 'SB',      "Sekundaerbedarf
+  smbed(2) TYPE c VALUE 'SM',      "Simulationsbedarf
+  subed(2) TYPE c VALUE 'SU',      "Summenbedarf
+  brbed(2) TYPE c VALUE 'BB',      "Bereitstellungsbedarf
+  unbed(2) TYPE c VALUE 'UB',      "Ungepl. Bedarf
+  prbed(2) TYPE c VALUE 'PR',      "Prognosebedarf
+  uxabr(2) TYPE c VALUE 'U0',      "Abruf UL-Best. aus Lief ATPcheck
+  ubabr(2) TYPE c VALUE 'U1',      "Abruf UL-Bestellung
+  uaabr(2) TYPE c VALUE 'U2',      "Abruf UL-Anforderung
+  upabr(2) TYPE c VALUE 'U3',      "Abruf UL-SimAuftrag
+  ulabr(2) TYPE c VALUE 'U4',      "Abruf UL-Lieferplan
+  ppbed(2) TYPE c VALUE 'PP',      "Planprimaerbedarf
+  kdbed(2) TYPE c VALUE 'KD',      "Kundenprimaerbedarf (nicht verw)
+  mrbed(2) TYPE c VALUE 'MR',      "Reservierung
+  arbed(2) TYPE c VALUE 'AR',      "Abhaengige Reservierung
+  vbeda(2) TYPE c VALUE 'VA',      "Anfrage
+  vbedb(2) TYPE c VALUE 'VB',      "Angebot
+  vbedc(2) TYPE c VALUE 'VC',      "Auftrag
+  vbede(2) TYPE c VALUE 'VE',      "SD-Lieferplan
+  vbedf(2) TYPE c VALUE 'VF',      "SD-Lieferpl. ext. Dienstleister
+  vbedg(2) TYPE c VALUE 'VG',      "Kontrakt
+  vbedi(2) TYPE c VALUE 'VI',      "Kostenlose Lieferung
+  vbedj(2) TYPE c VALUE 'VJ',      "Lieferung
+  vbedh(2) TYPE c VALUE 'VH',      "SD-Retoure Konsi Customer (nur ATP!)
+  vbedz(2) TYPE c VALUE 'VZ',      "ungeprüfte Lieferung   -AIP-
+  vbedw(2) TYPE c VALUE 'VW',      "externer Kundenauftrag
+  vbedt(2) TYPE c VALUE 'VT',      "Retourenlieferung (nicht nur ATP!)
+  sibed(2) TYPE c VALUE 'SI',      "Simulationsbedarf
+  si2bd(2) TYPE c VALUE 'S2',      "Simulationsbedarf aus Verfpr.
+  matbw(2) TYPE c VALUE 'MB',      "Lagerabgang
+
+  vorpl(2) TYPE c VALUE 'VP',      "Vorplanung
+  brtpl(2) TYPE c VALUE 'BP',      "Bruttoplanung
+  mstfr(2) TYPE c VALUE 'MS',      "Mehrstufige Fertigung
+  fxhor(2) TYPE c VALUE 'FH',      "Ende Fixierungshorizont
+  wzhor(2) TYPE c VALUE 'WH',      "Ende Wiederbesch.Horizont
+  sphor(2) TYPE c VALUE 'SP',      "End of Spike Horizon
+  ausdt(2) TYPE c VALUE 'DD',      "Auslaufdatum
+  lbein(2) TYPE c VALUE 'E1',      "Lohnbearbeitung Einkauf
+  tblvs(2) TYPE c VALUE 'TB',      "Transportbedarf LVS
+  prabr(2) TYPE c VALUE 'JI',      "Produktionsabruf
+<font color ="#8C8C8C">*@003-Begin</font>
+  retpo(2) TYPE c VALUE 'RP',      "Retourenposition
+<font color ="#8C8C8C">*@003-End</font>
+  kmbed(2) TYPE c VALUE 'KM',      "Kummulierte Bedarfe (Memory)
+  sfbed(2) TYPE c VALUE 'SF',      "Sicherheitsbedarf      pb300697
+  sfdem(2) TYPE c VALUE 'SD',      "Safety demand (Time-dependent Safety Stock)
+  rnivd(2) TYPE c VALUE 'RD',      "RsNum invalid in DB
+  rnivs(2) TYPE c VALUE 'RS',      "RsNum invalid in Sperrserver
+  eorlt(2) TYPE c VALUE 'ER',      "Ende Wiederbeschaffungszeit
+  grreq(2) TYPE c VALUE 'GR',      "Temporärer Bedarf (ATP intern)
+  "{ Begin ENHO AD_MPN_PUR2_MM61XVAL IS-AD-MPN AD_MPN_IC }
+  ausub(2) TYPE c VALUE 'UB',      "receipt applied to SUS part
+  ausua(2) TYPE c VALUE 'UA',      "excess stock may be consumed...
+<font color ="#8C8C8C">* PIC Supersession DELKZ</font>
+  susdt(2) TYPE c VALUE 'DD'.      "Supersession Date
+"{ End ENHO AD_MPN_PUR2_MM61XVAL IS-AD-MPN AD_MPN_IC }
+
+include <a href ="mm61xval_05 spots es_mm61xval static include bound.html">mm61xval_05 SPOTS es_mm61xval STATIC INCLUDE BOUND</a>.
+<font color ="#8C8C8C">*---&gt Auftrags-/Bestellarten</font>
+CONSTANTS:
+  laauft(4) TYPE c VALUE 'LA  ',   "Lagerauftrag
+  kdauft(4) TYPE c VALUE 'KD  ',   "Kundeneinzelauftrag
+  prauft(4) TYPE c VALUE 'PR  ',   "Projektauftrag
+  diauft(4) TYPE c VALUE 'LA  ',   "Planauftrag zur Direktfertigung
+  vpauft(4) TYPE c VALUE 'VP  ',   "Vorplanungsauftrag
+  preint(4) TYPE c VALUE 'PE  ',   "Produktionseinteilung
+  nbbest(4) TYPE c VALUE 'NB  ',   "Normalbestellung
+  tbbest(4) TYPE c VALUE 'TB  ',   "Transportbestellung
+  kbbest(4) TYPE c VALUE 'KB  ',   "Konsignationsbestellung
+  lxauft(4) TYPE c VALUE 'LX  '.   "External planned order
+
+<font color ="#8C8C8C">*---&gt Planungsarten</font>
+CONSTANTS:
+  plnkzn TYPE c VALUE '1',      "Nettoplanung
+  plnkzb TYPE c VALUE '2',      "Bruttoplanung
+  plnkzv TYPE c VALUE '3'.      "Vorplanung ohne Fertigung
+
+<font color ="#8C8C8C">*---&gt Zuordnungsarten des Kundenprimaerbedarfs</font>
+CONSTANTS:
+  vpzuon TYPE c VALUE '1',      "Vorpl. mit  Fertigung
+  vpzuov TYPE c VALUE '2',      "Vorpl. ohne Fertigung
+  vpzuom TYPE c VALUE '3'.      "Vorplanungsmaterial
+
+<font color ="#8C8C8C">*---&gt Verrechnungsarten</font>
+CONSTANTS:
+  vervpk TYPE c VALUE '1',      "Nur fuer Kundenbedarf
+  vervps TYPE c VALUE '2',      "Nur fuer Sekundaerbedarf
+  vervpx TYPE c VALUE '3',      "Generell
+  vervpb TYPE c VALUE '4'.      "flexible cons/reduc via BAdI
+
+<font color ="#8C8C8C">*---&gt Disporelevanz der Kundenbedarfe</font>
+CONSTANTS:
+  nodis1 TYPE c VALUE '1',      "nicht relevant/nur anzeigen
+  nodis2 TYPE c VALUE '2'.      "nicht relevant/nicht anzeigen
+
+<font color ="#8C8C8C">*---&gt Disporelevanz der Lagerorte</font>
+CONSTANTS:
+  diskz1 TYPE c VALUE '1',      "Lagerort ausgeschlossen
+  diskz2 TYPE c VALUE '2'.      "Lagerort seperat disponiert
+
+<font color ="#8C8C8C">*---&gt Prognose/Verbrauchsreihe</font>
+CONSTANTS:
+      proosu    LIKE t438a-proos VALUE 'U'.  "Ungeplanter Verbrauch
+
+<font color ="#8C8C8C">*---&gt Auftragstypen</font>
+CONSTANTS:
+  aftypf(2) TYPE c VALUE '10',     "Fertigungsauftrag
+  aftypn(2) TYPE c VALUE '20',     "Netzauftrag
+  aftypb(2) TYPE c VALUE '40',     "Prozeßauftrag
+  aftypi(2) TYPE c VALUE '30',     "Instandhaltungsauftrag  SA 46a
+  aftypr(2) TYPE c VALUE '32',     "RMA-Auftrag (Serviceauftr)SA 46A
+  aftypc(2) TYPE c VALUE '04',     "CO-Kostensammler
+  aftypp(2) TYPE c VALUE '05',     "Periodenauftrag
+  aftypq(2) TYPE c VALUE '06'.     "QM-Auftrag
+
+<font color ="#8C8C8C">*---&gt Beschaffungs-/Sonderbeschaffungsarten/Fremd</font>
+CONSTANTS: beskzf    TYPE c VALUE 'F'. "Fremdbeschaffung
+CONSTANTS:
+  sobesf TYPE c VALUE '0',      "Fremdbeschaffung
+  sobesu TYPE c VALUE '7',      "Umlagerung
+  sobesk TYPE c VALUE '2',      "Konsignation
+  sobesl TYPE c VALUE '3'.      "Lohnbearbeitung
+
+<font color ="#8C8C8C">*---&gt Direktbeschaffungskennzeichen                           "46a DIBE</font>
+CONSTANTS:                                                  "46a DIBE
+  dbskzf TYPE c VALUE 'F',      "Fremdbeschaffung      "46a DIBE
+  dbskze TYPE c VALUE 'E'.      "Eigenfertigung        "46a DIBE
+
+<font color ="#8C8C8C">*---&gt Pos.typen des Einkaufs gemäß T163</font>
+<font color ="#8C8C8C">*---&gt (0,2,3,7 gibt es auch als SOBES)</font>
+CONSTANTS:
+  pstypb TYPE c VALUE '1',      "Beistellung
+  pstypk TYPE c VALUE '2',      "Konsignation           "RE 4.6A
+  pstypl TYPE c VALUE '3',      "Lohnbearbeitung        "RE 4.6A
+  pstypm TYPE c VALUE '4',      "Material unbekannt
+  pstyps TYPE c VALUE '5',      "Strecke
+  pstypt TYPE c VALUE '6',      "Text
+  pstypu TYPE c VALUE '7',      "Umlagerung
+  pstypw TYPE c VALUE '8'.      "Warengruppe
+
+<font color ="#8C8C8C">*---&gt Bestelltypen ( Vertragstypen )</font>
+CONSTANTS:
+  bstypf TYPE c VALUE 'F',      "Bestellung
+  bstypl TYPE c VALUE 'L',      "Lieferplan
+  bstypk TYPE c VALUE 'K'.      "Kontrakt
+
+<font color ="#8C8C8C">*---&gt Bestellanforderungstypen</font>
+CONSTANTS:
+  batypn TYPE c VALUE ' ',      "Normalbestellung
+  batypr TYPE c VALUE 'R'.      "Rahmenvertragsbanf
+
+<font color ="#8C8C8C">*---&gt Status Bestellanforderung</font>
+CONSTANTS:
+  statua TYPE c VALUE 'A',      "Angefragt
+  statub TYPE c VALUE 'B',      "Bestellt
+  statul TYPE c VALUE 'L'.      "Lieferplaneingeteilt
+
+<font color ="#8C8C8C">*---&gt 'Status' Fertigungsauftrag</font>
+CONSTANTS:
+  mdfst_fr TYPE c VALUE '1',       "Freigegeben
+  mdfst_tg TYPE c VALUE '9'.       "Teilgeliefert
+
+<font color ="#8C8C8C">*---&gt Disporelevanzkennzeichen im Orderbuch</font>
+CONSTANTS:
+  autetx TYPE c VALUE '1',      "Eintrag ist Disporelevant
+  autetj TYPE c VALUE '2'.      "Automat. Lieferplaneint. erlaubt
+
+<font color ="#8C8C8C">*---&gt Externe Beschaffung gemäß Materialart</font>
+CONSTANTS:
+      bsextn    TYPE c VALUE '0'.      "Keine externe Bestell. erlaubt
+
+<font color ="#8C8C8C">*---&gt Direktbeschaffungskennzeichen T399D/T438M</font>
+CONSTANTS:
+<font color ="#8C8C8C">*     KZDRBB    TYPE C VALUE ' ',      "wie '2' keine Dir.BAnf in MRP</font>
+  kzdrbf TYPE c VALUE '1',      "Direktbeschaffung in Dispo
+  kzdrbe TYPE c VALUE '2',      "Keine Direktbeschaffung in Dispo
+  kzdrbx TYPE c VALUE '3'.      "BDirektbeschaffung.
+
+<font color ="#8C8C8C">*---&gt Erstellungskennzeichen der Bestellanforderung</font>
+CONSTANTS:
+  estkzd TYPE eban-estkz  VALUE 'D',      "DirektBAnf
+  estkzv TYPE eban-estkz  VALUE 'V'.      "BAnf/Best aus SD  30f
+
+<font color ="#8C8C8C">*---&gt Beschaffungs-/Sonderbeschaffungsarten/Eigen</font>
+CONSTANTS:
+      beskze    TYPE c VALUE 'E'.      "Eigenfertigung
+CONSTANTS:
+  sobese TYPE c VALUE 'E',      "Eigenfertigung
+  sobesp TYPE c VALUE 'P',      "Produktions  im 2. Werk
+  sobesr TYPE c VALUE 'R',      "Reservierung im 2. Werk
+  sobesv TYPE c VALUE 'V',      "Vorplanung
+  sobesd TYPE c VALUE 'D',      "Dummy-Baugruppe
+  sobes9 TYPE c VALUE '9', "IS-OIL KH Werksumlager.-Reserv.
+  sobesm TYPE c VALUE 'M'.      "Mehrstufige Fertigung
+
+<font color ="#8C8C8C">*---&gt Zugangs/Abgangskennzeichen</font>
+CONSTANTS:
+  plusx(1) TYPE c VALUE '+',      "Plus
+  minus(1) TYPE c VALUE '-',      "Minus
+  bestx(1) TYPE c VALUE 'B'.      "Bestand
+
+<font color ="#8C8C8C">*---&gt Soll-/Haben-Kennzeichen</font>
+CONSTANTS:
+  shkzgh(1) TYPE c VALUE 'H',      "Haben
+  shkzgs(1) TYPE c VALUE 'S'.      "Soll
+
+<font color ="#8C8C8C">*---&gt Auslaufkennzeichen</font>
+CONSTANTS:
+  auslfe TYPE c VALUE '1',      "Einzelauslauf
+  auslfg TYPE c VALUE '2',      "Gruppenauslauf
+  auslfa TYPE c VALUE '3'.      "abhängier Gruppenauslauf
+
+<font color ="#8C8C8C">*---&gt Mischdispositionskennzeichen</font>
+CONSTANTS:
+  miskzv TYPE c VALUE '1',      "Baugruppenvorplanung mit E.
+  miskzb TYPE c VALUE '2',      "Zweistufige/Bruttoplanung
+  miskze TYPE c VALUE '3'.      "Baugruppenvorplanung ohne E.
+
+<font color ="#8C8C8C">*---&gt Kontierungstypen</font>
+CONSTANTS:
+  knttpe TYPE c VALUE 'E',      "Kundeneinzelplanung
+  knttpq TYPE c VALUE 'Q',      "Projekteinzelplanung
+  knttpu TYPE c VALUE 'U',      "Kontierung unbekannt
+  knttpd TYPE c VALUE 'D'.      "Kd-Einzel; Abrechnung Projekt
+
+<font color ="#8C8C8C">*---&gt Sonderbestandskennzeichen</font>
+CONSTANTS:
+  sobkze TYPE c VALUE 'E',      "Kundeneinzelbestand
+  sobkzq TYPE c VALUE 'Q',      "Projekteinzelbestand
+  sobkzo TYPE c VALUE 'O',      "Lohnbearbeiterbestand
+  sobkzp TYPE c VALUE 'P',      "PIPE-Line
+  sobkzk TYPE c VALUE 'K',      "Consignment (vendor)
+  sobkzu TYPE c VALUE 'U',      "TEMPORÄR
+  sobkzv TYPE c VALUE 'V',      "Kundenkonsi
+  sobkzw TYPE c VALUE 'W'.      "Kundenkonsi
+
+<font color ="#8C8C8C">*---&gt Verrechnungsarten bei Kundeneinzelfertigung und sonst</font>
+CONSTANTS:
+  kzvbre TYPE c VALUE 'E',      "CO_Objekt Kundenauftrag
+  kzvbrp TYPE c VALUE 'P',      "Projekt
+  kzvbru TYPE c VALUE 'U'.      "Abrechnung unbekannt
+
+<font color ="#8C8C8C">*---&gt Sekundaerbedarfskennzeichen</font>
+CONSTANTS:
+  sbdkzx TYPE c VALUE ' ',      "Einzel- und Sammelbedarf
+  sbdkze TYPE c VALUE '1',      "Einzelbedarf zulaessig
+  sbdkzs TYPE c VALUE '2'.      "Nur Sammelbedarf zulaessig
+
+<font color ="#8C8C8C">*---&gt Losgroessenverfahren/Losgroessenkennzeichen</font>
+CONSTANTS:
+  losvfs  TYPE c VALUE 'S',      "Standardlosgroessen
+  loskzse TYPE c VALUE 'E',      "Exakte Bestellmenge
+  loskzsf TYPE c VALUE 'F',      "Fixe Bestellmenge
+  loskzsh TYPE c VALUE 'H',      "Auffuellen Hoechstbestand
+  loskzss TYPE c VALUE 'S'.      "Fix/Splittung
+CONSTANTS:
+  losvfp  TYPE c VALUE 'P',      "Periodenlosgroessen
+  loskzpt TYPE c VALUE 'T',      "Tagesperiode
+  loskzpw TYPE c VALUE 'W',      "Wochenperiode
+  loskzpm TYPE c VALUE 'M',      "Monatsperiode
+  loskzpp TYPE c VALUE 'P',      "Periode nach T009B
+  loskzpk TYPE c VALUE 'K'.      "Periode nach MRP-PlKalender
+CONSTANTS:
+  losvfo  TYPE c VALUE 'O',      "Optimieruungslosgroesseen
+  loskzod TYPE c VALUE 'D',      "Dynamisch
+  loskzos TYPE c VALUE 'S',      "Periodenausgleich
+  loskzow TYPE c VALUE 'W',      "Wirtschaftlich
+  loskzog TYPE c VALUE 'G'.      "Groff
+
+<font color ="#8C8C8C">*---&gt Losgroessenverfahren Hoechstbestand: Variante</font>
+CONSTANTS:
+  hbvarx TYPE c VALUE ' ',      "vor Befriedigung des Bedarfs
+  hbvar1 TYPE c VALUE '1'.      "nach Befriedigung des Bedarfs
+
+<font color ="#8C8C8C">*--&gt Kennzeichen Ausnahmemeldungen</font>
+CONSTANTS:
+  ausa1(2) TYPE c VALUE 'A1',      "Sicherheitsbestand
+  ausa9(2) TYPE c VALUE 'A9',      "Abbruch der Planung
+  ausn1(2) TYPE c VALUE 'N1',      "Neu eingeplant
+  ausn2(2) TYPE c VALUE 'N2',      "Neu. Eroeff-Termin in Verg.
+  ausn3(2) TYPE c VALUE 'N3',      "Neu. Start-Termin in Verg.
+  ausn4(2) TYPE c VALUE 'N4',      "Neu. End-Termin in Verg.
+  auss1(2) TYPE c VALUE 'S1',      "Material hat keine Stueli
+  auss2(2) TYPE c VALUE 'S2',      "Keine gueltige Stueli
+  auss4(2) TYPE c VALUE 'S4',      "Dummy-SL nicht aufgeloest
+  auss5(2) TYPE c VALUE 'S5',      "SL-Aufl.: Konfig. fehlt
+  auss6(2) TYPE c VALUE 'S6',      "Auslauf: Bedarf jenseits ADatum
+  auss7(2) TYPE c VALUE 'S7',      "Keine Bedarfsdeckung
+  auss8(2) TYPE c VALUE 'S8',      "Keine Deckung durch P-Plan
+  auss9(2) TYPE c VALUE 'S9',      "Auftragsbericht:Rekursion (Loko)
+  aust2(2) TYPE c VALUE 'T2',      "Eroeff-Termin in Verg.
+  aust3(2) TYPE c VALUE 'T3',      "Start-Termin in Verg.
+  aust4(2) TYPE c VALUE 'T4',      "End-Termin in Verg.
+  ausv1(2) TYPE c VALUE 'V1',      "BestVorschlag masch. geändert
+  ausv2(2) TYPE c VALUE 'V2',      "Neu aufgeloest
+  ausv3(2) TYPE c VALUE 'V3',      "BestVorschlag manuell geändert
+  ausu1(2) TYPE c VALUE 'U1',      "Vorziehen
+  ausu2(2) TYPE c VALUE 'U2',      "Verschieben
+  ausu3(2) TYPE c VALUE 'U3',      "Stornierung
+  ausu4(2) TYPE c VALUE 'U4',      "Termingerecht einplanen
+  ausu5(2) TYPE c VALUE 'U5',      "Reduzieren (Bestandsüberdeckung)
+  ausu6(2) TYPE c VALUE 'U6',      "Ueberdeckung im Einzelabschnitt
+  ausu8(2) TYPE c VALUE 'U8',      "Teilumleitung (Auslauf)
+  ausu9(2) TYPE c VALUE 'U9',      "Zugang nach Auslaufdatum
+  ausut(2) TYPE c VALUE 'UT'.      "Unterlieferungstoleranz "{ ENHO /SAPMP/U_DELIV_TOLER_MM61XVAL IS-MP-PP /SAPMP/UNDERDELIVERY_TOLERANCE }
+
+include <a href ="mm61xval_03 spots es_mm61xval static include bound.html">mm61xval_03 SPOTS es_mm61xval STATIC INCLUDE BOUND</a>.
+CONSTANTS:
+<font color ="#8C8C8C">*@001-Begin</font>
+  ausw1(2) TYPE c VALUE 'W1',      "Bezug zu Handelsaktion
+<font color ="#8C8C8C">*@001-End</font>
+  ausw2(2) TYPE c VALUE 'W2',      "Bestellung ist gesperrt
+  ausp1(2) TYPE c VALUE 'P1',      "Terminierung: Cust.Param.-Pb.
+  ausp2(2) TYPE c VALUE 'P2',      "Terminierung: Stammdaten-Pb.
+  ausp3(2) TYPE c VALUE 'P3',      "Terminierung: PS &lt ES
+  ausp4(2) TYPE c VALUE 'P4',      "Terminierung: PE &gt EE
+  ausc1(2) TYPE c VALUE 'C1'.      "Max.Abrufmenge Quoten ueberschr.
+
+<font color ="#8C8C8C">*---&gt Messagekennzeichen</font>
+CONSTANTS:
+  msgtype(1) TYPE c VALUE 'E',
+  msgtypa(1) TYPE c VALUE 'A',
+  msgtypi(1) TYPE c VALUE 'I',
+  msgtypw(1) TYPE c VALUE 'W'.
+
+<font color ="#8C8C8C">*---&gt Periodenkennzeichen</font>
+CONSTANTS:
+  tagex TYPE c VALUE 'T',
+  woche TYPE c VALUE 'W',
+  monat TYPE c VALUE 'M',
+  pkper TYPE c VALUE 'K',
+  prast TYPE c VALUE 'R',
+  buper TYPE c VALUE 'P'.
+
+<font color ="#8C8C8C">*--&gt Defaultwerte fuer die Stuecklistenaufloesung</font>
+CONSTANTS:
+  stltyn(1)      TYPE c VALUE 'M', "Materialstueckliste
+  stand_selid(2) TYPE c VALUE '01',
+  ag29(2)        TYPE c VALUE '29'.
+
+<font color ="#8C8C8C">*--&gt Positionstypen der Stückliste</font>
+CONSTANTS:
+  postpn(1) TYPE c VALUE 'N',
+  postpl(1) TYPE c VALUE 'L'.
+
+<font color ="#8C8C8C">*--&gt Sortierkennzeichen fuer Kompnentendarstellung</font>
+CONSTANTS:
+  ausls1(1) TYPE n VALUE '1',
+  ausls2(1) TYPE n VALUE '2',
+  nflgs3(1) TYPE n VALUE '3'.
+
+<font color ="#8C8C8C">*--&gt Status Seriennummer</font>
+CONSTANTS:
+  snsta_active   TYPE c VALUE ' ',
+  snsta_inactive TYPE c VALUE '0'.
+
+<font color ="#8C8C8C">*--&gt Status Planungsszenario</font>
+CONSTANTS:
+  psact_inactive   VALUE '1',        "nicht freigegeben
+  psact_active     VALUE '2',        "freigegeben
+  psact_act_revoke VALUE '3'.        "Freigabe zurückgenommen
+
+<font color ="#8C8C8C">*---&gt Festwerte Materialvormerkung für Funktionsbausteinaufruf</font>
+CONSTANTS:
+  hinfkt   TYPE c VALUE 'H',      "Hinzufuegefall
+  objkt(7) TYPE c VALUE 'MANUELL'. "Objekt MANUELL
+
+<font color ="#8C8C8C">*---&gt Bewegungsart fuer UL-Reservierung</font>
+CONSTANTS:
+  urbwart(3) TYPE c VALUE '301',   "IS-OIL KH Werks-Umlag.Reservier
+  ulbwart(3) TYPE c VALUE '311',   "Umbuchung Lagerort einstufig
+  ubbwart(3) TYPE c VALUE '541'.   "LB-Beistellbestand aus frei ver.
+
+<font color ="#8C8C8C">*---&gt Konstanten</font>
+CONSTANTS:
+  obartp(1) TYPE c VALUE '1',      "Planauftrag
+  obartb(1) TYPE c VALUE '2',      "Bestellanforderung
+  obartl(1) TYPE c VALUE '3',      "Lieferplaneinteilung
+  obarts(1) TYPE c VALUE '6'.      "Simulationsauftrag
+
+<font color ="#8C8C8C">*---&gt Planungstyp des Objekts (Unterteilung OBART in T460P)</font>
+CONSTANTS:
+      plknz_vrpla(1) TYPE c VALUE '1'. "Vorplanungsauftrag
+
+<font color ="#8C8C8C">*---&gt Herkunft fuer Aufruf der Komponentenbearbeitung</font>
+CONSTANTS:
+  herktp(1) TYPE c VALUE 'P',      "Planauftrag
+  herktm(1) TYPE c VALUE 'M',      "MPS-Planung
+  herkte(1) TYPE c VALUE 'E',      "Einkauf
+  herkts(1) TYPE c VALUE 'S',      "Serienplanung
+  herktk(1) TYPE c VALUE 'K',      "Kommissionierliste
+  herktn(1) TYPE c VALUE 'N',      "Nachbearbeitung
+  herktr(1) TYPE c VALUE 'R'.      "Rueckmeldung Fertigung
+
+<font color ="#8C8C8C">*---&gt Typen der Serienauftragsabwicklung</font>
+CONSTANTS:
+  setyp1(1) TYPE c VALUE '1',      "Planauftrag
+  setyp2(1) TYPE c VALUE '2'.      "Fertigungsauftrag
+
+<font color ="#8C8C8C">*---&gt Art der Interpretation des MRP-Kalenders bei Periodenzusammenf.</font>
+CONSTANTS:
+  intka1(1) TYPE c VALUE '1',      "Zeitpunkte gleich Liefertermine
+  intka2(1) TYPE c VALUE '2'.      "Zeitpunkte gleich Versandtermine
+
+<font color ="#8C8C8C">*---&gt Kennzeichen Lieferplaneinteilungen</font>
+CONSTANTS:
+  lifkzn(1) TYPE c VALUE '1',     "nie Lieferplaneinteilungen
+  lifkze(1) TYPE c VALUE '2',     "im Eröffnungsh. Lfplaneint.
+  lifkzp(1) TYPE c VALUE '3'.     "im Planungshor. Lfplaneint.
+
+<font color ="#8C8C8C">*---&gt  Terminierungskennzeichen auf dem Einstiegsbild</font>
+CONSTANTS:
+  trmpln(1) TYPE c VALUE '1',     "keine Planauftragsterminierung
+  trmply(1) TYPE c VALUE '2'.     "Terminierung laut Customizing
+
+<font color ="#8C8C8C">*---&gt Kennzeichen Feld/Funktionsauswahl</font>
+CONSTANTS:
+  optpl(1) TYPE c VALUE '+',     "Muss-Option
+  optmi(1) TYPE c VALUE '-',     "nicht zulaessig
+  optka(1) TYPE c VALUE '*'.     "Kann-Option
+
+<font color ="#8C8C8C">*---&gt das Kennzeichen KZ_DUMMY_VERB kann zwei Ausprägen haben, zwischen</font>
+<font color ="#8C8C8C">*     denen hier eine gewählt wird;</font>
+<font color ="#8C8C8C">*     KZ_DUMMY_VERBD: die MDVM-Dummy-Sätze werden direkt verarbeitet</font>
+<font color ="#8C8C8C">*     KZ_DUMMY_VERBP: die MDVM-Dummy-Sätze werden erst im Planungslauf</font>
+<font color ="#8C8C8C">*                     abgearbeitet</font>
+<font color ="#8C8C8C">*     Im Standard momentan: Direktverarbeitung.</font>
+CONSTANTS:
+  kz_dummy_verbd TYPE c VALUE '1',
+  kz_dummy_verbp TYPE c VALUE '2',
+  kz_dummy_verb  TYPE c VALUE '1'. "gibt an, was aktiv ist
+
+<font color ="#8C8C8C">*--&gt Ausgabe Summenspalten</font>
+CONSTANTS:
+  spa51(4) TYPE c VALUE '0051',    "ATP-Menge
+  spa52(4) TYPE c VALUE '0052',    "Ist/Sollreichweite
+  spa53(4) TYPE c VALUE '0053',    "Ist/Minreichweite
+  spa54(4) TYPE c VALUE '0054',    "Ist/Maxreichweite
+  spa55(4) TYPE c VALUE '0055',    "Sollbestand
+  spa56(4) TYPE c VALUE '0056',    "Mindestbestand
+  spa57(4) TYPE c VALUE '0057',    "Maximalbestand
+  spa58(4) TYPE c VALUE '0058',    "Tagesbedarf
+  spa59(4) TYPE c VALUE '0059',    "TagesProdMenge
+  spa60(4) TYPE c VALUE '0060'.    "Bestandsreichweiten
+
+<font color ="#8C8C8C">*---&gt DispoListenVergl.: Formatierung von Feldern/Zeilen auf Dynpro</font>
+CONSTANTS:
+  fbyte_row_intensified(1)   TYPE c VALUE '4',
+<font color ="#8C8C8C">*     fbyte_stock_intensified(1) type c value '5'.</font>
+  fbyte_stock_intensified(1) TYPE c VALUE '1'.
+<font color ="#8C8C8C">*---&gt Langfristplanung: Bestimmung des Anfangswerksbestands</font>
+CONSTANTS:
+  BEGIN OF sstck,
+    zero      VALUE ' ',
+    safety    VALUE '1',
+    actual    VALUE '2',
+    simulated VALUE '3',
+  END OF sstck.
+
+<font color ="#8C8C8C">*--&gt Dynpronummern für dynamische Bildsteuerung</font>
+CONSTANTS:
+  sc_beg_samm(4) TYPE c VALUE '0200',    "Einstieg MD06
+  sc_beg_ptab(4) TYPE c VALUE '0201',    "Einstieg MF57
+  sc_sel_samm(4) TYPE c VALUE '0210',    "Auswahl Listen MD06
+  sc_sel_lpsa(4) TYPE c VALUE '0620',    "Auswahl Listen MS07
+  sc_beg_einz(4) TYPE c VALUE '0300',    "Einstieg MD04/MD05
+  sc_ein_klko(4) TYPE c VALUE '0310',    "Einzelliste kl. Kopf
+  sc_ein_grko(4) TYPE c VALUE '0320',    "Einzelliste kl. Kopf
+  sc_per_klko(4) TYPE c VALUE '0330',    "Periodenliste kl. Kopf
+  sc_per_grko(4) TYPE c VALUE '0340',    "Periodenliste kl. Kopf
+  sc_beg_lpei(4) TYPE c VALUE '0600',    "Einstieg MS04/MS05 209140
+  sc_beg_lpsa(4) TYPE c VALUE '0610'.    "Einstieg MS06
+
+<font color ="#8C8C8C">*--&gt Memory-Ids zur Struktur MEMID (SAPMM61R/X und SAPLM61R) und Hauptsp</font>
+CONSTANTS:
+<font color ="#8C8C8C">*--&gt MT61D, CM61M, MDKP, MDPSX, MDSTA</font>
+  id_bl(4) TYPE c VALUE 'ABBL',          "akt. Bed./Best. Liste
+  id_de(4) TYPE c VALUE 'DERG',          "Dispoergebnis
+  id_rm(4) TYPE c VALUE 'PTRM',          "Planungstableau Repet.Man.
+<font color ="#8C8C8C">*--&gt MDKP, MDPSX</font>
+  id_dl(4) TYPE c VALUE 'DISP',          "Dispoliste
+<font color ="#8C8C8C">*--&gt MT61D, CM61M</font>
+  id_mt(4) TYPE c VALUE 'MATD',          "Materialdaten zur DListe
+<font color ="#8C8C8C">*--&gt MT61D, CM61M, CM61D, MDSTA, MDPSX, MDPSO, MDLPX, EQUKX, EQUPX,EQUMX</font>
+  id_ph(4) TYPE c VALUE 'PLHS'.          "Planung im Hauptspeicher
+
+<font color ="#8C8C8C">*--&gtMemory-Ids</font>
+CONSTANTS:
+<font color ="#8C8C8C">*--&gt MASEL, MDAUSX, MDDELX</font>
+  id_su(4)       TYPE c VALUE 'MDLI',           "Informationen zur Suche
+<font color ="#8C8C8C">*--&gt Aufruf Drucken</font>
+  id_druc_ez(30) TYPE c VALUE 'mem_id_sapmm61_druc_ez', "Einzelz.
+  id_druc_ps(30) TYPE c VALUE 'mem_id_sapmm61_druc_ps', "Period.
+  id_mdustxt(30) TYPE c VALUE 'mem_id_sapmm61_ustxt',   "UserExit
+  id_baditxt(30) TYPE c VALUE 'mem_id_sapmm61_baditxt'. "BAdICols
+
+<font color ="#8C8C8C">*--&gt Versionsauswahl Berechnung Bestands/Zugangsreichweiten</font>
+CONSTANTS:
+  rwver(1) TYPE c VALUE '1',
+  norwe    LIKE mdkp-berw1 VALUE '999.9-',  "Keine Reichw. berechnebar
+  marwe    LIKE mdkp-berw1 VALUE '999.9'.   "Maximale Reichweite
+<font color ="#8C8C8C">* rwver = 0:  Reichweite wird gerechnet bis zum letzten gedeckten</font>
+<font color ="#8C8C8C">*             Bedarf</font>
+<font color ="#8C8C8C">* rwver &lt&gt 0: Reichweite wird gerechnet bis zur ersten Unterdeckung</font>
+<font color ="#8C8C8C">*             minus ein Tag =&gt letzter Tag mit nichtenegativem Bestand</font>
+
+<font color ="#8C8C8C">*--&gt Prüfen, ob Materialnotiz vorhanden beim Einstieg in Listanzeige</font>
+<font color ="#8C8C8C">*    MNOEX &lt&gt '0' ==&gt Prüfung wird durchgeführt</font>
+CONSTANTS:
+      mnoex(1) TYPE c VALUE '1'.
+
+CONSTANTS:
+      maxnumber_matov(3) TYPE p VALUE '025'.
+
+<font color ="#8C8C8C">*--&gt Transaktionscodes für Calls die nicht ins Design von T457C passen</font>
+CONSTANTS:
+  cinpl LIKE sy-tcode VALUE 'MD43', "interaktive Planung
+  cabbl LIKE sy-tcode VALUE 'MD04', "akt. Bestands- Bedarfssit.
+  cablp LIKE sy-tcode VALUE 'MS04', "akt. BBL Langfristplanung
+  cdlez LIKE sy-tcode VALUE 'MD05', "Dispoliste
+  cdllp LIKE sy-tcode VALUE 'MS05', "Dispoliste-Langfristplanung
+  chipv LIKE sy-tcode VALUE 'MD20', "Hinzufügen Planungsvormerkung
+  canpv LIKE sy-tcode VALUE 'MD21'. "Anzeigen Planungsvormerkung
+
+<font color ="#8C8C8C">*---&gtMindestspaltenbreite für Table Controls in MD04 (THD)</font>
+CONSTANTS:
+<font color ="#8C8C8C">*         ---&gtPeriodensummen</font>
+  psminsize_detail_icon(3) TYPE n VALUE '2', "Detail-Ikone
+  psminsize_extsu(3)       TYPE n VALUE '10', "Per./ Abschnitt
+  psminsize_mng01(3)       TYPE n VALUE '8', "Vorplanungsbedarf
+  psminsize_mng02(3)       TYPE n VALUE '8', "Bedarf
+  psminsize_mng03(3)       TYPE n VALUE '8', "Zugänge
+  psminsize_mng04(3)       TYPE n VALUE '8', "Verfügbare Menge
+  psminsize_mng05(3)       TYPE n VALUE '8', "ATP Menge
+  psminsize_mng06(3)       TYPE n VALUE '0', "nicht verfüg. Zugäng.
+  psminsize_mng07(3)       TYPE n VALUE '0', "nicht verfügb. Abgänge.
+  psminsize_sstck(3)       TYPE n VALUE '8', "Safety Stock
+  psminsize_slbes(3)       TYPE n VALUE '0', "Sollbestand
+  psminsize_mdbes(3)       TYPE n VALUE '0', "Mindestbestand
+  psminsize_mxbes(3)       TYPE n VALUE '0', "Maximalbestand
+  psminsize_istrw(3)       TYPE n VALUE '0', "stat. Istreichweite
+  psminsize_tgbed(3)       TYPE n VALUE '0', "Tagesproduktionsmenge
+  psminsize_usex1(3)       TYPE n VALUE '0', " User-Exit Feld 1
+  psminsize_usex2(3)       TYPE n VALUE '0', " User-Exit Feld 2
+  psminsize_usex3(3)       TYPE n VALUE '0', " User-Exit Feld 3
+<font color ="#8C8C8C">*     PSMINSIZE_BERW1(3) TYPE N VALUE '0', "Bestandsreichweite HW 318507</font>
+  psminsize_berw1(3)       TYPE n VALUE '4', "Bestandsreichweite HW 318507
+<font color ="#8C8C8C">*        ---&gtEinzelzeilen</font>
+  ezminsize_detail_icon(3) TYPE n VALUE '2', "Detail-Ikone
+  ezminsize_dat00(3)       TYPE n VALUE '10', "Datum
+  ezminsize_delb0(3)       TYPE n VALUE '7', "Bez.
+  ezminsize_extra(3)       TYPE n VALUE '5',                  "3. Spalte
+  ezminsize_auskt(3)       TYPE n VALUE '2', "Ausnahmemeld
+  ezminsize_mng01(3)       TYPE n VALUE '20', "Zugang
+  ezminsize_mng02(3)       TYPE n VALUE '20', "Verfügbare Menge
+  ezminsize_verid(3)       TYPE n VALUE '0', "Fertigungsversion
+  ezminsize_sernr(3)       TYPE n VALUE '0', "Seriennummer
+  ezminsize_revlv(3)       TYPE n VALUE '0', "Revisionsstand
+  ezminsize_mnaus(3)       TYPE n VALUE '0', "Ausschuss
+  ezminsize_dat03(3)       TYPE n VALUE '0', "Eröffnungstermin
+  ezminsize_dat02(3)       TYPE n VALUE '0', "Starttermin
+  ezminsize_esobs(3)       TYPE n VALUE '0', "Sonderbeschaffungsart
+  ezminsize_sobes(3)       TYPE n VALUE '0', "Sonderbeschaffungsart
+  ezminsize_wrk01(3)       TYPE n VALUE '0', "Prodwerk
+  ezminsize_wrk02(3)       TYPE n VALUE '0', "Umlwerk
+  ezminsize_lgort(3)       TYPE n VALUE '0', "Produktionslagerort
+  ezminsize_umdat(3)       TYPE n VALUE '0', "Umterminierungsdatum
+  ezminsize_lifnr(3)       TYPE n VALUE '0', "Lieferantennummer
+  ezminsize_md4li(3)       TYPE n VALUE '0', "Lieferantenname
+  ezminsize_kunnr(3)       TYPE n VALUE '0', "Kundennummer
+  ezminsize_md4kd(3)       TYPE n VALUE '0', "Kundenname
+  ezminsize_tramg(3)       TYPE n VALUE '0', "Transitbestand
+  ezminsize_usex1(3)       TYPE n VALUE '0', " User-Exit Feld 1
+  ezminsize_usex2(3)       TYPE n VALUE '0', " User-Exit Feld 2
+  ezminsize_usex3(3)       TYPE n VALUE '0', " User-Exit Feld 3
+  ezminsize_univ1(3)       TYPE n VALUE '0', " Universalfeld1
+  ezminsize_univ2(3)       TYPE n VALUE '0', " Universalfeld2
+  ezminsize_univ3(3)       TYPE n VALUE '0'. " Universalfeld3
+
+
+
+<font color ="#8C8C8C">*---&gt Mögliche Werte von MDST-ANZEI / Aktueller Screen in Dispoliste</font>
+CONSTANTS:
+  ez_activ     LIKE mdst-anzei VALUE 'EZ',     "Einzelzeilen Screen
+  ps_activ     LIKE mdst-anzei VALUE 'PS',     "Periodensummen Screen
+  pe_activ     LIKE mdst-anzei VALUE 'PE',     "Per.Ez Splitscreen
+  err_activ    LIKE mdst-anzei VALUE 'ERR',    "Dispoabbruch
+  ezi_activ    LIKE mdst-anzei VALUE 'EZI',    "Ez Screen / interaktiv
+  psi_activ    LIKE mdst-anzei VALUE 'PSI',    "Ps Screen / interaktiv
+  ezsi_activ   LIKE mdst-anzei VALUE 'EZSI',   "Ez Split interactiv
+  pssi_activ   LIKE mdst-anzei VALUE 'PSSI',   "Ps Split interactiv
+  psezsi_activ LIKE mdst-anzei VALUE 'PSEZSI', "Ps + Ez Split interactiv
+  vrgli_activ  LIKE mdst-anzei VALUE 'VRGLI',  "ListVergleich interactiv
+  vrg_activ    LIKE mdst-anzei VALUE 'VGL'  ,  "Listvergleich
+  vrge_activ   LIKE mdst-anzei VALUE 'VGLE'.   "ListVergleich Splitsc.
+<font color ="#8C8C8C">*---&gt Dynpros für Dispolisten (MD04/MD05)</font>
+CONSTANTS:
+  sc100(4) TYPE c VALUE '0100',     "Tree-Arbeitsvorrat
+  sc200(4) TYPE c VALUE '0200',     "Tree-Auftrag
+  sc300(4) TYPE c VALUE '0300',     "Tree-Produktgruppe
+  sc710(4) TYPE c VALUE '0710',     "Rahmenscreen kleiner Kopf
+  sc720(4) TYPE c VALUE '0720',     "Rahmenscreen großer Kopf
+  sc730(4) TYPE c VALUE '0730',     "Rahmenscreen Splitscreen Ps/Ez
+  sc750(4) TYPE c VALUE '0750',     "Einzelzeilenscreen
+  sc760(4) TYPE c VALUE '0760',     "Periodensummenscreen
+  s1100(4) TYPE c VALUE '1100',     "Screen mit Material-Tree
+  s1110(4) TYPE c VALUE '1110',     "Tree-Arbeitsvorrat
+  s1120(4) TYPE c VALUE '1120',     "Tree-Auftrag
+  s1130(4) TYPE c VALUE '1130'.     "Tree-Produktgruppe
+
+<font color ="#8C8C8C">*---&gt MaterialTree-Tabstrips (MD04/MD05)</font>
+CONSTANTS:
+  mtree1(1) TYPE c VALUE '1',       "Arbeitsvorrat/Historie
+  mtree2(1) TYPE c VALUE '2',       "Auftrag/Verursacher
+  mtree3(1) TYPE c VALUE '3'.       "Produktugruppe
+
+<font color ="#8C8C8C">*---&gt Sortierung von Kundeneinzelabschnitten</font>
+CONSTANTS:
+  datum TYPE c VALUE 'D',           "Sortierung nach Datum
+  nummr TYPE c VALUE 'N'.           "Sortierung nach Nummer
+<font color ="#8C8C8C">*---&gt Uebernahme fix. Planauftraege</font>
+CONSTANTS:
+  mrp2ltp(1) TYPE c VALUE '1',           "BedPlan. -&gt Langfristplan.
+  ltp2mrp(1) TYPE c VALUE '2'.           "Lamgfristplan. -&gt BedPlan.
+
+DATA:
+  const_noatp TYPE c VALUE ' '.           "Versorgung ATP-Puffer
+<font color ="#8C8C8C">* const_noatp type c value 'X'.           "keine Versorgung ATP-Puffer</font>
+
+<font color ="#8C8C8C">*---&gt Fixierungslogik im KD-Einzel-, Projekteinzelabschnitt</font>
+CONSTANTS:
+  fixloj TYPE c VALUE 'J',        "Fixierungslogik aktiv
+  fixlon TYPE c VALUE 'N',        "Fixierungslogik nicht aktiv
+  kndfix TYPE c VALUE fixloj,     "Fixierungslogik in KD-Einzel
+  profix TYPE c VALUE fixloj.     "Fixierungslogik in Proj.-Einzel
+
+<font color ="#8C8C8C">*---&gt Planungsszenario 'operative Planung'</font>
+CONSTANTS:
+      plscn_empty(3) TYPE n VALUE '000'.
+
+<font color ="#8C8C8C">*@004-Begin</font>
+<font color ="#8C8C8C">*     Definition der verschieden strukturierten Artikel</font>
+CONSTANTS:
+  c_mat_sammel(2)  TYPE c VALUE '01',
+  c_mat_set(2)     TYPE c VALUE '10',
+  c_mat_lot(2)     TYPE c VALUE '11',
+  c_mat_display(2) TYPE c VALUE '12'.
+CONSTANTS:
+      c_bflme_kolli    TYPE c VALUE '3'.
+<font color ="#8C8C8C">*@004-Begin</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*        Strukturen fuer Memory-Id bei EXPORT/IMPORT</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+
+DATA:
+<font color ="#8C8C8C">*--&gt Memory-ID fuer aktuelles Aufloesungsergebnis (MDPM)</font>
+  BEGIN OF memid_mdpmi,
+    prefix(5) TYPE c VALUE 'MDPMI',
+    rsnum     LIKE plaf-rsnum,
+  END OF memid_mdpmi,
+<font color ="#8C8C8C">*--&gt Memory-ID fuer altes Aufloesungsergebnis (Bedarfssummierung)</font>
+  BEGIN OF memid_mdpmz,
+    prefix(5) TYPE c VALUE 'MDPMZ',
+    plnum     LIKE plaf-plnum,
+  END OF memid_mdpmz,
+<font color ="#8C8C8C">*--&gt Memory-ID fuer MDSBI</font>
+  BEGIN OF memid_mdsbi,
+    prefix(5) TYPE c VALUE 'MDSBI',
+    rsnum     LIKE plaf-rsnum,
+  END OF memid_mdsbi.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*       Einleseregel und Anzeigefilter MD04</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+CONSTANTS:
+  fmod_neg TYPE c VALUE ' ',                " nicht anzeigen
+  fmod_anz TYPE c VALUE '1',                " anzeigen
+  fmod_vrf TYPE c VALUE '2'.                " anzeigen und verfüg.wirk.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*        Druckreport ALV</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+CONSTANTS:
+  pmod_ovv_bbl  TYPE c VALUE '1',            "MD07-Aufruf
+  pmod_ovv_dl   TYPE c VALUE '2',            "MD06-Aufruf
+  pmod_ovv_pl   TYPE c VALUE '3',            "Planungsergebnis Übersicht
+  pmod_det_bbl  TYPE c VALUE '4',            "MD04-Aufruf
+  pmod_det_dl   TYPE c VALUE '5',            "MD05-Aufruf
+  pmod_det_pl   TYPE c VALUE '6',            "MD02/MD03 - Aufruf
+  pmod_det_bblg TYPE c VALUE '7'.            "MD04-Aufruf für Mat.gruppierung
+
+"MS02/MS03 - Aufruf
+"MD41/MD42/MD43 - Aufruf.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*        BBL mit Materialgruppierung</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+CONSTANTS:                        "MDZGD or MDST: Material Grouping
+  gl_inact TYPE mdzgd VALUE '  ',       "inaktiv
+  gl_einzp TYPE mdzgd VALUE 'EP',       "Einzelprodukt
+  gl_apoek TYPE mdzgd VALUE 'AE',       "APO INC Ersetzungskette
+  gl_prodg TYPE mdzgd VALUE 'PG',       "Produktgruppe
+  gl_wuebz TYPE mdzgd VALUE 'WU',       "Werksübergreifender Zugang
+  gl_intpl TYPE mdzgd VALUE 'IP',       "Intra-Werksübersicht
+  gl_kundg TYPE mdzgd VALUE 'Z1'.       "Kundenspezifische Gruppierung
+
+CONSTANTS:
+  "Benutzereinstellung für Sichbarkeit des Tabreiters für Sammlungen
+  gl_auto  TYPE mdats VALUE space,
+  gl_immer TYPE mdats VALUE 'I',
+  gl_nie   TYPE mdats VALUE 'N'.
+
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*  Anzeigehorizont Optionen</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+CONSTANTS:
+  start_zero TYPE c VALUE ' ',             "von Anfang an
+  start_akt  TYPE c VALUE '1',             "heute minus x Tage
+<font color ="#8C8C8C">*  start_mon  type c value '2',             "Anfang akt. Monat</font>
+  start_user TYPE c VALUE '3',             "benutzerdefiniert
+  enddt_all  TYPE c VALUE ' ',             "ohne Begrenzung
+  enddt_akt  TYPE c VALUE '1',             "heute plus x Tage
+  enddt_gwbz TYPE c VALUE '2',             "heute plus GWBZ plus x Tage
+  enddt_user TYPE c VALUE '3'.             "benutzerdefiniert
+<font color ="#8C8C8C">*  enddt_mon  type c value '3'.            "Ende akt. Monat</font>
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*  Navigation/Positionierung MD04</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*--&gt memory-ID for global memory</font>
+
+DATA: BEGIN OF md_memid_pos,
+        delkz LIKE mdps-delkz,
+        delnr LIKE mdps-delnr,
+        del12 LIKE mdps-del12,
+        delps LIKE mdps-delps,
+        delet LIKE mdps-delet,
+      END OF md_memid_pos.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*  Status information - BOM explosion</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+CONSTANTS:
+  staex_ippe(2)  TYPE c VALUE '01',       "alt. expl. (IPPE) active
+  staex_exsgt(2) TYPE c VALUE '02'.       "bulk material excluded
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">* Kanban</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*--&gt constants for T450N-TCODE</font>
+CONSTANTS:
+  pkunl LIKE sy-tcode VALUE 'PK09',     "unlock kanbans
+  pkevl LIKE sy-tcode VALUE 'PK18',     "evaluation
+  pkprn LIKE sy-tcode VALUE 'PK17'.     "collective kanban print
+
+<font color ="#8C8C8C">*--&gt Simplification S4H --&gt no VERTI/VERTO anymore</font>
+CONSTANTS:
+  gv_distr_allowed TYPE c VALUE 'X'.    "no distribution in S4H (activated again with note 2364285)
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">* Demand-Driven Replenishment</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+CONSTANTS:
+  gc_max_prio TYPE pph_plan_priority VALUE '999.99',
+  gc_min_prio TYPE pph_plan_priority VALUE '999.99-'.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">* Time-dependent Safety Stock</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------</font>
+CONSTANTS:
+  gc_min_delnr TYPE delnr VALUE '0000000000'.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

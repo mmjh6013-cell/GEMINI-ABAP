@@ -1,0 +1,94 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XI10_DO_MRP_PARALLEL</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XI10_DO_MRP_PARALLEL</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* MRP-Planungslauf parallel                                            *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000597"></div>
+MODULE do_mrp_parallel INPUT.
+  CHECK rm61x-paral = xflag.
+
+<font color ="#8C8C8C">*--&gt INITIALISIERUNGEN</font>
+<font color ="#8C8C8C">*--&gt Tabelle mit Destinations lesen</font>
+  PERFORM <a href ="javascript:Link('MM61XF40_FILL_TASKX.html?id=#000000000253');">fill_taskx</a>.
+
+<font color ="#8C8C8C">*--&gt Steuer-KZ TRANSAKTION</font>
+<font color ="#8C8C8C">*--&gt Kommunikationsaerea fuer Transaktion erstellen</font>
+  PERFORM <a href ="javascript:Link('MM61XF30_ERSTELLEN_CM61X.html?id=#000000000193');">erstellen_cm61x</a>.
+<font color ="#8C8C8C">*--&gt ATP initialisieren bzw. Puffer deaktivieren, falls CM61X-ATPDA = X</font>
+  PERFORM <a href ="javascript:Link('MM61XF31_ATP_INITIALIZE.html?id=#000000000196');">atp_initialize</a>.
+<font color ="#8C8C8C">*--&gt Parallel-Statistik initialisieren / Startzeitpunkt</font>
+  PERFORM beginn_statistik.
+<font color ="#8C8C8C">*--&gt Initialization</font>
+  PERFORM <a href ="javascript:Link('MM61XF88_MRP_RUN_INIT.html?id=#000000000404');">mrp_run_badi_init</a>.
+
+<font color ="#8C8C8C">*--&gt WERKSDATEN</font>
+<font color ="#8C8C8C">*--&gt Werksuebergr. Planung : Tabelle mit Werken lesen</font>
+  PERFORM <a href ="javascript:Link('MM61XF40_CHECK_MULTI_PLANT.html?id=#000000000248');">check_multi_plant</a>.
+<font color ="#8C8C8C">*--&gt Planung VM-Tabelle DBVM aktiv/inaktiv</font>
+  PERFORM <a href ="javascript:Link('MM61XDBR_READ_T000MD.html?id=#000000000138');">read_t000md</a>.
+<font color ="#8C8C8C">*--&gt Check on Existence of Plant MRP Areas</font>
+  PERFORM check_mdlw_exist IN PROGRAM saplmrp1.
+<font color ="#8C8C8C">*--&gt Planungswerk bzw. Planungsumfang einlesen</font>
+  PERFORM <a href ="javascript:Link('MM61XF40_FILL_PLANTX.html?id=#000000000252');">fill_plantx</a>.
+
+  LOOP AT plantx.
+<font color ="#8C8C8C">*--&gt Aktuelles Werk zuweisen</font>
+    PERFORM assign_plant.
+<font color ="#8C8C8C">*--&gt Kommunikationsaerea -Werksebene- erstellen</font>
+    CALL FUNCTION 'MD_READ_PLANT'
+      EXPORTING
+        ewerks = cm61x-werks
+        ecm61x = cm61x
+      IMPORTING
+        icm61w = cm61w
+        it399d = t399d
+      EXCEPTIONS
+        error  = 1.
+    IF sy-subrc &gt 0.
+      MESSAGE ID sy-msgid TYPE 'A' NUMBER sy-msgno
+              WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ENDIF.
+<font color ="#8C8C8C">*--&gt Planungslauf sperren</font>
+    PERFORM enqueue_mrp_run USING cm61x-plobj            "MRP-Lauf
+                                  cm61x-plscn            "=SPACE
+                                  cm61x-werks
+                                  plantx-berid.
+  ENDLOOP.                                        "PLANTX
+<font color ="#8C8C8C">*--&gt Werksunabh. Pre-Read DB-Tabellen</font>
+  CALL FUNCTION 'MD_MRP_PREREAD'
+    TABLES
+      nread_tab = nread.
+
+<font color ="#8C8C8C">*--&gt MATERIALVORMERKUNGEN</font>
+<font color ="#8C8C8C">*--&gt Initialisierung des Set-Keys MDVM/DMVM</font>
+  PERFORM init_set_key.
+<font color ="#8C8C8C">*--&gt Materialvormerkungen lesen</font>
+  PERFORM <a href ="javascript:Link('MM61XMDV_MDMMX_FILL.html?id=#000000000698');">mdmmx_fill</a>.
+  mdmmx_tindx = 1.
+  CLEAR new_level_flag.
+  IF NOT mdmmx[] IS INITIAL.
+    rm61x-disst = mdmmx-disst.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt Dispatcher-Dynpro aufrufen</font>
+  CALL SCREEN <a href ="javascript:Link('0400.html?id=#000000000942');">400</a>.                   "DYNPR-DISPATCHER.
+
+ENDMODULE.                    "DO_MRP_PARALLEL INPUT
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

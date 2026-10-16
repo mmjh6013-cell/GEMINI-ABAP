@@ -1,0 +1,74 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XC02_READ_MT61D</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XC02_READ_MT61D</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Lesen Tabelle MT61D                                                  *</font>
+<font color ="#8C8C8C">* SY-SUBRC muss vom Aufrufer interpretiert werden !</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000059"></div>
+FORM READ_MT61D USING MATNR LIKE MARC-MATNR
+                      WERKS LIKE MARC-WERKS
+                      BERID LIKE MDLV-BERID.
+
+  DATA: lv_subrc LIKE sy-subrc,
+        lv_mat_subrc LIKE sy-subrc.
+
+  CALL FUNCTION 'MD_READ_MATERIAL_SIMPLE'
+       EXPORTING
+            EWERKS                      = WERKS
+            EMATNR                      = MATNR
+            EBERID                      = BERID
+       CHANGING
+            CMT61D                      = MT61D
+            CCM61B                      = CM61B
+       EXCEPTIONS
+            MATERIAL_MRP_AREA_NOT_FOUND = 1
+<font color ="#8C8C8C">*           missing_parameter           = 2</font>
+            MATERIAL_PLANT_NOT_FOUND    = 3
+            MATERIAL_MRP_AREA_DELETED   = 4.
+<font color ="#8C8C8C">*--&gt SY-SUBRC wird vom Aufrufer interpretiert (sollte spaeter auf</font>
+<font color ="#8C8C8C">*--&gt Form-Parameter umgestellt werden.)</font>
+  lv_mat_subrc = sy-subrc.
+
+<font color ="#8C8C8C">*--&gt Fixierungshorizont aus Dispogruppe für gr. Kopf  "HW 539995</font>
+  IF mt61d-fxhor IS INITIAL.
+<font color ="#8C8C8C">*--&gt Tabelle T438M lesen und Daten übernehmen</font>
+    IF cm61b-berty IS INITIAL                       "note 592614
+    OR cm61b-berty EQ k_werk.
+      PERFORM <a href ="javascript:Link('MM61XC02_ERROR_HANDLING.html?id=#000000000050');">read_t438mi</a> USING werks mt61d-disgr
+                                t438m lv_subrc.
+    ELSE.
+      PERFORM <a href ="javascript:Link('MM61XC02_ERROR_HANDLING.html?id=#000000000050');">read_t438mi</a> USING werks cm61b-disgr
+                                t438m lv_subrc.
+    ENDIF.
+    IF lv_subrc EQ 0.
+<font color ="#8C8C8C">*--&gt Dispogruppe in Kopf übernehmen</font>
+      mt61d-fxhor = t438m-fixhz.
+    ENDIF.
+  ENDIF.
+  sy-subrc = lv_mat_subrc.
+
+<font color ="#8C8C8C">*--&gt Steuerzeichen für Bedarfszusammenfassung setzen</font>
+  IF MT61D-KZBED IS INITIAL.
+    CLEAR MDST-SBZKZ.
+  ELSE.
+    MDST-SBZKZ = XFLAG.
+  ENDIF.
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

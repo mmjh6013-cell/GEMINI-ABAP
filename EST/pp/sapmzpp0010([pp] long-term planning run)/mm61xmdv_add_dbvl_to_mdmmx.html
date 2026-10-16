@@ -1,0 +1,109 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XMDV_ADD_DBVL_TO_MDMMX</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XMDV_ADD_DBVL_TO_MDMMX</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  ADD_DBVL_TO_MDMMX</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*      --&gtDBVL  text</font>
+<font color ="#8C8C8C">*      &lt--PORTRC  text</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000685"></div>
+FORM ADD_DBVL_TO_MDMMX USING
+                         DBVL STRUCTURE DBVL       "Arbeitsbereich
+                       CHANGING
+                         P_MATNR LIKE AM61X-MATNR  "Zeiger Mat.VM
+                         PORTRC LIKE AM61X-RCODE.  "Paketende-Check
+  STATICS:
+    MATNR_OLD LIKE CM61D-MATNR.        "Vorhergehende Materialnummer
+<font color ="#8C8C8C">*@001-Begin</font>
+<font color ="#8C8C8C">* Kennung, ob Material gelistet ist</font>
+  DATA: L_KZGELISTET       TYPE C.
+<font color ="#8C8C8C">*@001-End</font>
+  DATA:    PARMX   LIKE MDMM-PARMX.    "No. of tasks per material
+
+<font color ="#8C8C8C">*--&gt Return-Code zuruecksetzen</font>
+  MOVE CHAR0 TO PORTRC.
+
+<font color ="#8C8C8C">*--&gt Aktuelles Material zuweisen</font>
+  MOVE DBVL-DISST TO AM61X-DISST.
+  MOVE DBVL-MATNR TO AM61X-MATNR.
+  MOVE DBVL-BERID TO AM61X-BERID.
+<font color ="#8C8C8C">*--&gt Werk zu Dispobereich bestimmen</font>
+<font color ="#8C8C8C">* READ TABLE PLANTX WITH KEY BERID = AM61X-BERID.          "NOTE 356566</font>
+<font color ="#8C8C8C">*      TODO LATER : Performance!!                          "NOTE 356566</font>
+<font color ="#8C8C8C">* MOVE PLANTX-PLWRK TO AM61X-WERKS.                        "NOTE 356566</font>
+  DATA: L_MDLV LIKE MDLV.                                  "NOTE 356566
+  PERFORM <a href ="javascript:Link('MM61XDBR_READ_MDLV.html?id=#000000000136');">READ_MDLV</a> USING    AM61X-BERID                   "NOTE 356566
+                    CHANGING L_MDLV.                       "NOTE 356566
+  MOVE L_MDLV-WERZG TO AM61X-WERKS.                        "NOTE 356566
+
+
+<font color ="#8C8C8C">*--&gt Paketbildung: Paketgrössen-Check</font>
+<font color ="#8C8C8C">*--&gt Pakete bilden mit Groesse psize + Rest desselben Materials</font>
+  IF  AM61X-FLP01 GE PSIZE
+  AND AM61X-MATNR NE MATNR_OLD.
+    MOVE CHAR1 TO PORTRC.
+    EXIT.
+  ENDIF.
+
+<font color ="#8C8C8C">*==&gt MDMMX fuellen</font>
+  CLEAR MDMMX.
+  MOVE AM61X-WERKS  TO MDMMX-PLWRK.
+  MOVE AM61X-DISST  TO MDMMX-DISST.
+  MOVE AM61X-MATNR  TO MDMMX-MATNR.
+<font color ="#8C8C8C">* IF NOT T000MD-DISFG IS INITIAL.                          "NOTE 356566</font>
+    MOVE AM61X-BERID  TO MDMMX-BERID.                      "NOTE 356566
+<font color ="#8C8C8C">* ENDIF.                                                   "NOTE 356566</font>
+  MOVE DBVL-RESDT   TO MDMMX-RESDT.
+  MOVE DBVL-RESAL   TO MDMMX-RESAL.
+
+  IF  rm61x-paral EQ xflag
+  AND NOT gv_ltp_parallel_intramat IS INITIAL.
+<font color ="#8C8C8C">*--&gt Customer logic: identifiying MTO materials with long run times</font>
+    CLEAR parmx.
+    PERFORM <a href ="javascript:Link('MM61XMDV_CHECK_MAT_PARALLEL.html?id=#000000000692');">check_mat_parallel</a> USING    mdmmx-plwrk
+                                        mdmmx-matnr
+                               CHANGING parmx.
+<font color ="#8C8C8C">*--&gt Einfügen Materialvormerkung Intramaterial-Parallelization</font>
+    IF parmx GT 0.
+      mdmmx-parmx = parmx.
+      mdmmx-parct = 0.
+      DO parmx TIMES.
+        APPEND mdmmx.
+        mdmmx-parct = mdmmx-parct + 1.
+      ENDDO.
+      CLEAR mdmmx-parct.
+    ELSE.
+      APPEND MDMMX.
+    ENDIF.
+  ELSE.
+<font color ="#8C8C8C">*--&gt Einfügen Materialvormerkung Standard</font>
+    APPEND MDMMX.
+  ENDIF.
+
+<font color ="#8C8C8C">*--&gt  Zähler MDMMX-Eintraege</font>
+  AM61X-FLP01 = AM61X-FLP01 + 1.       "Zaehler hochsetzen
+<font color ="#8C8C8C">*--&gt Materialnummer merken</font>
+  MOVE MDMMX-MATNR TO P_MATNR.         "Zeiger gelesene Mat. DBVM
+  MOVE MDMMX-MATNR TO MATNR_OLD.       "Vorgängermat. Materialblock
+
+ENDFORM.                               " ADD_DBVL_TO_MDMMX
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

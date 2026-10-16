@@ -1,0 +1,181 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZPP_COMPONENT_CHECK</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZPP_COMPONENT_CHECK</b></font>
+<hr>
+<pre width="100">
+FUNCTION zpp_component_check.
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*"*"Local Interface:</font>
+<font color ="#8C8C8C">*"  IMPORTING</font>
+<font color ="#8C8C8C">*"     VALUE(IV_MATNR) TYPE  MATNR</font>
+<font color ="#8C8C8C">*"     VALUE(IV_WERKS) TYPE  WERKS_D</font>
+<font color ="#8C8C8C">*"  EXPORTING</font>
+<font color ="#8C8C8C">*"     VALUE(ES_REPLY) TYPE  ZPPS0070</font>
+<font color ="#8C8C8C">*"  TABLES</font>
+<font color ="#8C8C8C">*"      IT_TABLE STRUCTURE  ZPPS0060</font>
+<font color ="#8C8C8C">*"      ET_TABLE STRUCTURE  ZPPS0080 OPTIONAL</font>
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+
+<font color ="#8C8C8C">*       <a href ="global-zpp_component_check.html">Global data declarations</a></font>
+  DATA : BEGIN OF ls_head,
+           matnr TYPE matnr,
+           werks TYPE werks_d,
+           bklas TYPE bklas,
+           beskz TYPE beskz,
+           sobsl TYPE sobsl,
+         END OF ls_head.
+
+
+<font color ="#8C8C8C">*-- "01. HEAD ### GET</font>
+  SELECT SINGLE
+         a1~bklas,
+         a2~beskz, a2~sobsl
+    FROM  mbew AS a1 LEFT JOIN marc AS a2
+                            ON a1~matnr EQ a2~matnr
+                           AND a1~bwkey EQ a2~werks
+   WHERE a1~matnr = @iv_matnr
+     AND a1~bwkey = @iv_werks
+    INTO ( @ls_head-bklas, @ls_head-beskz, @ls_head-sobsl ).
+
+  ls_head-matnr = iv_matnr.
+  ls_head-werks = iv_werks.
+
+
+  "MBEW, MARC #### CHECK
+  IF ls_head-bklas IS INITIAL OR ls_head-beskz IS INITIAL.
+    es_reply-type    = 'E'.
+    es_reply-message = TEXT-m02.
+    EXIT.
+  ENDIF.
+
+
+<font color ="#8C8C8C">****-- "02. check ## ### get "241029 ####</font>
+<font color ="#8C8C8C">*** SELECT *</font>
+<font color ="#8C8C8C">*** FROM ZPPT0080</font>
+<font color ="#8C8C8C">*** WHERE WERKS = @LS_HEAD-WERKS</font>
+<font color ="#8C8C8C">*** AND BKLAS = @LS_HEAD-BKLAS</font>
+<font color ="#8C8C8C">*** AND BESKZ = @LS_HEAD-BESKZ</font>
+<font color ="#8C8C8C">*** AND SOBSL = @LS_HEAD-SOBSL</font>
+<font color ="#8C8C8C">*** ORDER BY C_BKLAS, C_BESKZ, C_SOBSL, C_BEIKZ, C_DUMPS, C_SANKA</font>
+<font color ="#8C8C8C">*** INTO TABLE @DATA(LT_CHK).</font>
+<font color ="#8C8C8C">***</font>
+<font color ="#8C8C8C">*** "## ## #### ## ## CHECK</font>
+<font color ="#8C8C8C">*** IF LT_CHK[] IS INITIAL.</font>
+<font color ="#8C8C8C">*** ES_REPLY-TYPE = 'E'.</font>
+<font color ="#8C8C8C">*** ES_REPLY-MESSAGE = TEXT-M03.</font>
+<font color ="#8C8C8C">*** EXIT.</font>
+<font color ="#8C8C8C">*** ENDIF.</font>
+
+
+<font color ="#8C8C8C">*** "### ######## ### ### ### ( ## ##### ### ) 241029 ## ##</font>
+<font color ="#8C8C8C">*** DELETE LT_CHK WHERE C_DUMPS = 'X' AND C_SANKA = 'X'.</font>
+
+
+
+  "### ## ## CHECK
+  IF it_table[] IS INITIAL.
+    es_reply-type    = 'E'.
+    es_reply-message = TEXT-m01.
+    EXIT.
+
+  ELSE.
+    SORT it_table BY idnrk.
+  ENDIF.
+
+
+<font color ="#8C8C8C">*-- "03. ITEM ### GET</font>
+  DATA(lt_table) = it_table[].
+
+  SELECT a1~idnrk,
+         a1~beikz,
+         upper( a1~dumps ) AS dumps,
+         a1~sanka,
+         a2~bklas,
+         a3~beskz, a3~sobsl,
+         a3~maabc,
+         t1~bkbez, a4~mtart
+    FROM @lt_table AS a1 LEFT  JOIN mara AS a4
+                                 ON a1~idnrk EQ a4~matnr
+                         LEFT  JOIN mbew AS a2
+                                 ON a1~idnrk EQ a2~matnr
+                                AND a2~bwkey EQ @ls_head-werks
+                         LEFT  JOIN marc AS a3
+                                 ON a2~matnr EQ a3~matnr
+                                AND a2~bwkey EQ a3~werks
+                         LEFT  JOIN t025t AS t1
+                                 ON a2~bklas EQ t1~bklas
+                                AND t1~spras EQ @sy-langu
+   ORDER BY idnrk
+    INTO TABLE @DATA(lt_temp).
+
+
+
+  LOOP AT lt_temp INTO DATA(ls_temp).
+    MOVE-CORRESPONDING ls_temp TO et_table.
+
+    IF ls_temp-idnrk IS INITIAL.
+      et_table-type    = 'E' .
+      et_table-message = TEXT-m01.
+    ENDIF.
+
+<font color ="#8C8C8C">* IF LS_TEMP-MAABC EQ GC_Z. "Z # ## ##</font>
+<font color ="#8C8C8C">* ET_TABLE-TYPE = GC_E.</font>
+<font color ="#8C8C8C">* ET_TABLE-MESSAGE = TEXT-M12.</font>
+<font color ="#8C8C8C">* ENDIF.</font>
+
+    IF et_table-mtart NE 'NLAG'.
+      IF et_table-bklas IS INITIAL OR et_table-beskz IS INITIAL.
+        et_table-type    = 'E' .
+        et_table-message = TEXT-m02.
+        APPEND et_table. CLEAR et_table.
+        CONTINUE.
+      ENDIF.
+
+<font color ="#8C8C8C">***"241029 ### ## ### 'E' ## ###### ##</font>
+<font color ="#8C8C8C">*** READ TABLE LT_CHK TRANSPORTING NO FIELDS</font>
+<font color ="#8C8C8C">*** WITH KEY C_BKLAS = ET_TABLE-BKLAS</font>
+<font color ="#8C8C8C">*** C_BESKZ = ET_TABLE-BESKZ</font>
+<font color ="#8C8C8C">*** C_SOBSL = ET_TABLE-SOBSL</font>
+<font color ="#8C8C8C">*** C_BEIKZ = ET_TABLE-BEIKZ</font>
+<font color ="#8C8C8C">*** C_DUMPS = ET_TABLE-DUMPS</font>
+<font color ="#8C8C8C">*** C_SANKA = ET_TABLE-SANKA BINARY SEARCH.</font>
+<font color ="#8C8C8C">*** IF SY-SUBRC NE 0.</font>
+<font color ="#8C8C8C">*** ET_TABLE-TYPE = 'E'.</font>
+<font color ="#8C8C8C">*** ET_TABLE-MESSAGE = TEXT-M03.</font>
+<font color ="#8C8C8C">*** APPEND ET_TABLE. CLEAR ET_TABLE.</font>
+<font color ="#8C8C8C">*** CONTINUE.</font>
+<font color ="#8C8C8C">*** ENDIF.</font>
+    ENDIF.
+
+    IF et_table-type IS INITIAL.
+      et_table-type    = 'S'.
+    ENDIF.
+
+    APPEND et_table. CLEAR et_table.
+  ENDLOOP.
+
+  READ TABLE et_table INTO DATA(ls_table) WITH KEY type = 'E'.
+  IF sy-subrc = 0.
+    es_reply-type    = 'E'.
+    es_reply-message = ls_table-message.
+
+  ELSE.
+    es_reply-type    = 'S'.
+  ENDIF.
+
+ENDFUNCTION.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

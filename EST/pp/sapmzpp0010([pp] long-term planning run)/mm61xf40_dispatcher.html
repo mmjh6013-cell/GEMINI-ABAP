@@ -1,0 +1,90 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF40_DISPATCHER</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF40_DISPATCHER</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       FORM DISPATCHER                                               *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       verteiler fuer parallele Dispo (Dialog oder Batch)            *</font>
+<font color ="#8C8C8C">*---------------------------------------------------------------------*</font>
+<div id="000000000249"></div>
+FORM DISPATCHER CHANGING PLANNING_FINISHED LIKE AM61X-FLG01.
+  DATA: FINISHED_FLAG  LIKE AM61X-FLG01,
+        NLINE LIKE SY-TABIX.
+  CLEAR FINISHED_FLAG.
+
+<font color ="#8C8C8C">*  Beendete Tasks verarbeiten</font>
+  LOOP AT RECVX.
+<font color ="#8C8C8C">*--&gt Statustab. TASKX/WORKX aktualisieren und Statistik fortschreiben</font>
+    PERFORM RECEIVE_ADMIN USING    RECVX
+                          CHANGING MRPSTOP.
+    DELETE RECVX.
+  ENDLOOP.
+<font color ="#8C8C8C">*--&gt Fehlerhaften Saetzen eine zweite Chance geben</font>
+  IF MRPSTOP IS INITIAL.
+    PERFORM <a href ="javascript:Link('MM61XF40_ERROR_TAB.html?id=#000000000251');">ERROR_TAB</a>.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Laufzeit ermitteln</font>
+  RM61X-RTIME = SY-UZEIT - RM61X-SZEIT.
+
+<font color ="#8C8C8C">*--&gt Bei Stopflags alle angefangenen Tasks abwarten</font>
+  IF NOT MRPSTOP IS INITIAL
+  OR NOT CM61X-STOPX IS INITIAL.                          "HW 155335
+     PERFORM <a href ="javascript:Link('MM61XF40_CHECK_ALL_TASKS_FINIS.html?id=#000000000246');">CHECK_ALL_TASKS_FINISHED</a> CHANGING FINISHED_FLAG.
+     IF FINISHED_FLAG EQ XFLAG.
+        PLANNING_FINISHED = XFLAG.
+     ENDIF.
+<font color ="#8C8C8C">*       EXIT.</font>
+  ENDIF.
+<font color ="#8C8C8C">*</font>
+  CHECK MRPSTOP IS INITIAL
+  AND CM61X-STOPX IS INITIAL.                             "HW 155335
+<font color ="#8C8C8C">*                                        "Synchronisation pruefen</font>
+  IF NEW_LEVEL_FLAG EQ XFLAG.
+<font color ="#8C8C8C">*  bei Dispostufenwechsel vorsichtshalber Verbindungen schliessen</font>
+<font color ="#8C8C8C">*  und neu aufbauen, damit interne Tabellen geloescht werden</font>
+    CLEAR KEEPING_TASK.
+    PERFORM <a href ="javascript:Link('MM61XF40_CHECK_ALL_TASKS_FINIS.html?id=#000000000246');">CHECK_ALL_TASKS_FINISHED</a> CHANGING FINISHED_FLAG.
+    IF FINISHED_FLAG &lt&gt XFLAG.
+      EXIT.                            "Synchronisation (warten)
+    ENDIF.
+    IF NEVER_KEEPING_TASK IS INITIAL.
+      KEEPING_TASK = XFLAG.
+    ENDIF.
+  ENDIF.
+<font color ="#8C8C8C">*</font>
+  LOOP AT TASKX WHERE STATU = STATU_FINISHED.
+<font color ="#8C8C8C">*   Naechste(s) Material(ien) disponieren</font>
+<font color ="#8C8C8C">*   Lesen naechste Materialvormerkung(en)</font>
+    PERFORM NEXT_MDMMX_PORTION USING    TSIZE
+                               CHANGING MDMMX_TINDX
+                                        NEW_LEVEL_FLAG.
+    DESCRIBE TABLE CM61D_TAB LINES NLINE.
+    IF NLINE &gt 0.
+      PERFORM CALL_TASK_DISPOSITION.
+    ENDIF.
+    IF NEW_LEVEL_FLAG EQ XFLAG.
+      EXIT.
+    ENDIF.
+  ENDLOOP.
+<font color ="#8C8C8C">*</font>
+  IF NEW_LEVEL_FLAG EQ XFLAG.
+    PERFORM <a href ="javascript:Link('MM61XF40_CHECK_ALL_TASKS_FINIS.html?id=#000000000246');">CHECK_ALL_TASKS_FINISHED</a> CHANGING PLANNING_FINISHED.
+  ENDIF.
+ENDFORM.                               " DISPATCHER
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

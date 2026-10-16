@@ -1,0 +1,266 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZPP_BOM_EXPLOSION -Global</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZPP_BOM_EXPLOSION -Global</b></font>
+<hr>
+<pre width="100">
+FUNCTION-POOL zfgpp01.                      "MESSAGE-ID ..
+
+<font color ="#8C8C8C">* INCLUDE LZFGPP01D...                       " Local class definition</font>
+
+<font color ="#8C8C8C">*       <a href ="global-zpp_bom_explosion -global.html">Global data declarations</a></font>
+
+DATA: gt_bdcdata LIKE TABLE OF bdcdata,
+      gt_msgtab  LIKE TABLE OF bdcmsgcoll,
+      gs_options LIKE ctu_params.
+
+
+CONSTANTS : gc_s VALUE 'S',
+            gc_e VALUE 'E',
+            gc_x VALUE 'X',
+            gc_z VALUE 'Z',
+            gc_o VALUE 'O'.
+
+CONSTANTS : gc_err(30) VALUE icon_led_red,
+            gc_war(30) VALUE icon_led_yellow,
+            gc_suc(30) VALUE icon_led_green.
+
+DATA : go_con_100  TYPE REF TO cl_gui_custom_container,
+       go_alv_100  TYPE REF TO cl_gui_alv_grid,
+       gt_fcat_100 TYPE lvc_t_fcat,
+       gs_fcat_100 TYPE lvc_s_fcat,
+       gs_layo_100 TYPE lvc_s_layo,
+       gt_excl_100 TYPE ui_functions,
+       gs_excl_100 TYPE ui_func.
+
+DATA : gs_bdc    TYPE bdcdata,
+       gt_bdc    LIKE TABLE OF gs_bdc,
+       gt_mestab TYPE TABLE OF bdcmsgcoll,
+       gs_mestab TYPE bdcmsgcoll,
+       gs_params TYPE ctu_params,
+       gv_mode   TYPE ctu_mode.
+
+DATA : BEGIN OF gt_msg OCCURS 0.
+         INCLUDE STRUCTURE bdcmsgcoll.
+DATA :   msg_text(255) TYPE c, "MESSAGE(ERROR,WARING,SUCCESS)
+       END OF gt_msg.
+
+DATA : gv_werks     TYPE aufk-werks,
+       gv_status(1),              " ### ## # ###
+       gv_msg(50).                " ### ## # ###
+
+DATA : BEGIN OF gs_order,
+         aufnr       LIKE aufk-aufnr,
+         matnr       LIKE marc-matnr,
+         meins       LIKE mara-meins,
+         verid       LIKE afpo-verid,
+         gstrp       LIKE afko-gstrp,
+         fg_qty      LIKE afpo-wemng,
+         fg_unit     LIKE afpo-meins,
+         extra_qty   LIKE afpo-wemng,
+         extra_unit  LIKE afpo-meins,
+         total_qty   LIKE afpo-wemng,
+         total_unit  LIKE afpo-meins,
+         normal_qty  LIKE afpo-wemng,
+         normal_unit LIKE afpo-meins,
+         do_qty      LIKE afpo-wemng,
+         do_unit     LIKE resb-erfme,
+         ncm_qty     LIKE afpo-wemng,
+         ncm_unit    LIKE resb-erfme,
+         do_code     LIKE marc-matnr,
+         ncm_code    LIKE marc-matnr,
+         lgort2      LIKE mard-lgort,
+         lgort3      LIKE mard-lgort,
+         status(4),
+       END OF gs_order,
+       gs_order2 LIKE gs_order.          " ## #### #### ###
+
+DATA : BEGIN OF gs_bom.
+         include structure <a href ="zpps0050/dictionary-zpps0050.html">zpps0050</a>.
+DATA : status_text(10),
+         sort_text(1),
+         del_flag(1),
+         d_n_check(1),
+         objnr           TYPE resb-objnr,
+         style           TYPE lvc_t_styl,
+       END OF gs_bom,
+       gt_bom LIKE TABLE OF gs_bom.      " CALC # BOM ###
+
+DATA : gt_bom_2             LIKE TABLE OF zpps0050, " BOM# ### ### ###
+       gv_bom_calc_check(1).  " CALC# ## #### ###
+
+DATA : BEGIN OF gs_doncm_delete,
+         posnr        LIKE resb-posnr,
+         del_check(1), " 2025.09.11 ##
+       END OF gs_doncm_delete,
+       gt_doncm_delete LIKE TABLE OF gs_doncm_delete.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* 2025.09.04 ##</font>
+DATA : go_custom_0110 TYPE REF TO cl_gui_custom_container,
+       go_alv_0110    TYPE REF TO cl_gui_alv_grid,
+       gt_fcat_0110   TYPE lvc_t_fcat,
+       gs_fcat_0110   TYPE lvc_s_fcat,
+       gs_layo_0110   TYPE lvc_s_layo,
+       gs_stbl_0110   TYPE lvc_s_stbl,
+       gt_excl_0110   TYPE ui_functions,
+       gs_excl_0110   TYPE ui_func.
+
+DATA gv_okcode TYPE sy-ucomm.
+
+DATA : BEGIN OF gs_dnpop,
+         posnr LIKE resb-posnr,
+         matnr LIKE marc-matnr,
+         erfmg LIKE resb-erfmg,
+         lgort LIKE resb-lgort,
+       END OF gs_dnpop,
+       gt_dnpop LIKE TABLE OF gs_dnpop.
+
+DATA : BEGIN OF gs_dnpop_info,
+         d_n_check(1),
+         target_qty   LIKE resb-erfmg,
+         target_unit  LIKE resb-erfme,
+         input_qty    LIKE resb-erfmg,
+         input_unit   LIKE resb-erfme,
+         differ_qty   LIKE resb-erfmg,
+         differ_unit  LIKE resb-erfme,
+       END OF gs_dnpop_info.
+
+
+DATA: ok_code TYPE syst_ucomm
+      , gx_root TYPE REF TO cx_root.
+CONSTANTS gc_error_ucomm TYPE syst_ucomm VALUE 'IS_ERROR'.
+
+DATA: go_docking_1100 TYPE REF TO cl_gui_docking_container
+    , go_grid_1100    TYPE REF TO cl_gui_alv_grid
+    , gt_grid_1100    TYPE TABLE OF zpps0010
+    , gt_fcat_1100    TYPE        lvc_t_fcat
+    , gs_layo_1100    TYPE        lvc_s_layo
+    , gt_fnex_1100    TYPE        ui_functions
+    , gs_vari_1100    TYPE        disvariant.
+
+" Popup## DoubleClick ##
+DATA gv_clicked TYPE c . " Y : clicked, N : Not Clicked
+
+<font color ="#8C8C8C">* INCLUDE LZFGPP01D...                       " Local class definition</font>
+
+
+" ################################################################################
+
+" ------- Event Handler -----------------
+FORM form_dbl_click USING e_row e_column .
+
+  DATA ls_grid_1100 LIKE LINE OF gt_grid_1100 .
+  CLEAR ls_grid_1100 .
+  READ TABLE gt_grid_1100 INTO ls_grid_1100 INDEX e_row .
+
+  REFRESH gt_grid_1100[] .
+  APPEND ls_grid_1100 TO gt_grid_1100 .
+
+  gv_clicked = 'Y' .
+
+  LEAVE TO SCREEN 0 .
+
+ENDFORM .
+
+
+CLASS go_handler DEFINITION.
+  PUBLIC SECTION.
+    METHODS :
+      handle_double_click  FOR EVENT double_click OF cl_gui_alv_grid
+        IMPORTING e_row
+                  e_column
+                  es_row_no .
+ENDCLASS.
+
+CLASS go_handler IMPLEMENTATION.
+  METHOD handle_double_click.
+
+    PERFORM form_dbl_click USING  e_row e_column.
+
+  ENDMETHOD.
+
+ENDCLASS.
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* CLASS</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*CLASS GC_HANDLER DEFINITION.</font>
+<font color ="#8C8C8C">*  PUBLIC SECTION.</font>
+<font color ="#8C8C8C">*    CLASS-METHODS :</font>
+<font color ="#8C8C8C">*      ON_DATA_CHANGED_0100 FOR EVENT DATA_CHANGED</font>
+<font color ="#8C8C8C">*                                  OF CL_GUI_ALV_GRID</font>
+<font color ="#8C8C8C">*                           IMPORTING ER_DATA_CHANGED,</font>
+<font color ="#8C8C8C">*      ON_USER_COMMAND_0100 FOR EVENT USER_COMMAND</font>
+<font color ="#8C8C8C">*                                  OF CL_GUI_ALV_GRID</font>
+<font color ="#8C8C8C">*                           IMPORTING E_UCOMM,</font>
+<font color ="#8C8C8C">*      ON_TOOLBAR_0100 FOR EVENT TOOLBAR</font>
+<font color ="#8C8C8C">*                             OF CL_GUI_ALV_GRID</font>
+<font color ="#8C8C8C">*                      IMPORTING E_OBJECT</font>
+<font color ="#8C8C8C">*                                E_INTERACTIVE,</font>
+<font color ="#8C8C8C">*      ON_F4_0100 FOR EVENT ONF4</font>
+<font color ="#8C8C8C">*                        OF CL_GUI_ALV_GRID</font>
+<font color ="#8C8C8C">*                 IMPORTING E_FIELDNAME</font>
+<font color ="#8C8C8C">*                           E_FIELDVALUE</font>
+<font color ="#8C8C8C">*                           ES_ROW_NO</font>
+<font color ="#8C8C8C">*                           ER_EVENT_DATA</font>
+<font color ="#8C8C8C">*                           ET_BAD_CELLS</font>
+<font color ="#8C8C8C">*                           E_DISPLAY,</font>
+<font color ="#8C8C8C">*      ON_DATA_CHANGED_0110 FOR EVENT DATA_CHANGED</font>
+<font color ="#8C8C8C">*                                  OF CL_GUI_ALV_GRID</font>
+<font color ="#8C8C8C">*                           IMPORTING ER_DATA_CHANGED,</font>
+<font color ="#8C8C8C">*      ON_F4_0110 FOR EVENT ONF4</font>
+<font color ="#8C8C8C">*                        OF CL_GUI_ALV_GRID</font>
+<font color ="#8C8C8C">*                 IMPORTING E_FIELDNAME</font>
+<font color ="#8C8C8C">*                           E_FIELDVALUE</font>
+<font color ="#8C8C8C">*                           ES_ROW_NO</font>
+<font color ="#8C8C8C">*                           ER_EVENT_DATA</font>
+<font color ="#8C8C8C">*                           ET_BAD_CELLS</font>
+<font color ="#8C8C8C">*                           E_DISPLAY.</font>
+<font color ="#8C8C8C">*ENDCLASS.</font>
+
+<font color ="#8C8C8C">*CLASS GC_HANDLER IMPLEMENTATION.</font>
+<font color ="#8C8C8C">*  METHOD ON_DATA_CHANGED_0100.</font>
+<font color ="#8C8C8C">*    PERFORM DATA_CHANGED_0100 USING ER_DATA_CHANGED.</font>
+<font color ="#8C8C8C">*  ENDMETHOD.</font>
+<font color ="#8C8C8C">*  METHOD ON_USER_COMMAND_0100.</font>
+<font color ="#8C8C8C">*    PERFORM USER_COMMAND_0100 USING E_UCOMM.</font>
+<font color ="#8C8C8C">*  ENDMETHOD.</font>
+<font color ="#8C8C8C">*  METHOD ON_TOOLBAR_0100.</font>
+<font color ="#8C8C8C">*    PERFORM TOOLBAR_0100 USING E_OBJECT E_INTERACTIVE.</font>
+<font color ="#8C8C8C">*  ENDMETHOD.</font>
+<font color ="#8C8C8C">*  METHOD ON_F4_0100.</font>
+<font color ="#8C8C8C">*    PERFORM ON_F4_0100 USING E_FIELDNAME</font>
+<font color ="#8C8C8C">*                             E_FIELDVALUE</font>
+<font color ="#8C8C8C">*                             ES_ROW_NO</font>
+<font color ="#8C8C8C">*                             ER_EVENT_DATA</font>
+<font color ="#8C8C8C">*                             ET_BAD_CELLS</font>
+<font color ="#8C8C8C">*                             E_DISPLAY.</font>
+<font color ="#8C8C8C">*  ENDMETHOD.</font>
+<font color ="#8C8C8C">*  METHOD ON_DATA_CHANGED_0110.</font>
+<font color ="#8C8C8C">*    PERFORM DATA_CHANGED_0110 USING ER_DATA_CHANGED.</font>
+<font color ="#8C8C8C">*  ENDMETHOD.</font>
+<font color ="#8C8C8C">*  METHOD ON_F4_0110.</font>
+<font color ="#8C8C8C">*    PERFORM ON_F4_0110 USING E_FIELDNAME</font>
+<font color ="#8C8C8C">*                             E_FIELDVALUE</font>
+<font color ="#8C8C8C">*                             ES_ROW_NO</font>
+<font color ="#8C8C8C">*                             ER_EVENT_DATA</font>
+<font color ="#8C8C8C">*                             ET_BAD_CELLS</font>
+<font color ="#8C8C8C">*                             E_DISPLAY.</font>
+<font color ="#8C8C8C">*  ENDMETHOD.</font>
+<font color ="#8C8C8C">*ENDCLASS.</font>
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

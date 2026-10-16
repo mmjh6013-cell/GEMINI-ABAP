@@ -1,0 +1,444 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>LZFGPP01F01</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: LZFGPP01F01</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">***INCLUDE LZFGPP01F01.</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form ORDER_STATUS_CHECK</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt GS_ORDER</font>
+<font color ="#8C8C8C">*&      --&gt LV_ORDER</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000004"></div>
+FORM order_status_check  USING    ps_order LIKE gs_order
+                                  pv_order.
+
+  DATA lv_line TYPE bsvx-sttxt.
+
+  IF gv_werks EQ 'M100'.
+    SELECT SINGLE a~matnr
+      FROM afpo AS a
+     INNER JOIN marc AS b
+             ON a~matnr EQ b~matnr
+            AND a~dwerk EQ b~werks
+            AND b~dispo EQ '100'
+     WHERE a~aufnr EQ @ps_order-aufnr
+       AND a~dwerk EQ @gv_werks
+      INTO @DATA(lv_matnr).
+    IF lv_matnr IS INITIAL.
+      pv_order = 'M'.
+    ENDIF.
+  ENDIF.
+
+  SELECT aufnr,
+         SUM( CASE WHEN bwart EQ '261' THEN erfmg
+                   WHEN bwart EQ '262' THEN erfmg * -1
+                   ELSE 0 END ) AS sum_erfmg
+    FROM aufm
+   WHERE aufnr EQ @gs_order-aufnr
+   GROUP BY aufnr
+    INTO TABLE @DATA(lt_aufm).
+  SORT lt_aufm BY aufnr.
+  IF lt_aufm IS NOT INITIAL.
+    READ TABLE lt_aufm INTO DATA(ls_aufm)
+                       WITH KEY aufnr = gs_order-aufnr
+                       BINARY SEARCH.
+    IF ls_aufm IS NOT INITIAL AND ls_aufm-sum_erfmg &gt 0.
+      pv_order = 'A'.
+    ENDIF.
+  ENDIF.
+
+  SELECT SINGLE objnr
+    FROM aufk
+   WHERE aufnr EQ @gs_order-aufnr
+    INTO @DATA(lv_objnr).
+  IF lv_objnr IS NOT INITIAL.
+    CALL FUNCTION 'STATUS_TEXT_EDIT'
+      EXPORTING
+        objnr            = lv_objnr
+        only_active      = 'X'
+        spras            = sy-langu
+        bypass_buffer    = 'X'
+      IMPORTING
+        line             = lv_line
+      EXCEPTIONS
+        object_not_found = 1
+        OTHERS           = 2.
+
+    FIND 'PCNF' IN lv_line.
+    IF sy-subrc EQ 0.
+
+    ELSE.
+      FIND 'CNF' IN lv_line.
+      IF sy-subrc EQ 0.
+        pv_order = 'C'.
+      ENDIF.
+    ENDIF.
+
+    FIND 'TECO' IN lv_line.
+    IF sy-subrc EQ 0.
+      pv_order = 'T'.
+    ENDIF.
+
+    FIND 'DLFL' IN lv_line.
+    IF sy-subrc EQ 0.
+      pv_order = 'D'.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form GET_BOM_DATA</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000005"></div>
+FORM get_bom_data .
+
+  CLEAR gt_bom.
+
+  SELECT b~posnr, b~matnr AS idnrk,
+         b~erfmg, b~erfme, b~lgort, b~sortf, b~objnr
+    FROM afpo AS a
+   INNER JOIN resb AS b
+           ON a~aufnr EQ b~aufnr
+   WHERE a~aufnr EQ @gs_order-aufnr
+     AND b~xloek IS INITIAL
+    INTO CORRESPONDING FIELDS OF TABLE @gt_bom.
+  SORT gt_bom BY posnr.
+
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* 2025.09.08 ## ##</font>
+  LOOP AT gt_bom ASSIGNING FIELD-SYMBOL(&ltfs_bom1&gt).
+    &ltfs_bom1&gt-sort_text = 'A'.
+  ENDLOOP.
+
+  LOOP AT gt_bom ASSIGNING FIELD-SYMBOL(&ltfs_bom2&gt)
+                 WHERE posnr CA 'D'.
+    &ltfs_bom2&gt-d_n_check = 'D'.
+    &ltfs_bom2&gt-style = VALUE #( BASE &ltfs_bom2&gt-style
+          ( fieldname = 'POSNR'       style = '00100000' )
+          ( fieldname = 'IDNRK'       style = '00100000' )
+          ( fieldname = 'LGORT'       style = '00100000' )
+          ( fieldname = 'ERFMG'       style = '00100000' )
+          ( fieldname = 'ERFME'       style = '00100000' )
+          ( fieldname = 'SORTF'       style = '00100000' )
+        ).
+  ENDLOOP.
+
+  LOOP AT gt_bom ASSIGNING FIELD-SYMBOL(&ltfs_bom3&gt)
+                 WHERE posnr CA 'N'.
+    &ltfs_bom3&gt-d_n_check = 'N'.
+    &ltfs_bom3&gt-style = VALUE #( BASE &ltfs_bom3&gt-style
+          ( fieldname = 'POSNR'       style = '00100000' )
+          ( fieldname = 'IDNRK'       style = '00100000' )
+          ( fieldname = 'LGORT'       style = '00100000' )
+          ( fieldname = 'ERFMG'       style = '00100000' )
+          ( fieldname = 'ERFME'       style = '00100000' )
+          ( fieldname = 'SORTF'       style = '00100000' )
+        ).
+  ENDLOOP.
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+
+  gs_order-status = '@5B@'.
+  MOVE-CORRESPONDING gs_order TO gs_order2.
+
+<font color ="#8C8C8C">*  SELECT DISTINCT POSNR, OBJNR</font>
+<font color ="#8C8C8C">*    FROM RESB</font>
+<font color ="#8C8C8C">*   WHERE AUFNR EQ @GS_ORDER-AUFNR</font>
+<font color ="#8C8C8C">*    INTO TABLE @DATA(LT_RESB).</font>
+<font color ="#8C8C8C">*  SORT LT_RESB BY POSNR.</font>
+<font color ="#8C8C8C">*  LOOP AT GT_BOM ASSIGNING FIELD-SYMBOL(&ltFS_BOM2&gt).</font>
+<font color ="#8C8C8C">*    READ TABLE LT_RESB INTO DATA(LS_RESB)</font>
+<font color ="#8C8C8C">*                       WITH KEY POSNR = &ltFS_BOM2&gt-POSNR</font>
+<font color ="#8C8C8C">*                       BINARY SEARCH.</font>
+<font color ="#8C8C8C">*    IF LS_RESB IS NOT INITIAL.</font>
+<font color ="#8C8C8C">*      &ltFS_BOM2&gt-OBJNR = LS_RESB-OBJNR.</font>
+<font color ="#8C8C8C">*      CLEAR LS_RESB.</font>
+<font color ="#8C8C8C">*    ENDIF.</font>
+<font color ="#8C8C8C">*  ENDLOOP.</font>
+
+  RANGES lr_objnr FOR jest-objnr.
+  SELECT objnr, stat, inact
+    FROM jest
+   WHERE objnr IN ( SELECT objnr
+                      FROM resb
+                     WHERE aufnr EQ @gs_order-aufnr )
+     AND ( stat EQ 'I0013' AND inact IS INITIAL )
+    INTO TABLE @DATA(lt_jest).
+  SORT lt_jest BY objnr.
+  LOOP AT lt_jest INTO DATA(ls_jest).
+    lr_objnr = VALUE #( sign = 'I' option = 'EQ' low = ls_jest-objnr ).
+    APPEND lr_objnr.
+  ENDLOOP.
+
+  IF lr_objnr[] IS NOT INITIAL.
+    DELETE gt_bom WHERE objnr IN lr_objnr.
+    CLEAR : lr_objnr, lt_jest.
+  ENDIF.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form create_fcat_1100</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000006"></div>
+FORM create_fcat_1100 .
+
+  CLEAR gt_fcat_1100.
+  CALL FUNCTION 'LVC_FIELDCATALOG_MERGE'
+    EXPORTING
+      i_structure_name       = 'ZDPPS0070'
+    CHANGING
+      ct_fieldcat            = gt_fcat_1100
+    EXCEPTIONS
+      inconsistent_interface = 1
+      program_error          = 2
+      OTHERS                 = 3.
+  IF sy-subrc &lt&gt 0.
+<font color ="#8C8C8C">*   MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO</font>
+<font color ="#8C8C8C">*     WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.</font>
+  ENDIF.
+
+
+
+  LOOP AT gt_fcat_1100 ASSIGNING FIELD-SYMBOL(&ltls_fcat&gt).
+    &ltls_fcat&gt-col_opt = 'X'.
+
+    CASE &ltls_fcat&gt-fieldname.
+      WHEN 'WERKS'.
+      WHEN 'MATNR'.
+      WHEN 'STOCK'.
+        &ltls_fcat&gt-qfieldname = 'MEINS' .
+        &ltls_fcat&gt-just       = 'R' .
+        &ltls_fcat&gt-decimals   = 3 .
+        &ltls_fcat&gt-decimals_o = 3 .
+        &ltls_fcat&gt-ref_table = 'MARD' .
+        &ltls_fcat&gt-ref_field = 'LABST' .
+      WHEN 'MEINS'.
+      WHEN 'LGORT'.
+      WHEN 'CHARG'.
+      WHEN 'LIFNR'.
+      WHEN 'LIFNR_TXT'.
+      WHEN OTHERS.
+        &ltls_fcat&gt-tech = abap_true.
+    ENDCASE.
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form check_submit_result</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      &lt-- EV_SUBRC</font>
+<font color ="#8C8C8C">*&      &lt-- EV_MESSAGE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000007"></div>
+FORM check_submit_result  USING VALUE(pv_tcode) VALUE(pv_plscn)
+                          CHANGING pv_type
+                                   pv_message.
+
+  DATA: lt_listobject TYPE TABLE OF abaplist,
+        lt_ascii      TYPE TABLE OF char255,
+        lv_success    TYPE abap_bool VALUE abap_true,
+        lv_err_msg    TYPE string.
+
+  CALL FUNCTION 'LIST_FROM_MEMORY'
+    TABLES
+      listobject = lt_listobject
+    EXCEPTIONS
+      not_found  = 1
+      OTHERS     = 2.
+
+  IF sy-subrc &lt&gt 0.
+    pv_type = 'E'.
+    pv_message = |{ pv_plscn } { TEXT-e03 }|.
+    RETURN.
+  ENDIF.
+
+  CALL FUNCTION 'LIST_TO_ASCI'
+    TABLES
+      listasci           = lt_ascii
+      listobject         = lt_listobject
+    EXCEPTIONS
+      empty_list         = 1
+      list_index_invalid = 2
+      OTHERS             = 3.
+
+  CALL FUNCTION 'LIST_FREE_MEMORY'.
+
+  IF sy-subrc &lt&gt 0 OR lt_ascii[] IS INITIAL.
+    pv_type = 'E'.
+    pv_message = |{ pv_tcode } { TEXT-e02 }|.
+    RETURN.
+  ENDIF.
+
+  " 4. ## ## ### # ## ## ##
+  LOOP AT lt_ascii INTO DATA(ls_line).
+    IF ls_line CS 'Error' OR ls_line CS '##' OR ls_line CS 'Aborted'.
+      pv_type = 'E'.
+      pv_message = |{ pv_plscn } { TEXT-e03 }|.
+      EXIT.
+    ENDIF.
+  ENDLOOP.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form get_week</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt &ltFS_PLAY&gt_ZPDAY</font>
+<font color ="#8C8C8C">*&      &lt-- LV_WEEK</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000008"></div>
+FORM get_week_firstday USING pv_day_get
+                       CHANGING pv_day_out pv_week.
+
+  DATA : lv_date_get TYPE scal-date,
+         lv_date_out TYPE scal-date.
+
+  lv_date_get = pv_day_get.
+
+  " ## ## ## ##
+  CALL FUNCTION 'DATE_GET_WEEK'
+    EXPORTING
+      date         = lv_date_get
+    IMPORTING
+      week         = pv_week
+    EXCEPTIONS
+      date_invalid = 1
+      OTHERS       = 2.
+
+  " ### ### ## ##
+  CALL FUNCTION 'WEEK_GET_FIRST_DAY'
+    EXPORTING
+      week         = pv_week
+    IMPORTING
+      date         = lv_date_out
+    EXCEPTIONS
+      week_invalid = 1
+      OTHERS       = 2.
+
+  pv_day_out = lv_date_out.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form dynpro_proc</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&      --&gt P_</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000009"></div>
+FORM dynpro_proc USING fp_dynbegin fp_name fp_value.
+
+  IF fp_dynbegin = gc_x.
+    MOVE : fp_name  TO gs_bdc-program,
+           fp_value TO gs_bdc-dynpro,
+           gc_x      TO gs_bdc-dynbegin.
+  ELSE.
+    MOVE : fp_name  TO gs_bdc-fnam,
+           fp_value TO gs_bdc-fval.
+  ENDIF.
+
+  APPEND  gs_bdc TO gt_bdc.
+  CLEAR   gs_bdc.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form get_bdc_message</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      &lt-- ES_REPLY_TYPE</font>
+<font color ="#8C8C8C">*&      &lt-- ES_REPLY_MESSAGE</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000010"></div>
+FORM get_bdc_message CHANGING pv_type
+                              pv_message.
+
+  DATA : lv_msgnr TYPE t100-msgnr.
+
+  READ TABLE gt_msg INDEX lines( gt_msg[] ).
+
+  SELECT SINGLE msgnr INTO lv_msgnr FROM t100
+         WHERE sprsl = sy-langu
+         AND   arbgb = gt_msg-msgid
+         AND   msgnr = gt_msg-msgnr.
+
+  IF sy-subrc = 0.
+
+    CALL FUNCTION 'MESSAGE_TEXT_BUILD'
+      EXPORTING
+        msgid               = gt_msg-msgid
+        msgnr               = gt_msg-msgnr
+        msgv1               = gt_msg-msgv1
+        msgv2               = gt_msg-msgv2
+        msgv3               = gt_msg-msgv3
+        msgv4               = gt_msg-msgv4
+      IMPORTING
+        message_text_output = pv_message.
+  ELSE.
+    CLEAR pv_message.
+  ENDIF.
+
+  CASE gt_msg-msgtyp.
+    WHEN 'E' OR 'A'.
+      pv_type = 'E'.
+    WHEN 'W' OR 'I'.
+<font color ="#8C8C8C">*      pv_type = 'E'.</font>
+    WHEN 'S' OR ''.
+      pv_type = 'S'.
+  ENDCASE.
+
+ENDFORM.
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& Form set_bdc_options</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*& --&gt  p1        text</font>
+<font color ="#8C8C8C">*& &lt--  p2        text</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<div id="000000000011"></div>
+FORM set_bdc_options .
+
+  CLEAR gs_options.
+  gs_options-dismode  = 'A'.
+  gs_options-nobinpt  = 'X'.
+  gs_options-updmode  = 'S'.
+  gs_options-racommit = 'X'.
+
+ENDFORM.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

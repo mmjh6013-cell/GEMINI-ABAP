@@ -1,0 +1,102 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF88_ERFASSEN_STATISTIK</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF88_ERFASSEN_STATISTIK</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">* Erfassen Statistikdaten                                              *</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000400"></div>
+FORM ERFASSEN_STATISTIK USING RTIME LIKE MDKE-RTIME.
+
+"{ Begin ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+<font color ="#8C8C8C">*  &gt A&D 3.0B , No Stats for MPN Non-LParts</font>
+  CHECK CM61M-PICID &lt&gt '01'.
+<font color ="#8C8C8C">*  &gt End of A&D 3.0B</font>
+"{ End ENHO DIMP_GENERAL_SAPMM61X IS-AD-MPN-MRP AD_MPN_IC }
+
+ENHANCEMENT-POINT ERFASSEN_STATISTIK_01 SPOTS ES_SAPMM61X.
+<font color ="#8C8C8C">*--&gt Anzahl bearbeiteter Materialien</font>
+  RM61X-ANZMT = RM61X-ANZMT + 1.
+<font color ="#8C8C8C">*--&gt Anzahl Materialien mit neuen Ausnahmemeldungen</font>
+  IF MDKP-NAUKZ EQ XFLAG.
+    RM61X-ANZAM = RM61X-ANZAM + 1.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Laufzeitstatistik</font>
+  ADD-CORRESPONDING STATN TO STATS.
+<font color ="#8C8C8C">*--&gt HANA optimization: Include Runtime of Preread once per package</font>
+  IF  cl_pph_mdpsx_selection=&gtget_hana_active( ) = abap_true
+  AND cl_pph_mdpsx_selection=&gtget_hana_selection_triggered( ) = abap_true.
+    IF gv_rtime_pre IS NOT INITIAL.
+      stats-readt = stats-readt + gv_rtime_pre.
+      stats-prereadt = stats-prereadt + gv_rtime_pre.
+      CLEAR gv_rtime_pre.
+    ENDIF.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Materialliste</font>
+  IF rm61x-anzls EQ xflag.
+    IF CM61X-PLAUF EQ MRPMP
+    OR CM61X-PLAUF EQ MPSMP
+    OR CM61X-PLAUF EQ MPSKD
+    OR CM61X-PLAUF EQ MPSPR
+    OR CM61X-PLAUF EQ LFRMP
+    OR CM61X-PLAUF EQ LFRKD
+    OR CM61X-PLAUF EQ LFRPR.
+<font color ="#8C8C8C">*--&gt Kopfdaten in Materialübersicht übernehmen</font>
+      CLEAR MDKEX.
+      MOVE-CORRESPONDING MDKP TO MDKEX.
+      MOVE CM61B-BERID TO MDKEX-BERID.                      "THD
+      MOVE MT61D-BESKZ TO MDKEX-BESKZ.              "note 870806
+<font color ="#8C8C8C">*--&gt convert special procurement type               (note 870806)</font>
+      CALL FUNCTION 'CONVERT_SOBES_OUTPUT'
+           EXPORTING
+                SOBES     = MDKP-SOBES
+           IMPORTING
+                ESOBS     = MDKEX-ESOBS.
+<font color ="#8C8C8C">*--&gt Dispostufe '   ' = '999'.</font>
+      IF MDKEX-DISST EQ SPACE.
+        MOVE '999' TO MDKEX-DISST.
+      ENDIF.
+      MDKEX-RTIME = RTIME.
+      MDKEX-READT = STATN-READT.
+      MDKEX-LOTST = STATN-LOTST.
+      MDKEX-EXPLT = STATN-EXPLT.
+      MDKEX-SCHET = STATN-SCHET.
+      MDKEX-POSTT = STATN-POSTT.
+      MDKEX-MDTBT = STATN-MDTBT.
+      MDKEX-RESBT = STATN-RESBT.
+      MDKEX-ARBPT = STATN-ARBPT.
+      MDKEX-EINZT = STATN-EINZT.
+      PERFORM <a href ="javascript:Link('MM61XF88_INSERT_SORTED_MDKEX.html?id=#000000000402');">INSERT_SORTED_MDKEX</a>.
+<font color ="#8C8C8C">*--&gt Planungsergebnis merken</font>
+      CALL FUNCTION 'MD_STORE_MRP_DATA_IN_MEMORY'
+           EXPORTING
+                IS_MEMID = ID_PH
+                IS_MDKP  = MDKP
+                IS_CM61M = CM61M
+                IS_CM61B = CM61B
+                IS_MDSTA = MDSTA
+                IS_MT61D = MT61D
+                IT_MDPSX = MDPSX[].
+    ELSE.
+      PERFORM WRITE_NEXT_STATISTIK USING CM61D.
+    ENDIF.
+  ENDIF.
+<font color ="#8C8C8C">*--&gt Statistik der TOP-10</font>
+  PERFORM <a href ="javascript:Link('MM61XF88_INSERT_PERFX.html?id=#000000000401');">INSERT_PERFX</a> USING RTIME.
+ENDFORM.                    "ERFASSEN_STATISTIK
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

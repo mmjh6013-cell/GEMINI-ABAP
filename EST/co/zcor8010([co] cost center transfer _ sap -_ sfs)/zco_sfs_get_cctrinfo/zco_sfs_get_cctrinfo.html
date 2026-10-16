@@ -1,0 +1,126 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>ZCO_SFS_GET_CCTRINFO</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: ZCO_SFS_GET_CCTRINFO</b></font>
+<hr>
+<pre width="100">
+FUNCTION zco_sfs_get_cctrinfo.
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+<font color ="#8C8C8C">*"*"Local Interface:</font>
+<font color ="#8C8C8C">*"  IMPORTING</font>
+<font color ="#8C8C8C">*"     VALUE(I_KOKRS) TYPE  KOKRS</font>
+<font color ="#8C8C8C">*"     VALUE(I_BUKRS) TYPE  BUKRS</font>
+<font color ="#8C8C8C">*"     VALUE(I_EXDATE) TYPE  DATUM</font>
+<font color ="#8C8C8C">*"  EXPORTING</font>
+<font color ="#8C8C8C">*"     VALUE(ET_DATA) TYPE  ZCOTT0040</font>
+<font color ="#8C8C8C">*"----------------------------------------------------------------------</font>
+
+<font color ="#8C8C8C">*       <a href ="global-zco_sfs_get_cctrinfo.html">Global data declarations</a></font>
+
+<font color ="#8C8C8C">* PROXY & ## ### ## ##</font>
+  DATA: zcl_proxy TYPE REF TO zcoco_co0030_ao,
+        fault     TYPE REF TO cx_ai_system_fault,
+        zerror    TYPE string.
+
+<font color ="#8C8C8C">* ##/## ### ## ##</font>
+  DATA: zreq     TYPE zcoco0030_send_req_mt,
+        zreq_lin TYPE zcoco0030_send_req_mt_et_data.
+
+<font color ="#8C8C8C">* I/F Log Data</font>
+  DATA: ls_log TYPE  zcot9919.
+
+<font color ="#8C8C8C">*- I/F ##, ## -&gt ##</font>
+  DATA(lv_ifdate) = sy-datum.
+  DATA(lv_iftime) = sy-uzeit.
+
+<font color ="#8C8C8C">*  ls_log-if_key   = lv_ifdate.</font>
+  ls_log-if_date  = lv_ifdate.
+  ls_log-if_time  = lv_iftime.
+  ls_log-if_item  = '1'.
+  ls_log-if_sys   = 'SFS'.
+  ls_log-if_proxy = 'CO0030_AO'.
+  ls_log-if_id    = sy-uname.
+  ls_log-to_dest  = 'Function'.
+
+  SELECT a~kokrs, a~bukrs, a~kostl,
+         a~datab,
+         a~datbi,
+         b~ktext, b~ltext,
+         CASE WHEN a~bkzkp IS NOT INITIAL OR
+                   a~bkzks IS NOT INITIAL OR
+                   a~pkzkp IS NOT INITIAL OR
+                   a~pkzks IS NOT INITIAL
+                THEN 'I'                " I : Inactive
+                ELSE 'A' END AS zccstus " A : Active
+    FROM csks AS a
+    LEFT JOIN cskt AS b
+      ON a~kokrs EQ b~kokrs
+     AND a~kostl EQ b~kostl
+     AND a~datbi EQ b~datbi
+     AND b~spras EQ @sy-langu
+   WHERE a~kokrs EQ @i_kokrs
+     AND a~bukrs EQ @i_bukrs
+     AND @i_exdate BETWEEN a~datab AND a~datbi
+     AND a~datbi EQ '99991231'
+   ORDER BY zccstus, a~kostl
+    INTO CORRESPONDING FIELDS OF TABLE @et_data.
+
+  LOOP AT et_data INTO DATA(ls_data).
+    MOVE-CORRESPONDING ls_data TO zreq_lin.
+    zreq_lin-datab = |{ ls_data-datab(4) }-{ ls_data-datab+4(2) }-{ ls_data-datab+6(2) }T00:00:00|.
+    zreq_lin-datbi = |{ ls_data-datbi(4) }-{ ls_data-datbi+4(2) }-{ ls_data-datbi+6(2) }T23:59:59|.
+    APPEND zreq_lin TO zreq-et_data.
+  ENDLOOP.
+
+<font color ="#8C8C8C">* PROXY ### ##</font>
+  TRY.
+      CREATE OBJECT zcl_proxy.
+<font color ="#8C8C8C">* IS ##</font>
+      CALL METHOD zcl_proxy-&gtco0030_ao
+        EXPORTING
+          input = zreq.
+
+<font color ="#8C8C8C">* ####</font>
+    CATCH cx_ai_system_fault INTO fault.
+      CALL METHOD fault-&gtget_text
+        RECEIVING
+          result = zerror.
+  ENDTRY.
+
+  lv_ifdate = sy-datum.
+  lv_iftime = sy-uzeit.
+
+  ls_log-if_uname    = sy-uname.
+  ls_log-if_sap_date = lv_ifdate.
+  ls_log-if_sap_time = lv_iftime.
+  IF zreq-et_data IS NOT INITIAL.
+    ls_log-if_type     = 'S'.
+    ls_log-if_msg      = |Transmission completed: { lines( zreq-et_data ) }|.
+  ELSE.
+    ls_log-if_type     = 'E'.
+  ENDIF.
+
+  TRY.
+      MODIFY zcot9919 FROM ls_log.
+      COMMIT WORK.
+
+    CATCH cx_sy_open_sql_db INTO DATA(lo_sql_db).
+<font color ="#8C8C8C">*      es_reply-type   = 'E'.</font>
+<font color ="#8C8C8C">*      es_reply-message = lo_sql_db-&gtget_text( ).</font>
+  ENDTRY.
+
+ENDFUNCTION.
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>

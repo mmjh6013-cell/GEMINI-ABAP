@@ -1,0 +1,152 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<html>
+<script language="javascript">
+function Link(url)
+{ location.href=url;}
+location.href=id;
+</script>
+<head>
+<title>MM61XF40_FILL_PLANTX</title>
+</head>
+<body bgcolor="#FFFFE0">
+<font size="3" face = "Arial" color="#000000"><b>Program listing for: MM61XF40_FILL_PLANTX</b></font>
+<hr>
+<pre width="100">
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*&      Form  FILL_PLANTX</font>
+<font color ="#8C8C8C">*&---------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*       Tabelle Planungsumfang : Beteiligte Werke / Dispobereiche</font>
+<font color ="#8C8C8C">*                                und Reihenfolge einlesen</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<font color ="#8C8C8C">*  &lt--  plantx</font>
+<font color ="#8C8C8C">*----------------------------------------------------------------------*</font>
+<div id="000000000252"></div>
+FORM fill_plantx.
+
+  DATA: l_plantx LIKE plantx OCCURS 0
+                 WITH HEADER LINE.
+  DATA: h_plantx LIKE plantx OCCURS 0
+                 WITH HEADER LINE.
+  DATA: l_pucnt  LIKE plantx-pucnt.
+  DATA: l_berid LIKE mdlv-berid,                          "NOTE 356566
+        l_bertx LIKE mdlv-bertx.                          "NOTE 356566
+
+<font color ="#8C8C8C">*--&gt Initialisierung</font>
+  CLEAR plantx. REFRESH plantx.
+  CLEAR l_pucnt.          "Zaehler neue Reihenfolge Planungseinheiten
+
+  IF NOT kz_multi_plant IS INITIAL.
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*==&gt PLANUNG MIT PLANUNGSUMFANG</font>
+<font color ="#8C8C8C">*--&gt Auslesen der beteiligten Werke zum Planungsumfang</font>
+    SELECT puwnr pucnt plwrk berid
+           FROM t439c
+           INTO CORRESPONDING FIELDS OF TABLE l_plantx
+           WHERE puwnr EQ cm61x-puwnr.
+    SORT l_plantx BY pucnt.
+
+    LOOP AT l_plantx.
+<font color ="#8C8C8C">*--&gt  Check: Bedarfsplanung im Werk / Dispobereich aktiv</font>
+<font color ="#8C8C8C">*--&gt  Selektionstabelle Planungsumfang anlegen</font>
+<font color ="#8C8C8C">*      IF T000MD-UDBVM IS INITIAL.</font>
+<font color ="#8C8C8C">**--&gt  Planung mittels MDVM auf Werksebene</font>
+<font color ="#8C8C8C">**--&gt    Check: Bedarfsplanung aktiv</font>
+<font color ="#8C8C8C">*        PERFORM CHECK_MRP_ACTIVE USING L_PLANTX-PLWRK.</font>
+<font color ="#8C8C8C">**--&gt    Selektionstabelle Werke zum Planungsumfang</font>
+<font color ="#8C8C8C">*        PERFORM APPEND_SELPLANTX USING L_PLANTX-PLWRK.</font>
+<font color ="#8C8C8C">*        PERFORM APPEND_PLANTX    USING L_PUCNT</font>
+<font color ="#8C8C8C">*                                       L_PLANTX.</font>
+<font color ="#8C8C8C">**</font>
+<font color ="#8C8C8C">*      ELSE.</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*--&gt  Planung mittels DBVM auf Werksebene bei DISFG blank,</font>
+<font color ="#8C8C8C">*--&gt                       auf Dispober.ebene bei DISFG xflag</font>
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*--&gt    Selektionstabelle Dispobereiche zum Planungsumfang</font>
+      IF NOT l_plantx-plwrk IS INITIAL.
+<font color ="#8C8C8C">*--&gt      Check: Bedarfsplanung aktiv</font>
+        PERFORM check_mrp_active USING l_plantx-plwrk.
+        IF NOT t000md-disfg IS INITIAL.
+<font color ="#8C8C8C">*           Werk zerlegen in Dispobereiche</font>
+          PERFORM select_disparea_for_plant
+                  TABLES  h_plantx
+                  USING   l_plantx-plwrk.
+<font color ="#8C8C8C">*           PLANTX auch Dispobereiche</font>
+          LOOP AT h_plantx.
+            PERFORM append_plantx USING l_pucnt
+                                        h_plantx.
+          ENDLOOP.
+        ELSE.
+<font color ="#8C8C8C">*&gt&gt&gt&gt&gt&gt&gt&gt&gt&gt&gt&gt&gt&gt&gt BEGIN OF INSERTION - NOTE 356566 &lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt</font>
+<font color ="#8C8C8C">*--&gt Planning file entries for MRP-Areas, but no DISFG     "NOTE 356566</font>
+<font color ="#8C8C8C">*--&gt Get MRP-Area for the plant (plant-MRP-Area)</font>
+          PERFORM berid_for_werks USING l_plantx-plwrk
+                               CHANGING l_berid l_bertx.
+<font color ="#8C8C8C">*--&gt Fill SELBERIDX with the plant-MRP-Area for Select DBVM</font>
+          PERFORM append_selberidx USING l_berid.
+<font color ="#8C8C8C">*&gt&gt&gt&gt&gt&gt&gt&gt&gt&gt&gt&gt&gt&gt&gt END OF INSERTION - NOTE 356566 &lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt&lt</font>
+<font color ="#8C8C8C">*           PLANTX auf Werksebene</font>
+          MOVE l_plantx TO plantx.
+          APPEND plantx.
+        ENDIF.
+      ELSEIF NOT l_plantx-berid IS INITIAL.
+<font color ="#8C8C8C">*         Selektionstabelle Dispobereiche zum Planungsumfang</font>
+        PERFORM append_selberidx USING l_plantx-berid.
+<font color ="#8C8C8C">*         Werk und Typ zum Dispobereich lesen</font>
+        PERFORM select_data_for_disparea
+                USING    l_plantx-berid
+                CHANGING l_plantx.
+<font color ="#8C8C8C">*--&gt    Check: Bedarfsplanung aktiv</font>
+        PERFORM check_mrp_active USING l_plantx-plwrk.
+        PERFORM append_plantx USING l_pucnt
+                                    l_plantx.
+      ENDIF.                         "berid
+<font color ="#8C8C8C">*</font>
+<font color ="#8C8C8C">*     ENDIF.                           "t000md-udbvm</font>
+    ENDLOOP.                           "l_plantx
+
+  ELSE.
+<font color ="#8C8C8C">*==&gt PLANUNG EINZELNES WERK</font>
+<font color ="#8C8C8C">*--&gt Übergabe Planungseinheit an CM61X</font>
+    CLEAR cm61x-puwnr.
+<font color ="#8C8C8C">*--&gt Füllen der Werkstabelle PLANTX</font>
+<font color ="#8C8C8C">*   IF NOT t000md-udbvm IS INITIAL.</font>
+<font color ="#8C8C8C">*--&gt Vormerkung über Dispobereiche</font>
+    PERFORM select_disparea_for_plant
+            TABLES   plantx
+            USING    cm61x-werks.
+<font color ="#8C8C8C">*    ELSE.</font>
+<font color ="#8C8C8C">**--&gt Vormerkung über Werk</font>
+<font color ="#8C8C8C">*      CLEAR plantx-puwnr.</font>
+<font color ="#8C8C8C">*      plantx-plwrk = cm61x-werks.</font>
+<font color ="#8C8C8C">*      CLEAR plantx-berid.</font>
+<font color ="#8C8C8C">**--&gt  Check: Bedarfsplanung aktiv</font>
+<font color ="#8C8C8C">*      PERFORM check_mrp_active USING plantx-plwrk.</font>
+<font color ="#8C8C8C">*      PERFORM append_selplantx USING plantx-plwrk.</font>
+<font color ="#8C8C8C">*      APPEND plantx.</font>
+<font color ="#8C8C8C">*   ENDIF.</font>
+  ENDIF.                               "kz_multi_plant
+
+  IF NOT plantx[] IS INITIAL.
+<font color ="#8C8C8C">*--&gt Sortieren PLANTX nach Werk/Dispobereich (binary search)</font>
+    SORT plantx BY plwrk berid.
+  ELSE.
+<font color ="#8C8C8C">*--&gt Planungsumfang leer : ABBRUCH</font>
+    MESSAGE e316(61) WITH rm61x-puwnr.
+  ENDIF.
+<font color ="#8C8C8C">* IF NOT t000md-udbvm IS INITIAL</font>
+  IF t000md-disfg IS INITIAL.
+<font color ="#8C8C8C">*--&gt MDVM converted to DBVM</font>
+    IF selberidx[] IS INITIAL.
+<font color ="#8C8C8C">*--&gt MRP area for plant not found</font>
+      MESSAGE e140(61).
+    ENDIF.
+  ENDIF.
+
+ENDFORM.                               " FILL_PLANTX
+</pre>
+<hr>
+<font size="2" face = "Sans Serif">Extracted by Direct Download Enterprise version 6.20 -ESTABSD. 2003-2004 KO.
+</font>
+</body>
+</html>
